@@ -28,7 +28,10 @@ func hitPlan(tasks []string, deps [][2]string, want []string, wantOK bool) (n in
 		return 0
 	}
 	if !wantOK {
-		return 1
+		if got == nil {
+			return 1
+		}
+		return 0
 	}
 	if eqStrSlice(got, want) {
 		return 1

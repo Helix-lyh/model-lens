@@ -2,7 +2,18 @@ from __future__ import annotations
 
 import pytest
 
-from src.bank import _expand_question, _majority, load_questions, run_bank, salt_prompt, select_questions
+from collections import Counter
+
+from src.bank import (
+    DOMAINS,
+    _expand_question,
+    _majority,
+    _validate_bank,
+    load_questions,
+    run_bank,
+    salt_prompt,
+    select_questions,
+)
 from src.types import CompletionRecord, Question, SampleGrade
 
 
@@ -36,11 +47,17 @@ class FakeClient:
         )
 
 
+def _raw_id(question) -> str:
+    if question.language:
+        return question.id.rsplit("-", 1)[0]
+    return question.id
+
+
 def test_load_questions_size_and_ids() -> None:
     qs = load_questions()
-    raw_count = len([q for q in qs if q.language in (None, "python")])
-    assert 20 <= raw_count <= 60
-    assert {q.domain for q in qs} == {"architecture", "coding", "knowledge", "reasoning"}
+    raw_ids = {_raw_id(q) for q in qs}
+    assert 20 <= len(raw_ids) <= 60
+    assert {q.domain for q in qs} == set(DOMAINS)
     assert {q.difficulty for q in qs} == {"easy", "medium", "hard"}
     for q in qs:
         parts = q.id.split("-")
@@ -52,12 +69,22 @@ def test_load_questions_size_and_ids() -> None:
     coding = [q for q in qs if q.domain == "coding"]
     assert len(coding) == 36
     assert {q.language for q in coding} == {"python", "go", "typescript"}
-    assert raw_count == 48
+    assert len(raw_ids) == 48
     assert len(qs) == 72
+    raw_domains: Counter[str] = Counter()
+    seen: set[str] = set()
+    for q in qs:
+        rid = _raw_id(q)
+        if rid in seen:
+            continue
+        seen.add(rid)
+        raw_domains[q.domain] += 1
+    assert dict(raw_domains) == {domain: 12 for domain in DOMAINS}
     quick = select_questions(qs, "quick")
     full = select_questions(qs, "full")
     assert all(q.difficulty in {"easy", "medium"} for q in quick)
     assert len(full) == len(qs)
+    assert len(quick) == 48
     assert len(quick) < len(full)
     assert load_questions(mode="quick") == quick
 
@@ -87,6 +114,16 @@ def test_quick_one_sample_and_knowledge_alarm() -> None:
     assert all(len(q.samples) == 1 for q in result.questions)
     assert result.knowledge_all_wrong is True
     assert result.knowledge_alarm
+
+
+def test_reasoning_all_wrong_does_not_trip_knowledge_alarm() -> None:
+    qs = [q for q in load_questions() if q.domain == "reasoning"]
+    result = run_bank(FakeClient({}), qs, salt="t", quick=True)
+    assert result.domain_pass0["reasoning"]["judged"] == sum(
+        1 for q in qs if q.difficulty in {"easy", "medium"}
+    )
+    assert result.knowledge_all_wrong is False
+    assert result.knowledge_alarm is None
 
 
 def test_full_mode_four_samples() -> None:
@@ -152,6 +189,48 @@ def test_http_error_is_missing_not_abort() -> None:
     assert result.questions[0].samples[0].status == "missing"
     assert result.domain_pass0["coding"]["judged"] == 0
     assert result.domain_pass0["coding"]["missing"] == 1
+
+
+def test_expand_code_tests_requires_all_languages() -> None:
+    q = Question(
+        id="coding-easy-99",
+        domain="coding",
+        difficulty="easy",
+        prompt="x",
+        grader={
+            "type": "code_tests",
+            "languages": {
+                "python": {"tests_file": "bank/tests/b01_shelf.py"},
+                "go": {"tests_file": "bank/tests/go/apply_ops_test.go"},
+            },
+        },
+        pass_criteria="t",
+    )
+    with pytest.raises(ValueError, match="typescript"):
+        _expand_question(q)
+
+
+def test_validate_bank_counts_pre_expand() -> None:
+    base = load_questions()
+    raw = []
+    seen: set[str] = set()
+    for q in base:
+        rid = _raw_id(q)
+        if rid in seen:
+            continue
+        seen.add(rid)
+        raw.append(
+            Question(
+                id=rid,
+                domain=q.domain,
+                difficulty=q.difficulty,
+                prompt=q.prompt,
+                grader={"type": "alias", "answers": ["0"]},
+                pass_criteria="t",
+            )
+        )
+    with pytest.raises(ValueError, match="展开前"):
+        _validate_bank(raw[:19])
 
 
 def test_expand_code_tests_requires_languages() -> None:

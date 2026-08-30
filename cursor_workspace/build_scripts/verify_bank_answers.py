@@ -9,17 +9,18 @@ ROOT = repo_root()
 
 PY = {
     "bank/tests/b09_tag_scores.py": """
+import re
+
+_SCORE = re.compile(r"^-?\\d+$")
+
+
 def tag_scores(items):
     out = {}
     for item in items:
         tag, sep, score = item.partition(":")
-        if not sep or not tag:
+        if not sep or not tag or not _SCORE.fullmatch(score):
             continue
-        try:
-            val = int(score)
-        except ValueError:
-            continue
-        out[tag] = out.get(tag, 0) + val
+        out[tag] = out.get(tag, 0) + int(score)
     return out
 """,
     "bank/tests/b10_render.py": """

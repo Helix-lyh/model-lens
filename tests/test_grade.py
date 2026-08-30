@@ -136,6 +136,50 @@ def test_structure_follow_pass_and_fail() -> None:
         assert bad.points is not None and bad.points < bad.points_total
 
 
+def test_reasoning_alias_and_structure() -> None:
+    by_id = {q.id: q for q in load_questions() if q.domain == "reasoning"}
+    assert set(by_id) == {
+        "reasoning-easy-01",
+        "reasoning-easy-02",
+        "reasoning-easy-03",
+        "reasoning-easy-04",
+        "reasoning-medium-01",
+        "reasoning-medium-02",
+        "reasoning-medium-03",
+        "reasoning-medium-04",
+        "reasoning-hard-01",
+        "reasoning-hard-02",
+        "reasoning-hard-03",
+        "reasoning-hard-04",
+    }
+    expect = {
+        "reasoning-easy-01": ("42", "30"),
+        "reasoning-easy-02": ("乙", "甲"),
+        "reasoning-easy-03": ("星期五", "星期三"),
+        "reasoning-easy-04": ("15", "10"),
+        "reasoning-medium-01": ("2", "3"),
+        "reasoning-medium-02": ("医生", "教师"),
+        "reasoning-medium-03": ("不能", "能"),
+        "reasoning-medium-04": ("3", "2"),
+        "reasoning-hard-01": ("诚实者", "说谎者"),
+        "reasoning-hard-02": ("10", "100"),
+        "reasoning-hard-04": ("844", "448"),
+    }
+    for qid, (good, bad) in expect.items():
+        q = by_id[qid]
+        assert grade_response(q, good, repo_root=repo_root()).passed is True
+        assert grade_response(q, bad, repo_root=repo_root()).passed is False
+        assert grade_response(q, f"答案是 {good}", repo_root=repo_root()).passed is False
+    grid = by_id["reasoning-hard-03"]
+    payload = '{"A": {"floor": 2, "drink": "茶"}, "B": {"floor": 3, "drink": "咖啡"}, "C": {"floor": 1, "drink": "可乐"}}'
+    ok = grade_response(grid, f"```json\n{payload}\n```", repo_root=repo_root())
+    assert ok.passed is True
+    assert ok.score10 == 10.0
+    bad = grade_response(grid, "```json\n{}\n```", repo_root=repo_root())
+    assert bad.passed is False
+    assert bad.points is not None and bad.points < bad.points_total
+
+
 def test_alias_exact_and_latex() -> None:
     q = Question(
         id="knowledge-easy-00",

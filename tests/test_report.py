@@ -206,8 +206,8 @@ def test_report_bank_domain_rates(tmp_path):
                 majority=None,
             ),
         ],
-        domain_pass0={"architecture": {"passed": 6, "judged": 8, "missing": 0}, "coding": {"passed": 1, "judged": 1, "missing": 1}, "knowledge": {"passed": 8, "judged": 8, "missing": 0}},
-        domain_points={"architecture": {"earned": 0, "total": 0, "score10": None}, "coding": {"earned": 6, "total": 6, "score10": 10.0}, "knowledge": {"earned": 8, "total": 8, "score10": 10.0}},
+        domain_pass0={"architecture": {"passed": 6, "judged": 8, "missing": 0}, "coding": {"passed": 1, "judged": 1, "missing": 1}, "knowledge": {"passed": 8, "judged": 8, "missing": 0}, "reasoning": {"passed": 4, "judged": 8, "missing": 0}},
+        domain_points={"architecture": {"earned": 0, "total": 0, "score10": None}, "coding": {"earned": 6, "total": 6, "score10": 10.0}, "knowledge": {"earned": 8, "total": 8, "score10": 10.0}, "reasoning": {"earned": 4, "total": 8, "score10": 5.0}},
         difficulty_points={"easy": {"passed": 0, "judged": 0, "earned": 0, "total": 0, "score10": None}, "medium": {"passed": 1, "judged": 1, "earned": 6, "total": 6, "score10": 10.0}, "hard": {"passed": 0, "judged": 0, "earned": 0, "total": 0, "score10": None}},
         knowledge_all_wrong=False,
         n_questions=2,
@@ -217,8 +217,13 @@ def test_report_bank_domain_rates(tmp_path):
     assert "分域通过率" in md
     assert "分域折合10" in md
     assert "分难度折合10" in md
+    assert "architecture 6/8" in md
     assert "coding 1/1" in md
+    assert "knowledge 8/8" in md
+    assert "reasoning 4/8" in md
     assert "coding 10.0" in md
+    assert "knowledge 10.0" in md
+    assert "reasoning 5.0" in md
     assert "medium 10.0" in md
     assert "score10" in md
     assert "coding-medium-01-python" in md

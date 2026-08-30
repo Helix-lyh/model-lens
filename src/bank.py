@@ -88,11 +88,12 @@ def _expand_question(q: Question) -> list[Question]:
     unknown = [lang for lang in langs if lang not in CODE_LANGS]
     if unknown:
         raise ValueError(f"{q.id} 不支持的语言 {unknown}，只做 {', '.join(CODE_LANGS)}")
+    missing = [lang for lang in CODE_LANGS if langs.get(lang) is None]
+    if missing:
+        raise ValueError(f"{q.id} 必须同时给出 {', '.join(CODE_LANGS)}，缺少 {missing}")
     out: list[Question] = []
     for lang in CODE_LANGS:
-        spec = langs.get(lang)
-        if spec is None:
-            continue
+        spec = langs[lang]
         if not isinstance(spec, dict) or not spec.get("tests_file"):
             raise ValueError(f"{q.id} languages.{lang}.tests_file 缺失")
         out.append(_coding_variant(q, lang, spec))

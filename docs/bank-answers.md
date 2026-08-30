@@ -80,7 +80,7 @@ Python 参考实现与结构题期望输出见 `cursor_workspace/build_scripts/v
 ### architecture-easy-04 读写分离后读到旧昵称（5 组）
 1. 一主多从，读打到从库（主从、从库、复制）
 2. 复制是异步的，存在延迟（延迟、lag、异步）
-3. 缓解一：写后短窗口内强制读主（读主、主库、强一致）
+3. 缓解一：写后短窗口内强制读主（读主、强制走主、强一致）
 4. 缓解二：会话粘性，同一用户写后读走同一路径（会话、粘性、写后读）
 5. 缓解三：客户端本地回显/缓存新值，或按 GTID 位点等待从库追上（缓存、gtid、位点）
 
@@ -96,14 +96,14 @@ Python 参考实现与结构题期望输出见 `cursor_workspace/build_scripts/v
 2. 必须带过期时间，防实例宕机死锁（过期、ttl）
 3. 任务没跑完锁要到期：看门狗定期续期（续期、看门狗）
 4. value 放唯一标识，释放用 Lua 先校验再删，防误删别人的锁（唯一、标识、lua、校验）
-5. 锁过期后旧持有者还在跑：下游用 fencing token / 幂等兜底（fencing、幂等、兜底）
+5. 锁过期后旧持有者还在跑：下游用 fencing token / epoch 兜底（fencing、fence、epoch）
 
 ### architecture-hard-04 支付回调防重与补单（5 组）
 1. 回调按第三方流水号做幂等：唯一索引/去重表，重复直接返回成功（幂等、去重、唯一索引）
 2. 订单状态机只允许合法迁移，已到终态（已支付）的回调不再入账（状态机、终态、已支付）
 3. 漏单靠定时对账 + 主动查询第三方订单状态补单（对账、补单、主动查询）
 4. 入账与改状态在一个事务里，保证原子（事务、原子、一致）
-5. 乱序用版本号/第三方时间戳判断，旧通知不覆盖新状态（乱序、版本、时间戳）
+5. 乱序用版本号/第三方时间戳判断，旧通知不覆盖新状态（版本号、时间戳、序号）
 
 ## 二、编码域（12 题 ×3 语言，code_tests，POINTS 满点才 pass）
 
@@ -157,21 +157,22 @@ def parse_badge(s):
     return (y, mo, d, n)
 ```
 
-### coding-easy-04 tag_scores（5 点）
-考点：按第一个冒号拆分、非法项整条忽略、同名累加。
+### coding-easy-04 tag_scores（6 点）
+考点：按第一个冒号拆分、冒号后整段必须是 `^-?\\d+$`、同名累加。
 
 ```python
+import re
+
+_SCORE = re.compile(r"^-?\d+$")
+
+
 def tag_scores(items):
     out = {}
     for item in items:
         tag, sep, score = item.partition(":")
-        if not sep or not tag:
+        if not sep or not tag or not _SCORE.fullmatch(score):
             continue
-        try:
-            val = int(score)
-        except ValueError:
-            continue
-        out[tag] = out.get(tag, 0) + val
+        out[tag] = out.get(tag, 0) + int(score)
     return out
 ```
 
@@ -236,7 +237,7 @@ def orders_for_user_sql(user_id):
     )
 ```
 
-### coding-medium-04 render 模板渲染（6 点）
+### coding-medium-04 render 模板渲染（8 点）
 考点：`{{`/`}}` 转义优先、合法占位符 `[A-Za-z0-9_]+`、缺键与非法占位符原样保留。
 
 ```python

@@ -63,8 +63,18 @@ def test_gallery_html_switches_models(tmp_path) -> None:
                 score10=10.0,
             )
         ],
-        domain_pass0={"knowledge": {"passed": 1, "judged": 1, "missing": 0}},
-        domain_points={"knowledge": {"earned": 1, "total": 1, "score10": 10.0}},
+        domain_pass0={
+            "architecture": {"passed": 0, "judged": 0, "missing": 0},
+            "coding": {"passed": 0, "judged": 0, "missing": 0},
+            "knowledge": {"passed": 1, "judged": 1, "missing": 0},
+            "reasoning": {"passed": 2, "judged": 4, "missing": 0},
+        },
+        domain_points={
+            "architecture": {"earned": 0, "total": 0, "score10": None},
+            "coding": {"earned": 0, "total": 0, "score10": None},
+            "knowledge": {"earned": 1, "total": 1, "score10": 10.0},
+            "reasoning": {"earned": 2, "total": 4, "score10": 5.0},
+        },
     )
     write_run_report(
         run_a,
@@ -106,6 +116,8 @@ def test_gallery_html_switches_models(tmp_path) -> None:
     assert "sk-secret" not in html
     assert "sk-secret" not in data
     assert "合成分数" in html
+    assert "推理" in html
+    assert "reasoning" in html
     assert "支持" not in html
     assert "deepseek-v4-flash" in html
     assert "grok-4.5" in html
@@ -123,4 +135,6 @@ def test_gallery_html_switches_models(tmp_path) -> None:
     assert q0["samples"][0]["reasoning"] == "冰糖会化。"
     assert q0["samples"][0]["score10"] == 10.0
     assert payload["models"][0]["domain_points"]["knowledge"]["score10"] == 10.0
+    assert payload["models"][0]["domains"]["reasoning"]["passed"] == 2
+    assert payload["models"][0]["domain_points"]["reasoning"]["score10"] == 5.0
     assert (run_a / "gallery.json").is_file()

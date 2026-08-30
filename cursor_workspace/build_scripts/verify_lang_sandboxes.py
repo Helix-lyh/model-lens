@@ -187,11 +187,25 @@ func TagScores(items []string) map[string]int {
     for _, item := range items {
         idx := strings.Index(item, ":")
         if idx <= 0 { continue }
-        val, err := strconv.Atoi(item[idx+1:])
-        if err != nil { continue }
+        score := item[idx+1:]
+        val, ok := parseStrictInt(score)
+        if !ok { continue }
         out[item[:idx]] += val
     }
     return out
+}
+func parseStrictInt(s string) (int, bool) {
+    if s == "" { return 0, false }
+    i := 0
+    if s[0] == '-' {
+        if len(s) == 1 { return 0, false }
+        i = 1
+    }
+    for ; i < len(s); i++ {
+        if s[i] < '0' || s[i] > '9' { return 0, false }
+    }
+    n, err := strconv.Atoi(s)
+    return n, err == nil
 }
 """,
     "bank/tests/go/render_test.go": """

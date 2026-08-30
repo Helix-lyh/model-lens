@@ -18,4 +18,5 @@ n += hit(["a:1", "b:2", "a:3"], { a: 4, b: 2 });
 n += hit(["a:-3", "a:5"], { a: 2 });
 n += hit(["x", ":5", "a:one", "a:1:2"], {});
 n += hit(["cpu:10", "bad", "cpu:-4", "mem:7", ":9"], { cpu: 6, mem: 7 });
-console.log(`POINTS ${n}/5`);
+n += hit(["a:+5", "a: 1", "a:1_000", "ok:-2"], { ok: -2 });
+console.log(`POINTS ${n}/6`);

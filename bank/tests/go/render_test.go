@@ -25,5 +25,7 @@ func TestRender(t *testing.T) {
 	n += hitRender("{{name}}", map[string]string{"name": "X"}, "{name}")
 	n += hitRender("{a b} { {}", map[string]string{}, "{a b} { {}")
 	n += hitRender("{x}{{y}}{z}", map[string]string{"x": "1", "z": "2"}, "1{y}2")
-	fmt.Printf("POINTS %d/6\n", n)
+	n += hitRender("{{{name}}}", map[string]string{"name": "Tom"}, "{Tom}")
+	n += hitRender("{{y}}", map[string]string{"y": "Y"}, "{y}")
+	fmt.Printf("POINTS %d/8\n", n)
 }

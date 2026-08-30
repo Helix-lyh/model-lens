@@ -36,5 +36,6 @@ func TestTagScores(t *testing.T) {
 	n += hitTag([]string{"a:-3", "a:5"}, map[string]int{"a": 2})
 	n += hitTag([]string{"x", ":5", "a:one", "a:1:2"}, map[string]int{})
 	n += hitTag([]string{"cpu:10", "bad", "cpu:-4", "mem:7", ":9"}, map[string]int{"cpu": 6, "mem": 7})
-	fmt.Printf("POINTS %d/5\n", n)
+	n += hitTag([]string{"a:+5", "a: 1", "a:1_000", "ok:-2"}, map[string]int{"ok": -2})
+	fmt.Printf("POINTS %d/6\n", n)
 }

@@ -15,4 +15,6 @@ n += hit("{a}+{b}", { a: "1" }, "1+{b}");
 n += hit("{{name}}", { name: "X" }, "{name}");
 n += hit("{a b} { {}", {}, "{a b} { {}");
 n += hit("{x}{{y}}{z}", { x: "1", z: "2" }, "1{y}2");
-console.log(`POINTS ${n}/6`);
+n += hit("{{{name}}}", { name: "Tom" }, "{Tom}");
+n += hit("{{y}}", { y: "Y" }, "{y}");
+console.log(`POINTS ${n}/8`);

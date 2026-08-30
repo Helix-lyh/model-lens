@@ -114,9 +114,9 @@
       - lag
       - 异步
     - - 读主
-      - 主库
       - 强制走主
       - 强一致
+      - 写后读主
     - - 会话
       - 粘性
       - session
@@ -245,7 +245,7 @@
     - - 兼容
       - 双写
       - schema
-      - 版本
+      - 向后兼容
 - id: architecture-hard-01
   domain: architecture
   difficulty: hard
@@ -336,9 +336,9 @@
       - lua
       - 校验
     - - fencing
-      - 幂等
-      - redlock
-      - 兜底
+      - fence
+      - epoch
+      - fencing token
 - id: architecture-hard-04
   domain: architecture
   difficulty: hard
@@ -360,7 +360,6 @@
       - 唯一约束
       - 防重
     - - 状态机
-      - 状态
       - 终态
       - 已支付
     - - 对账
@@ -371,10 +370,9 @@
     - - 事务
       - 原子
       - 一致
-    - - 乱序
-      - 顺序
-      - 版本
+    - - 版本号
       - 时间戳
+      - 序号
 - id: coding-easy-01
   domain: coding
   difficulty: easy
@@ -436,11 +434,11 @@
 - id: coding-easy-04
   domain: coding
   difficulty: easy
-  pass_criteria: tag:score 汇总，非法项整条忽略，5 个用例
+  pass_criteria: tag:score 汇总，非法项整条忽略，6 个用例
   prompt: |
     输入若干形如 "tag:score" 的字符串。按第一个冒号拆成 tag 和 score。
-    tag 必须非空，score 必须是十进制整数（可带负号），否则整条忽略。
-    把同名 tag 的 score 相加，返回 tag 到总分的映射。空输入返回空映射。
+    tag 必须非空。冒号后整段必须是可选单一负号后跟纯数字（禁止 +、空白、下划线）；
+    再出现冒号则整条忽略。把同名 tag 的 score 相加，返回 tag 到总分的映射。空输入返回空映射。
   grader:
     type: code_tests
     languages:
@@ -520,7 +518,7 @@
 - id: coding-medium-04
   domain: coding
   difficulty: medium
-  pass_criteria: 模板占位符替换与花括号转义，6 个用例
+  pass_criteria: 模板占位符替换与花括号转义，8 个用例
   prompt: |
     实现模板渲染，从左到右扫描：
     1. "{{" 输出一个 "{"，"}}" 输出一个 "}"（转义优先于占位符）。
@@ -806,7 +804,7 @@
     1. 顶层是对象，键顺序必须是 data 然后 meta，不得有第三个键。
     2. data 是长度 4 的数组，元素依次为：字符串 "0"、数字 0、布尔 false、null。
        类型不能写错，位置不能互换。
-    3. meta 是对象，恰好两个键：v 和 "k k"（键名是 k、空格、k 三个字符）。
+    3. meta 是对象，键顺序必须是 v 然后 "k k"（键名是 k、空格、k 三个字符），不得有第三个键。
     4. v 的值在 JSON 原文里必须写成 1e2（数字一、小写字母 e、数字二），解析后是数字 100。
        不要「简化」成 100。
     5. "k k" 的值是空对象。
