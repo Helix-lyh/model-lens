@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>model-lens 题库对照</title>
+  <style>
+    :root {
+      --bg: #14120e;
+      --paper: #1e1b16;
+      --ink: #efe6d4;
+      --muted: #9a8f7a;
+      --line: #3a3428;
+      --pass: #7dce8a;
+      --fail: #e07a5f;
+      --miss: #c8a45a;
+      --chip: #2a241b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.55 "IBM Plex Sans", "Source Han Sans SC", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    header {
+      padding: 22px 28px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 20px;
+      letter-spacing: 0.04em;
+      font-weight: 620;
+    }
+    header p { margin: 0; color: var(--muted); font-size: 13px; }
+    .bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 14px 28px;
+      border-bottom: 1px solid var(--line);
+    }
+    button.type, button.dom {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--chip);
+      color: var(--ink);
+      padding: 6px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      font: inherit;
+    }
+    button.type.active, button.dom.active { border-color: var(--ink); }
+    .meta {
+      padding: 14px 28px 0;
+      color: var(--muted);
+      font-size: 13px;
+      display: grid;
+      gap: 4px;
+    }
+    main { padding: 12px 28px 48px; display: grid; gap: 14px; }
+    article {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+    article header.q {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+      border: 0;
+      padding: 0;
+    }
+    .qid { font-variant-numeric: tabular-nums; color: var(--muted); }
+    .verdict {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .verdict.pass { color: var(--pass); }
+    .verdict.fail { color: var(--fail); }
+    .verdict.missing, .verdict.error { color: var(--miss); }
+    h2 { margin: 8px 0 10px; font-size: 16px; }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #12100c;
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font: 13px/1.5 "IBM Plex Mono", ui-monospace, monospace;
+    }
+    details { margin-top: 10px; }
+    summary { cursor: pointer; color: var(--muted); }
+    .ans { margin-top: 10px; }
+    .ans b { color: var(--muted); font-weight: 550; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>model-lens 题库对照</h1>
+    <p>基层数据 gallery.json。切换 type 看不同模型；每题含题干、思考、答案、判定。三栏独立，不合成分数。</p>
+  </header>
+  <div class="bar" id="types"></div>
+  <div class="bar" id="domains"></div>
+  <div class="meta" id="meta"></div>
+  <main id="cards"></main>
+  <script id="gallery-data" type="application/json">/*__GALLERY_DATA__*/null</script>
+  <script>
+    const raw = JSON.parse(document.getElementById("gallery-data").textContent);
+    const models = (raw && raw.models) || [];
+    let cur = 0;
+    let domain = "all";
+    const DOMAIN_ZH = { architecture: "架构", coding: "编码", knowledge: "知识" };
+    const DIFF_ZH = { easy: "easy", medium: "medium", hard: "hard" };
+
+    function verdict(v) {
+      if (v === true) return ["pass", "通过"];
+      if (v === false) return ["fail", "未过"];
+      return ["missing", "缺测"];
+    }
+
+    function render() {
+      const types = document.getElementById("types");
+      types.innerHTML = models.map((m, i) =>
+        `<button class="type${i === cur ? " active" : ""}" data-i="${i}">${m.claimed || m.id}</button>`
+      ).join("") || "<span>没有模型数据</span>";
+      types.querySelectorAll("button").forEach((btn) => {
+        btn.onclick = () => { cur = Number(btn.dataset.i); render(); };
+      });
+      const domains = document.getElementById("domains");
+      const keys = ["all", "architecture", "coding", "knowledge"];
+      domains.innerHTML = keys.map((k) =>
+        `<button class="dom${domain === k ? " active" : ""}" data-d="${k}">${k === "all" ? "全部" : DOMAIN_ZH[k]}</button>`
+      ).join("");
+      domains.querySelectorAll("button").forEach((btn) => {
+        btn.onclick = () => { domain = btn.dataset.d; render(); };
+      });
+      const m = models[cur];
+      if (!m) { document.getElementById("meta").textContent = ""; document.getElementById("cards").innerHTML = ""; return; }
+      const fam = m.family || {};
+      const idn = m.identity || {};
+      const deg = m.degrade || {};
+      const rates = m.domains || {};
+      const points = m.domain_points || {};
+      const rateLine = ["architecture", "coding", "knowledge"].map((k) => {
+        const row = rates[k] || {};
+        const pts = points[k] || {};
+        const score = pts.score10 == null ? "—" : pts.score10;
+        return `${DOMAIN_ZH[k]} ${row.passed || 0}/${row.judged || 0} 折合${score}`;
+      }).join(" · ");
+      const diffs = m.difficulty_points || {};
+      const diffLine = ["easy", "medium", "hard"].map((k) => {
+        const row = diffs[k] || {};
+        const score = row.score10 == null ? "—" : row.score10;
+        return `${DIFF_ZH[k]} ${row.passed || 0}/${row.judged || 0} 折合${score}`;
+      }).join(" · ");
+      document.getElementById("meta").innerHTML = [
+        `<div>模型 ${m.target && m.target.model || m.id} · claimed ${m.claimed || "—"} · run ${m.run || ""} · ${m.quick ? "快速" : "全量"} n=${m.n_questions || (m.questions || []).length}</div>`,
+        `<div>家族 ${fam.family || fam.status || "—"} · 判真 ${idn.status || "—"} · 降智 ${deg.status || "—"}</div>`,
+        `<div>${rateLine}</div>`,
+        `<div>${diffLine}</div>`,
+      ].join("");
+      const qs = (m.questions || []).filter((q) => domain === "all" || q.domain === domain);
+      document.getElementById("cards").innerHTML = qs.map((q) => {
+        const [cls, lab] = verdict(q.pass0);
+        const sample = (q.samples && q.samples[0]) || {};
+        const [scls, slab] = verdict(sample.passed);
+        const expected = (q.expected || []).join(" / ");
+        const score = q.score10 == null ? (sample.score10 == null ? "—" : sample.score10) : q.score10;
+        const pts = sample.points != null && sample.points_total != null
+          ? `${sample.points}/${sample.points_total}` : "—";
+        return `<article>
+          <header class="q">
+            <span class="qid">${q.id} · ${DOMAIN_ZH[q.domain] || q.domain} · ${DIFF_ZH[q.difficulty] || q.difficulty || ""}</span>
+            <span class="verdict ${cls}">判定 ${lab} · 折合${score} · ${pts}</span>
+          </header>
+          <h2>${q.title || q.id}</h2>
+          <div class="ans"><b>题干</b></div>
+          <pre>${esc(q.prompt || "")}</pre>
+          <details>
+            <summary>思考过程${sample.reasoning ? "" : "（无）"}</summary>
+            <pre>${esc(sample.reasoning || "这条响应没有单独的 reasoning 字段。")}</pre>
+          </details>
+          <div class="ans"><b>模型答案</b> <span class="verdict ${scls}">${slab}</span></div>
+          <pre>${esc(sample.answer || "（空）")}</pre>
+          <div class="ans"><b>收敛答案</b> ${esc(expected || "—")}</div>
+          <div class="ans"><b>判分说明</b> ${esc(sample.detail || "")}</div>
+        </article>`;
+      }).join("");
+    }
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[c]));
+    }
+    render();
+  </script>
+</body>
+</html>

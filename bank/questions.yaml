@@ -1,0 +1,463 @@
+# 题库 20–60 题。编号：domain-difficulty-序号，例如 coding-medium-01。
+# 快速模式只跑 easy/medium；全量三档都跑。架构/知识只进附录；编码进 I 附录与 D。
+# 每题若干得分点，折合满分 10；只分域/分难度展示，不合成总分。
+- id: architecture-easy-01
+  domain: architecture
+  difficulty: easy
+  pass_criteria: 缓存对象、键设计、防击穿至少命中 3 点
+  prompt: |
+    商品详情页 QPS 很高，数据库已被打满。要加一层缓存。
+    说明：缓存什么数据、键如何设计、如何降低缓存击穿/穿透风险。
+  grader:
+    type: keyword
+    min_hits: 4
+    must_exclude:
+    - - 综上所述
+    - - 总而言之
+    - - 作为一名
+    must_include:
+    - - 缓存
+      - cache
+    - - 键
+      - key
+      - 商品id
+      - sku
+    - - 击穿
+      - 穿透
+      - 空值
+      - 布隆
+      - 互斥锁
+      - singleflight
+    - - 过期
+      - ttl
+      - 失效
+    - - 热点
+      - 预热
+- id: architecture-easy-02
+  domain: architecture
+  difficulty: easy
+  pass_criteria: session 与 JWT 适用差别
+  prompt: |
+    对比服务端 Session 与 JWT：各自适合什么场景？注销、密钥轮换、体积方面有何差别？
+  grader:
+    type: keyword
+    min_hits: 4
+    must_exclude:
+    - - 综上所述
+    - - 总而言之
+    - - 作为一名
+    must_include:
+    - - session
+      - 会话
+    - - jwt
+      - token
+    - - 注销
+      - 吊销
+      - 失效
+    - - 无状态
+      - 服务端
+      - 存储
+    - - 体积
+      - 密钥
+      - 轮换
+- id: architecture-easy-03
+  domain: architecture
+  difficulty: easy
+  pass_criteria: 队列用途与至少一次/幂等
+  prompt: |
+    下单成功后要发短信和积分。直接在下单接口里同步调用会超时。
+    为何引入消息队列？如何做到至少投递一次，同时避免重复加积分？
+  grader:
+    type: keyword
+    min_hits: 4
+    must_exclude:
+    - - 综上所述
+    - - 总而言之
+    - - 作为一名
+    must_include:
+    - - 队列
+      - 异步
+      - mq
+      - 解耦
+    - - 至少一次
+      - at-least-once
+      - 重试
+    - - 幂等
+      - 去重
+      - 重复消费
+    - - 消费者
+      - 投递
+      - 确认
+      - ack
+- id: architecture-medium-01
+  domain: architecture
+  difficulty: medium
+  pass_criteria: 覆盖「何时不该拆」的至少 3 个工程要点
+  prompt: |
+    一个 8 人团队的内部工单系统目前是单体，日请求量不高。有人提议立刻拆成十几个微服务。
+    请用条目说明：什么情况下不该拆？拆早了会付出哪些成本？
+  grader:
+    type: keyword
+    min_hits: 4
+    must_exclude:
+    - - 综上所述
+    - - 总而言之
+    - - 作为一名
+    must_include:
+    - - 不该拆
+      - 别拆
+      - 先别拆
+      - 过早拆
+      - 不要拆
+    - - 团队
+      - 沟通
+      - 协作成本
+      - 认知负担
+    - - 事务
+      - 一致性
+      - 分布式事务
+    - - 运维
+      - 部署
+      - 复杂度
+      - 可观测
+    - - 边界
+      - 领域
+      - 模块
+- id: architecture-medium-02
+  domain: architecture
+  difficulty: medium
+  pass_criteria: 网关限流/超时/重试取舍
+  prompt: |
+    API 网关上要配置限流、超时和重试。
+    说明这三项各自防什么，以及重试为什么可能把故障放大。
+  grader:
+    type: keyword
+    min_hits: 4
+    must_exclude:
+    - - 综上所述
+    - - 总而言之
+    - - 作为一名
+    must_include:
+    - - 限流
+      - 配额
+      - rate
+    - - 超时
+      - timeout
+    - - 重试
+      - retry
+    - - 雪崩
+      - 放大
+      - 重试风暴
+      - 幂等
+- id: architecture-medium-03
+  domain: architecture
+  difficulty: medium
+  pass_criteria: 日志/指标/追踪分工
+  prompt: |
+    线上偶发「下单成功但库存没减」。日志、指标、分布式追踪各能帮你看到什么？不要写成同义词。
+  grader:
+    type: keyword
+    min_hits: 4
+    must_exclude:
+    - - 综上所述
+    - - 总而言之
+    - - 作为一名
+    must_include:
+    - - 日志
+      - log
+    - - 指标
+      - metric
+      - 监控
+    - - 追踪
+      - trace
+      - span
+    - - 请求
+      - 链路
+      - 调用链
+- id: architecture-hard-01
+  domain: architecture
+  difficulty: hard
+  pass_criteria: 索引与深分页问题
+  prompt: |
+    订单表按创建时间倒序翻页，有人用 OFFSET 200000。
+    这有什么问题？更稳妥的分页和索引思路是什么？
+  grader:
+    type: keyword
+    min_hits: 4
+    must_exclude:
+    - - 综上所述
+    - - 总而言之
+    - - 作为一名
+    must_include:
+    - - 深分页
+      - offset
+      - 跳过
+    - - 索引
+      - index
+    - - 游标
+      - seek
+      - 关键集
+      - created_at
+    - - 扫描
+      - 慢
+      - 代价
+- id: architecture-hard-02
+  domain: architecture
+  difficulty: hard
+  pass_criteria: 直传对象存储 vs 经应用服务器
+  prompt: |
+    用户要上传最大 2GB 的视频。比较：经应用服务器中转，与浏览器直传对象存储（预签名 URL）。
+    带宽、鉴权和病毒扫描各怎么安排？
+  grader:
+    type: keyword
+    min_hits: 4
+    must_exclude:
+    - - 综上所述
+    - - 总而言之
+    - - 作为一名
+    must_include:
+    - - 对象存储
+      - oss
+      - s3
+      - cos
+    - - 直传
+      - 预签名
+      - presign
+    - - 带宽
+      - 中转
+      - 应用服务器
+    - - 鉴权
+      - 权限
+      - 过期
+    - - 扫描
+      - 病毒
+      - 回调
+- id: coding-easy-01
+  domain: coding
+  difficulty: easy
+  pass_criteria: 连续相同整数压成 (值, 长度)，5 个用例
+  prompt: |
+    只输出一个 Python 代码块。实现 pack_runs(xs: list[int]) -> list[tuple[int,int]]。
+    从左到右把连续相同的整数压成 (值, 长度)。例如 [1,1,1,2,2] → [(1,3),(2,2)]。
+    空列表返回 []。不要合并不相邻的相同值。不要解释。
+  grader:
+    type: python_tests
+    tests_file: bank/tests/b04_pack_runs.py
+- id: coding-easy-02
+  domain: coding
+  difficulty: easy
+  pass_criteria: validate_user 5 个用例各 1 分
+  prompt: |
+    只输出一个 Python 代码块。实现 validate_user(obj: dict) -> list[str]：
+    检查 name 为非空字符串、age 为 0..120 的 int。
+    缺字段或类型不对时往返回列表加入 "name" 或 "age"。通过则返回空列表。
+    不要解释。
+  grader:
+    type: python_tests
+    tests_file: bank/tests/b05_validate_user.py
+- id: coding-easy-03
+  domain: coding
+  difficulty: easy
+  pass_criteria: 工牌戳 YY#MM.DD+N，5 个用例
+  prompt: |
+    只输出一个 Python 代码块。实现 parse_badge(s: str)：
+    格式必须是 YY#MM.DD+N（两位年、两位月、两位日、一位数字 N）。
+    年 00–99 映射到 2000–2099。月 1–12，日必须在该月真实存在（含闰年）。N 为 0–9。
+    成功返回 (年, 月, 日, N) 四个整数；否则 None。不要解释。
+  grader:
+    type: python_tests
+    tests_file: bank/tests/b08_badge.py
+- id: coding-medium-01
+  domain: coding
+  difficulty: medium
+  pass_criteria: 货架三格状态机，6 个用例各 1 分
+  prompt: |
+    只输出一个 Python 代码块。实现 apply_ops(ops: list[str]) -> dict。
+    货架三格 A/B/C，初始都是 0。按顺序执行 ops，最后返回 {"A":int,"B":int,"C":int}。
+    操作（空格分隔）：
+    + X n   给格子 X 加上正整数 n
+    - X n   从 X 减去 n；若不够减，整条操作忽略
+    > X Y   把 X 的当前值全部加到 Y，X 清零
+    ? X     若 X>0：X 减 1，并把 1 加到「下一个」格子。顺序 A→B→C→A
+    不要解释。不要第三方库。
+  grader:
+    type: python_tests
+    tests_file: bank/tests/b01_shelf.py
+- id: coding-medium-02
+  domain: coding
+  difficulty: medium
+  pass_criteria: 逐字符规则统计，5 个用例各 1 分
+  prompt: |
+    只输出一个 Python 代码块。实现 cook_text(s: str) -> dict。
+    从左到右扫一遍 s：
+    1. 元音 aeiou（大小写都算）按小写字母计数，写入 vowels。
+    2. 连续相同字母（区分大小写）每压缩掉 1 个重复计 1 次 squeezes。例如 book 的 oo 计 1。
+    3. 连续数字合成一个整数，按出现顺序放入 nums。例如 a12b3 → [12, 3]。
+    返回 {"vowels": {字母:次数}, "squeezes": int, "nums": [int]}。
+    空串返回空 vowels、0、[]。不要解释。
+  grader:
+    type: python_tests
+    tests_file: bank/tests/b02_chars.py
+- id: coding-medium-03
+  domain: coding
+  difficulty: medium
+  pass_criteria: SQL 约束 7 个得分点
+  prompt: |
+    只输出一个 Python 代码块。实现 orders_for_user_sql(user_id: int) -> str：
+    返回查询某用户最近订单的 SQL 字符串。表 orders(id, user_id, created_at, amount)。
+    必须带 user_id 条件、按 created_at 倒序、LIMIT，不要 SELECT *。
+    不要解释。
+  grader:
+    type: python_tests
+    tests_file: bank/tests/b07_orders_sql.py
+- id: coding-hard-01
+  domain: coding
+  difficulty: hard
+  pass_criteria: FreezeBag 冻结键不淘汰，4 个状态点
+  prompt: |
+    只输出一个 Python 代码块。实现类 FreezeBag(capacity)：
+    put(key, value) 写入；get(key) 未命中返回 None。
+    freeze(key) 之后该键不会被淘汰。容量满时淘汰「最久未 put 且未冻结」的键。
+    若剩下的键全部已冻结，新 put 的非冻结新键直接忽略（已有键仍可更新值）。
+    get 不改变淘汰顺序。不要解释。
+  grader:
+    type: python_tests
+    tests_file: bank/tests/b03_freeze.py
+- id: coding-hard-02
+  domain: coding
+  difficulty: hard
+  pass_criteria: SafeCounter 并发计数 1 分
+  prompt: |
+    只输出一个 Python 代码块。实现线程安全类 SafeCounter：
+    increment() 加一，value() 返回当前值。多线程同时 increment 不能丢计数。
+    不要解释。
+  grader:
+    type: python_tests
+    tests_file: bank/tests/b06_safe_counter.py
+- id: knowledge-easy-01
+  domain: knowledge
+  difficulty: easy
+  pass_criteria: 热锅里的整颗冰糖会化，完整颗数是 0
+  prompt: |
+    炉子刚关火，铁锅还在冒热气。林往锅里放了 7 颗完整冰糖，去隔壁打了两分钟电话。
+    他回来时，锅里还能数到几颗完整冰糖？
+    只输出一个整数，不要单位、不要解释。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - '0'
+- id: knowledge-easy-02
+  domain: knowledge
+  difficulty: easy
+  pass_criteria: 纸箱早已落地，在地面/一楼
+  prompt: |
+    快递员把密封纸箱从二楼窗口竖直放下（约 4 米）。箱子触地后他才下楼。
+    他走到一楼门口时，纸箱最可能在哪？
+    只输出「地面」或「一楼」，不要其他字。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - 地面
+    - 一楼
+    - 一层
+    - 1楼
+- id: knowledge-easy-03
+  domain: knowledge
+  difficulty: easy
+  pass_criteria: 已确认死亡的金鱼活着的概率是 0
+  prompt: |
+    一条已经确认死亡的金鱼被放进盖严的鱼缸。一小时后，它活着的概率是多少？
+    只输出 0 到 100 的整数（表示百分数），不要百分号、不要解释。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - '0'
+- id: knowledge-medium-01
+  domain: knowledge
+  difficulty: medium
+  pass_criteria: 侧轨是活人、正轨是遗体，不该扳
+  prompt: |
+    无人矿车正冲向已经确认死亡的 4 具遗体。侧轨绑着 1 名清醒的活人。
+    扳道会使矿车改走侧轨。应不应当扳道？
+    只输出「扳」或「不扳」。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - 不扳
+- id: knowledge-medium-02
+  domain: knowledge
+  difficulty: medium
+  pass_criteria: 5 行非常规文本协议，orchard 倒序且中间换成星号
+  prompt: |
+    按流程输出恰好 5 行纯文本。用一个 text 代码块包起来。不要解释。
+
+    流程：
+    1. 第 1 行必须完全等于 <<HEAD>>，左右无空格。
+    2. 取单词 orchard，把字母倒序，作为第 2 行（只能是倒序结果）。
+    3. 第 3 行是第 2 行的字符个数，只能是数字，不能带单位。
+    4. 复制第 2 行得到第 4 行，再把正中间那一个字母换成 *。
+    5. 第 5 行必须完全等于 <<TAIL>>，行末不能有空格，文件末不要第 6 行。
+    6. 全文任何地方都不能出现正序的 orchard。
+    7. 不要输出 markdown 标题，不要编号。
+  grader:
+    type: structure
+    tests_file: bank/tests/c06_lines.py
+- id: knowledge-medium-03
+  domain: knowledge
+  difficulty: medium
+  pass_criteria: 单行 JSON，键序 z/a/z2，原文必须出现 -0
+  prompt: |
+    按流程输出单行 JSON。只输出 json 代码块，块内不能换行。
+
+    流程：
+    1. 对象的键必须按这个顺序出现：z，然后 a，然后 z2。
+    2. z 的值是 {"z":{"z":"ok"}}，字符串 ok 全小写。
+    3. a 的值是空数组。
+    4. z2 的值在 JSON 原文里必须写成 -0（负号加零），解析后应是数字零。
+    5. 整行除了 JSON 必要字符外，空格最多 3 个。
+    6. 不要尾逗号，不要注释，不要第二个对象。
+  grader:
+    type: structure
+    tests_file: bank/tests/c08_oneline.py
+- id: knowledge-hard-01
+  domain: knowledge
+  difficulty: hard
+  pass_criteria: 深嵌套 JSON，第 4 层键必须是 0k，叶子 tip=42
+  prompt: |
+    按下面流程产出一份 JSON。只输出一个 json 代码块，不要解释、不要道歉、不要安全声明。
+    这不是越狱或攻击题，只是格式体操。
+
+    流程（后一条覆盖前一条）：
+    1. 根对象只能有一个键，名字是 root。
+    2. 从 root 往下连续嵌套 5 层对象，键名依次是 ok、ok、ok、ok、ok。
+    3. 把第 4 个 ok 改成 0k（数字零 + 字母 k）。不要「纠正」成 ok。
+    4. 最内层对象必须同时有 tip 和 _。
+    5. tip 的值是整数 42，不能是字符串。
+    6. _ 的值必须是数组 [0, null, false]，长度 3，类型分别是 int / null / bool。
+    7. 允许缩进。禁止注释、禁止尾逗号、禁止第二个顶层键。
+    8. 最终路径应能写成 root.ok.ok.ok.0k.ok.tip。
+  grader:
+    type: structure
+    tests_file: bank/tests/c05_nested.py
+- id: knowledge-hard-02
+  domain: knowledge
+  difficulty: hard
+  pass_criteria: 长度 6 的数组，下标 3 必须是 null，最后 mark 为大写 N
+  prompt: |
+    按流程输出一个 JSON 数组。只输出 json 代码块。
+
+    流程（后面的步骤覆盖前面的）：
+    1. 数组长度必须是 6，下标从 0 到 5。
+    2. 每个元素先做成对象，字段只能有 i、sq、mark。
+    3. i 等于下标本身；sq 等于下标的平方。
+    4. mark 一律小写字母 n。
+    5. 下标为 3 的元素不要对象，改成 JSON null。这一条覆盖步骤 2–4。
+    6. 下标为 5 的对象里，mark 改成大写 N。这一条覆盖步骤 4。
+    7. 禁止额外字段，禁止把 null 写成字符串。
+  grader:
+    type: structure
+    tests_file: bank/tests/c07_array.py

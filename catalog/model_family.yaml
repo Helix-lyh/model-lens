@@ -1,0 +1,114 @@
+# 声称型号 → catalog id。未知型号不写。
+# 碰撞：qwen2_5 含 Qwen2.5 / Qwen3 / MiMo；glm4 含 GLM-4 / GLM-4.5。
+# DeepSeek V4 文件 SHA ≠ V3，但探针 L1=0，仍映射 deepseek_v3。
+# qwen3（非 3.8）→ qwen2_5；qwen3.8* → qwen3_8。匹配时应最长前缀优先。
+# grok-2 不要写成 grok：否则 grok-4.x 会误中。
+
+# --- GPT ---
+gpt-4o: o200k_base
+gpt-4o-mini: o200k_base
+gpt-4-turbo: cl100k_base
+gpt-3.5: cl100k_base
+gpt-3.5-turbo: cl100k_base
+
+# --- GLM-4 / GLM-4.5 → glm4 ---
+glm-4: glm4
+glm-4-plus: glm4
+glm-4-air: glm4
+glm-4-flash: glm4
+glm-4-0520: glm4
+glm-4.5: glm4
+glm-4.5-air: glm4
+glm-4.5-flash: glm4
+glm-4.5-airx: glm4
+glm-4.5-plus: glm4
+GLM-4.5: glm4
+
+# --- GLM-5.x → glm5 ---
+glm-5: glm5
+glm-5-plus: glm5
+glm-5.2: glm5
+glm-5.3: glm5
+glm-5.3-flash: glm5
+glm-5.3-pro: glm5
+GLM-5.2: glm5
+GLM-5.3-Flash: glm5
+
+# --- Qwen2.5 → qwen2_5 ---
+qwen2.5: qwen2_5
+qwen2.5-7b: qwen2_5
+qwen2.5-7b-instruct: qwen2_5
+qwen2.5-14b-instruct: qwen2_5
+qwen2.5-32b-instruct: qwen2_5
+qwen2.5-72b-instruct: qwen2_5
+Qwen2.5-72B-Instruct: qwen2_5
+
+# --- Qwen3（不是 3.8）→ qwen2_5 ---
+qwen3: qwen2_5
+qwen3-4b: qwen2_5
+qwen3-8b: qwen2_5
+qwen3-14b: qwen2_5
+qwen3-32b: qwen2_5
+qwen3-30b-a3b: qwen2_5
+qwen3-235b-a22b: qwen2_5
+
+# --- Qwen3.8 → qwen3_8 ---
+qwen3.8: qwen3_8
+qwen3.8-flash-next: qwen3_8
+qwen3.8-27b: qwen3_8
+Qwen3.8-Flash-Next: qwen3_8
+
+# --- DeepSeek-V3 ---
+deepseek-v3: deepseek_v3
+deepseek-v3-0324: deepseek_v3
+deepseek-v3.1: deepseek_v3
+deepseek-v3.2: deepseek_v3
+deepseek-chat: deepseek_v3
+deepseek-v4: deepseek_v3
+deepseek-v4-flash: deepseek_v3
+deepseek-v4-pro: deepseek_v3
+deepseek-v4-flash-vision-exp: deepseek_v3
+
+# --- Kimi / Moonshot ---
+kimi: kimi
+kimi-k2: kimi
+kimi-k2-instruct: kimi
+moonshot-v1: kimi
+moonshot-v1-8k: kimi
+moonshot-v1-32k: kimi
+moonshot-v1-128k: kimi
+moonshot-v1-auto: kimi
+
+# --- MiniMax（可选 catalog）---
+minimax: minimax
+minimax-m1: minimax
+minimax-text-01: minimax
+MiniMax-M1: minimax
+MiniMax-Text-01: minimax
+abab6.5: minimax
+abab6.5s: minimax
+
+# --- MiMo → qwen2_5（词表与 Qwen2.5 14 探针 L1=0，不单列）---
+mimo: qwen2_5
+mimo-v2: qwen2_5
+mimo-v2-flash: qwen2_5
+MiMo: qwen2_5
+MiMo-V2-Flash: qwen2_5
+
+# --- 混元 ---
+hunyuan: hunyuan
+hunyuan-lite: hunyuan
+hunyuan-standard: hunyuan
+hunyuan-pro: hunyuan
+hunyuan-turbo: hunyuan
+hunyuan-large: hunyuan
+hunyuan-t1: hunyuan
+hunyuan-a13b: hunyuan
+hunyuan-7b: hunyuan
+
+# --- Grok-2 only；不要写 grok / grok-3 / grok-4 ---
+grok-2: grok2
+grok-2-mini: grok2
+grok-2-latest: grok2
+grok-2-1212: grok2
+grok-2-vision: grok2

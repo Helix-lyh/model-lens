@@ -1,0 +1,16 @@
+# Bedrock / Vertex：HTTP Bearer，不引入 boto3 / google SDK。
+# 密钥只走环境变量。
+claimed_model: claude-sonnet-4
+target:
+  channel: bedrock
+  api_key_env: AWS_BEARER_TOKEN_BEDROCK
+  model: anthropic.claude-sonnet-4-20250514-v1:0
+  compat:
+    region: us-east-1
+# reference:
+#   channel: vertex
+#   api_key_env: VERTEX_ACCESS_TOKEN   # gcloud auth print-access-token
+#   model: gemini-2.5-flash
+#   compat:
+#     project: my-gcp-project
+#     location: us-central1

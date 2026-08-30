@@ -1,0 +1,116 @@
+{
+  "vocabs": [
+    {
+      "id": "cl100k_base",
+      "backend": "tiktoken",
+      "source_url": "https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken",
+      "source_ref": "cl100k_base tiktoken==0.14.0",
+      "sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
+      "local_path": null,
+      "status": "builtin",
+      "notes": "tiktoken 内置。sha256 为官方 encoding blob，非本地伪造。"
+    },
+    {
+      "id": "o200k_base",
+      "backend": "tiktoken",
+      "source_url": "https://openaipublic.blob.core.windows.net/encodings/o200k_base.tiktoken",
+      "source_ref": "o200k_base tiktoken==0.14.0",
+      "sha256": "446a9538cb6c348e3516120d7c08b09f57c36495e2acfffe59a5bf8b0cfb1a2d",
+      "local_path": null,
+      "status": "builtin",
+      "notes": "tiktoken 内置。sha256 为官方 encoding blob，非本地伪造。"
+    },
+    {
+      "id": "glm4",
+      "backend": "tokenizers",
+      "source_url": "https://huggingface.co/zai-org/GLM-4.5/resolve/main/tokenizer.json",
+      "source_ref": "tokenizer.json",
+      "sha256": "9340665016419c825c4bdabbcc9acc43b7ca2c68ce142724afa829abb1be5efd",
+      "local_path": "catalog/tokenizers/glm4.json",
+      "status": "ok",
+      "notes": "GLM-4 与 GLM-4.5 文本词表同一，合并为本条；与 glm5 分开。"
+    },
+    {
+      "id": "glm5",
+      "backend": "tokenizers",
+      "source_url": "https://huggingface.co/zai-org/GLM-5.2/resolve/main/tokenizer.json",
+      "source_ref": "tokenizer.json",
+      "sha256": "19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d",
+      "local_path": "catalog/tokenizers/glm5.json",
+      "status": "ok",
+      "notes": "GLM-5.x 共用（含 5.2 / 5.3）。"
+    },
+    {
+      "id": "qwen2_5",
+      "backend": "tokenizers",
+      "source_url": "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/resolve/main/tokenizer.json",
+      "source_ref": "tokenizer.json",
+      "sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+      "local_path": "catalog/tokenizers/qwen2_5.json",
+      "status": "ok",
+      "notes": "代表 Qwen2.5 / Qwen3 / MiMo（XiaomiMiMo/MiMo-V2-Flash tokenizer.json 14 探针 L1=0），禁止再拆；与 qwen3_8 必须分开。"
+    },
+    {
+      "id": "qwen3_8",
+      "backend": "tokenizers",
+      "source_url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/resolve/main/tokenizer.json",
+      "source_ref": "tokenizer.json",
+      "sha256": "0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3",
+      "local_path": "catalog/tokenizers/qwen3_8.json",
+      "status": "ok",
+      "notes": "vocab ~248320。不得与 qwen2_5 合并。"
+    },
+    {
+      "id": "deepseek_v3",
+      "backend": "tokenizers",
+      "source_url": "https://huggingface.co/deepseek-ai/DeepSeek-V3/resolve/main/tokenizer.json",
+      "source_ref": "tokenizer.json",
+      "sha256": "621ac2e32d0dba658404412318818aaa8ce8cda492e59830109d8da6b517fb41",
+      "local_path": "catalog/tokenizers/deepseek_v3.json",
+      "status": "ok",
+      "notes": "DeepSeek-V3 公开 tokenizer.json。V4-Pro tokenizer.json 文件 SHA 不同，但 14 探针 L1=0，不单列。"
+    },
+    {
+      "id": "kimi",
+      "backend": "tiktoken.model",
+      "source_url": "https://huggingface.co/moonshotai/Kimi-K2-Instruct/resolve/main/tiktoken.model",
+      "source_ref": "tiktoken.model",
+      "sha256": "b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103",
+      "local_path": "catalog/tokenizers/kimi.tiktoken",
+      "status": "ok",
+      "notes": "tiktoken.model + tokenization_kimi.py pretok。不能当普通 tokenizer.json 加载。"
+    },
+    {
+      "id": "minimax",
+      "backend": "tokenizers",
+      "source_url": "https://huggingface.co/MiniMaxAI/MiniMax-M1-80k/resolve/main/tokenizer.json",
+      "source_ref": "MiniMaxAI/MiniMax-M1-80k tokenizer.json",
+      "sha256": "369f547b736fad84af7c5bd8523ab1414b7116b5d167d84a10cf37c45dc79348",
+      "local_path": "catalog/tokenizers/minimax.json",
+      "status": "ok",
+      "optional": true,
+      "notes": "可选。MiniMax-M1 词表；缺文件则跳过，不参与家族计分。"
+    },
+    {
+      "id": "hunyuan",
+      "backend": "tiktoken.hunyuan",
+      "source_url": "https://huggingface.co/tencent/Hunyuan-A13B-Pretrain/resolve/main/hy.tiktoken",
+      "source_ref": "tencent/Hunyuan-A13B-Pretrain hy.tiktoken",
+      "sha256": "51e1bf20514dc78d5496f9b791af3127eadcc906c830184bf954d5b11d60573f",
+      "local_path": "catalog/tokenizers/hunyuan.tiktoken",
+      "status": "ok",
+      "notes": "官方 hy.tiktoken + tokenization_hy.py PAT_STR。与 Hunyuan-7B-Pretrain 同 SHA。Instruct 仓无此文件。禁止复用 KIMI_PAT。"
+    },
+    {
+      "id": "grok2",
+      "backend": "tiktoken.tok.json",
+      "source_url": "https://huggingface.co/xai-org/grok-2/resolve/main/tokenizer.tok.json",
+      "source_ref": "xai-org/grok-2 tokenizer.tok.json word_split=V1",
+      "sha256": "8132d5a6e15d09fdc06680173bb8b30b982f13128c14e14377fbbb77351dcc06",
+      "local_path": "catalog/tokenizers/grok2.tok.json",
+      "status": "ok",
+      "optional": true,
+      "notes": "可选。只映射 grok-2 / grok-2-mini。Grok-3/4.x 无公开词表，禁止套用本条。"
+    }
+  ]
+}

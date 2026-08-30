@@ -1,0 +1,44 @@
+base: "The quick brown fox.\n"
+probes:
+  - id: digit64
+    text: "7777777777777777777777777777777777777777777777777777777777777777"
+    escaped: false
+  - id: pi80
+    text: "3.14159265358979323846264338327950288419716939937510582097494459230781640628620899"
+    escaped: false
+  - id: han
+    text: "春江潮水连海平海上明月共潮生"
+    escaped: false
+  - id: kana
+    text: "きょうははれ、カタカナもすこし。"
+    escaped: false
+  - id: hangul
+    text: "안녕하세요 짧은 한국어 문장입니다"
+    escaped: false
+  - id: thai
+    text: "สวัสดีนี่คือประโยคภาษาไทยสั้นๆ"
+    escaped: false
+  - id: arabic
+    text: "مرحبا هذه جملة عربية قصيرة"
+    escaped: false
+  - id: emoji
+    text: "😀🎉👨‍👩‍👧‍👦🌟✨"
+    escaped: false
+  - id: glue
+    text: "antidisestablishmentarianismsSupercalifragilisticexpialidociousPneumonoultramicroscopicsilicovolcanoconiosisInternationalization"
+    escaped: false
+  - id: mixed
+    text: "订单OrderID=A128价格99.5元折扣15%"
+    escaped: false
+  - id: python
+    text: 'lambda x: {k:v**2 for k,v in x.items() if v is not None and k!="_"}'
+    escaped: false
+  - id: special_ws
+    text: "x\u200by\u00a0z"
+    escaped: false
+  - id: gmask
+    text: "[gMASK]"
+    escaped: true
+  - id: im_start
+    text: "<|im_start|>"
+    escaped: true

@@ -1,0 +1,28 @@
+# 厂商文档里的 Maximum Output。不是「够用额度」。
+# 匹配规则与 model_family.yaml 相同：精确命中，否则最长前缀。
+# 来源写在注释里。没写的型号：OpenAI 兼容口不传 max_tokens；Anthropic 口必须有登记。
+
+# DeepSeek Models & Pricing：https://api-docs.deepseek.com/quick_start/pricing
+# CONTEXT 1M / MAX OUTPUT 384K（Flash / Pro / Vision 相同）
+deepseek-v4: 384000
+deepseek-v4-flash: 384000
+deepseek-v4-pro: 384000
+deepseek-v4-flash-vision-exp: 384000
+
+# Anthropic Models overview（2026-08 当前表）
+# https://docs.anthropic.com/en/docs/about-claude/models/all-models
+claude-fable-5: 128000
+claude-opus-5: 128000
+claude-sonnet-5: 128000
+claude-haiku-4-5: 64000
+claude-haiku-4-5-20251001: 64000
+# Claude Sonnet 4.5 模型页（legacy，仍常用）：Max output 64K
+claude-sonnet-4-5: 64000
+
+# Z.AI / 智谱 concept-param 表（Maximum max_tokens）
+# glm-4.6v 必须写在 glm-4.6 前面更长前缀，避免误吃 128K
+glm-4.6v: 32768
+glm-4.5: 98304
+glm-4.6: 131072
+glm-4.7: 131072
+glm-5: 131072

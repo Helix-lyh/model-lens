@@ -1,0 +1,11 @@
+# 官方渠道：不写中转 base_url，靠 channel 预设根路径。
+# 密钥只走环境变量。
+claimed_model: glm-4.5-flash
+target:
+  channel: zhipu
+  api_key_env: ZHIPU_API_KEY
+  model: glm-4.5-flash
+reference:
+  channel: dashscope
+  api_key_env: DASHSCOPE_API_KEY
+  model: qwen-plus

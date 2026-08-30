@@ -1,0 +1,16 @@
+claimed_model: glm-5.3-flash
+target:
+  # 省略 channel 时：按 base_url 猜官方站；认不出则当 OpenAI 兼容中转
+  base_url: https://your-newapi/v1
+  api_key_env: TARGET_KEY
+  model: glm-5.3-flash
+# reference 可省略；省略则 I/D = skipped
+# 参考源可以是另一条官方渠道，不必和 target 同一协议
+# reference:
+#   channel: zhipu
+#   api_key_env: ZHIPU_API_KEY
+#   model: glm-4.5-flash
+reference:
+  base_url: https://official-or-trusted/v1
+  api_key_env: REF_KEY
+  model: glm-5.3-flash
