@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+
 import pytest
 
 from collections import Counter
@@ -21,17 +23,18 @@ class FakeClient:
     def __init__(self, answers: dict[str, str]):
         self.answers = answers
         self.calls: list[dict] = []
+        self._lock = threading.Lock()
 
     def complete(self, messages, *, temperature=0.0, max_tokens=1, kind="chat", stream=False):
-        self.calls.append(
-            {
-                "kind": kind,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "content": messages[0]["content"],
-                "stream": stream,
-            }
-        )
+        rec = {
+            "kind": kind,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "content": messages[0]["content"],
+            "stream": stream,
+        }
+        with self._lock:
+            self.calls.append(rec)
         qid = kind.split(":")[1]
         text = self.answers.get(qid, "")
         return CompletionRecord(
@@ -254,3 +257,12 @@ def test_majority_missing_is_none() -> None:
     assert _majority([fail, fail, missing, missing]) is None
     assert _majority([ok, ok, ok, missing]) is True
     assert _majority([ok, fail, fail, fail]) is False
+
+
+def test_run_bank_concurrency_keeps_question_order() -> None:
+    qs = [q for q in load_questions() if q.domain == "knowledge" and q.difficulty == "easy"]
+    client = FakeClient({q.id: "0" for q in qs})
+    result = run_bank(client, qs, salt="t", quick=True, concurrency=4)
+    assert [q.question_id for q in result.questions] == [q.id for q in qs]
+    assert len(client.calls) == len(qs)
+    assert result.n_questions == len(qs)

@@ -13,7 +13,7 @@ import httpx
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from src.bank import load_questions, run_bank
+from src.bank import DEFAULT_CONCURRENCY, load_questions, run_bank
 from src.catalog import load_catalog, lookup_claimed_family
 from src.client import ChatClient, JsonlRecorder
 from src.compare import decide_degrade, decide_identity
@@ -29,6 +29,7 @@ def main() -> int:
     parser.add_argument("--out", required=True)
     parser.add_argument("--timeout", type=float, default=180.0)
     parser.add_argument("--quick", action="store_true")
+    parser.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY)
     args = parser.parse_args()
 
     targets = load_targets(args.target)
@@ -43,7 +44,7 @@ def main() -> int:
     )
     catalog = load_catalog(ROOT)
     base, probes = load_family_probes(ROOT)
-    family = run_family(client, catalog, base, probes)
+    family = run_family(client, catalog, base, probes, concurrency=args.concurrency)
     print(format_family_line(family), flush=True)
     bank = run_bank(
         client,
@@ -52,6 +53,7 @@ def main() -> int:
         quick=args.quick,
         repo=ROOT,
         kind_prefix="bank",
+        concurrency=args.concurrency,
     )
     for domain, row in bank.domain_pass0.items():
         print(f"bank {domain}={row['passed']}/{row['judged']}", flush=True)

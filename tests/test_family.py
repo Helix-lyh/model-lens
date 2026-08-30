@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+
 import pytest
 
 from src.family import format_family_line, run_family
@@ -30,6 +32,7 @@ class FakeClient:
     def __init__(self, responses: dict[str, dict]):
         self.responses = responses
         self.calls: list[dict] = []
+        self._lock = threading.Lock()
 
     def complete(
         self,
@@ -43,15 +46,16 @@ class FakeClient:
     ) -> CompletionRecord:
         del extra, stream
         text = messages[0]["content"]
-        self.calls.append(
-            {
-                "text": text,
-                "messages": messages,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "kind": kind,
-            }
-        )
+        with self._lock:
+            self.calls.append(
+                {
+                    "text": text,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "kind": kind,
+                }
+            )
         spec = self.responses.get(text, {})
         prompt_tokens = spec.get("prompt_tokens")
         if "usage" in spec:

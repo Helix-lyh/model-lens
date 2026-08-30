@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import threading
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -54,11 +55,13 @@ class JsonlRecorder:
     def __init__(self, path: Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._lock = threading.Lock()
 
     def write(self, record: CompletionRecord) -> None:
         line = json.dumps(asdict(record), ensure_ascii=False, default=str)
-        with self.path.open("a", encoding="utf-8") as fh:
-            fh.write(line + "\n")
+        with self._lock:
+            with self.path.open("a", encoding="utf-8") as fh:
+                fh.write(line + "\n")
 
 
 class ChatClient:

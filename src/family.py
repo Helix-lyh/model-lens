@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+
+from src.bank import DEFAULT_CONCURRENCY
 from src.types import (
     Completer,
     CompletionRecord,
@@ -28,6 +31,7 @@ def run_family(
     probes: list[Probe],
     *,
     claimed_model: str | None = None,
+    concurrency: int = DEFAULT_CONCURRENCY,
 ) -> FamilyResult:
     """对 BASE 与每条 BASE+x 做非流式差分，按 L1 / exact_hits 选家族。
 
@@ -45,18 +49,15 @@ def run_family(
     if _cached_exceeds_prompt(prompt_tokens_base, cached_tokens_base):
         return _untrusted("base_cached_gt_prompt", probes=[], n_probes=0)
 
-    deltas: list[ProbeDelta] = []
-    for probe in probes:
-        deltas.append(
-            _measure_probe(
-                client,
-                catalog=catalog,
-                base=base,
-                probe=probe,
-                prompt_tokens_base=prompt_tokens_base,
-                cached_tokens_base=cached_tokens_base,
-            )
-        )
+    deltas = _measure_probes(
+        client,
+        catalog=catalog,
+        base=base,
+        probes=probes,
+        prompt_tokens_base=prompt_tokens_base,
+        cached_tokens_base=cached_tokens_base,
+        concurrency=concurrency,
+    )
 
     kept = [d for d in deltas if not d.dropped]
     n_used = len(kept)
@@ -133,6 +134,34 @@ def _complete(client: Completer, text: str, *, kind: str) -> CompletionRecord:
         kind=kind,
         stream=False,
     )
+
+
+def _measure_probes(
+    client: Completer,
+    *,
+    catalog: dict[str, Vocab],
+    base: str,
+    probes: list[Probe],
+    prompt_tokens_base: int,
+    cached_tokens_base: int | None,
+    concurrency: int,
+) -> list[ProbeDelta]:
+    workers = max(1, int(concurrency))
+
+    def _one(probe: Probe) -> ProbeDelta:
+        return _measure_probe(
+            client,
+            catalog=catalog,
+            base=base,
+            probe=probe,
+            prompt_tokens_base=prompt_tokens_base,
+            cached_tokens_base=cached_tokens_base,
+        )
+
+    if workers == 1 or len(probes) <= 1:
+        return [_one(probe) for probe in probes]
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        return list(pool.map(_one, probes))
 
 
 def _measure_probe(

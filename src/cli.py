@@ -6,7 +6,7 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.bank import load_questions, run_bank
+from src.bank import DEFAULT_CONCURRENCY, load_questions, run_bank
 from src.client import ChatClient, JsonlRecorder
 from src.config import load_targets
 from src.compare import decide_degrade, decide_identity
@@ -30,11 +30,20 @@ FAMILY_TIMEOUT_S = 60.0
 BANK_TIMEOUT_S = 180.0
 
 
+def _add_concurrency(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=DEFAULT_CONCURRENCY,
+        help=f"同时进行的请求数，默认 {DEFAULT_CONCURRENCY}；家族 BASE 仍先串行",
+    )
+
+
 def _client(endpoint, run_dir: Path, *, timeout_s: float) -> ChatClient:
     return ChatClient(endpoint, JsonlRecorder(run_dir / "requests.jsonl"), timeout_s=timeout_s)
 
 
-def _run_family(client: ChatClient) -> FamilyResult:
+def _run_family(client: ChatClient, *, concurrency: int = DEFAULT_CONCURRENCY) -> FamilyResult:
     from src.catalog import load_catalog
     from src.family import run_family
     from src.probes import load_family_probes
@@ -42,7 +51,7 @@ def _run_family(client: ChatClient) -> FamilyResult:
     root = _project_root()
     catalog = load_catalog(root)
     base, probes = load_family_probes(root)
-    return run_family(client, catalog, base, probes)
+    return run_family(client, catalog, base, probes, concurrency=concurrency)
 
 
 def _run_bank(
@@ -52,6 +61,7 @@ def _run_bank(
     quick: bool,
     prefix: str,
     stream_metrics: bool = False,
+    concurrency: int = DEFAULT_CONCURRENCY,
 ) -> BankResult:
     return run_bank(
         client,
@@ -61,6 +71,7 @@ def _run_bank(
         repo=_project_root(),
         kind_prefix=prefix,
         stream_metrics=stream_metrics,
+        concurrency=concurrency,
     )
 
 
@@ -90,7 +101,7 @@ def _cmd_family(args: argparse.Namespace) -> int:
     targets = load_targets(args.target)
     run_dir = _new_run_dir(Path(args.out))
     client = _client(targets.target, run_dir, timeout_s=args.timeout)
-    result = _run_family(client)
+    result = _run_family(client, concurrency=args.concurrency)
     identity = decide_identity(
         result, targets, claimed_family=lookup_claimed_family(targets.claimed_model)
     )
@@ -112,6 +123,7 @@ def _cmd_bank(args: argparse.Namespace) -> int:
         quick=args.quick,
         prefix="bank",
         stream_metrics=args.stream_metrics,
+        concurrency=args.concurrency,
     )
     _write_report(run_dir, targets, family=None, bank=bank)
     _print_bank(bank)
@@ -123,7 +135,7 @@ def _cmd_audit(args: argparse.Namespace) -> int:
     targets = load_targets(args.target)
     run_dir = _new_run_dir(Path(args.out))
     client = _client(targets.target, run_dir, timeout_s=args.timeout)
-    family = _run_family(client)
+    family = _run_family(client, concurrency=args.concurrency)
     print(format_family_line(family))
     bank = _run_bank(
         client,
@@ -131,6 +143,7 @@ def _cmd_audit(args: argparse.Namespace) -> int:
         quick=args.quick,
         prefix="bank",
         stream_metrics=args.stream_metrics,
+        concurrency=args.concurrency,
     )
     _print_bank(bank)
     bank_ref = None
@@ -142,6 +155,7 @@ def _cmd_audit(args: argparse.Namespace) -> int:
             quick=args.quick,
             prefix="bank_ref",
             stream_metrics=args.stream_metrics,
+            concurrency=args.concurrency,
         )
         _print_bank(bank_ref, label="reference")
     identity = decide_identity(
@@ -223,6 +237,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=FAMILY_TIMEOUT_S,
         help=f"单次请求超时秒，默认 {FAMILY_TIMEOUT_S:.0f}",
     )
+    _add_concurrency(p_family)
     p_family.set_defaults(func=_cmd_family)
 
     p_bank = sub.add_parser("bank", help="只跑 Module C 题库")
@@ -244,6 +259,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=BANK_TIMEOUT_S,
         help=f"单次请求超时秒，默认 {BANK_TIMEOUT_S:.0f}（推理模型题库）",
     )
+    _add_concurrency(p_bank)
     p_bank.set_defaults(func=_cmd_bank)
 
     p_report = sub.add_parser("report", help="对已有 run 重出 md/json")
@@ -279,6 +295,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=BANK_TIMEOUT_S,
         help=f"单次请求超时秒，默认 {BANK_TIMEOUT_S:.0f}；家族栏同一客户端",
     )
+    _add_concurrency(p_audit)
     p_audit.set_defaults(func=_cmd_audit)
 
     return parser

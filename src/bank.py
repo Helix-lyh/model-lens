@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Literal
 
@@ -22,6 +23,7 @@ _LANG_HEAD = {
 }
 BANK_MIN = 20
 BANK_MAX = 60
+DEFAULT_CONCURRENCY = 4
 QUICK_DIFFICULTIES: tuple[Difficulty, ...] = ("easy", "medium")
 THINK_LIMIT = {"easy": 80_000, "medium": 100_000, "hard": 128_000}
 BankMode = Literal["quick", "full"]
@@ -152,41 +154,96 @@ def run_bank(
     repo: Path | None = None,
     kind_prefix: str = "bank",
     stream_metrics: bool = False,
+    concurrency: int = DEFAULT_CONCURRENCY,
 ) -> BankResult:
     root = repo or repo_root()
     picked = select_questions(questions, "quick" if quick else "full")
     temps = [0.0] if quick else [0.0, 0.7, 0.7, 0.7]
-    results: list[QuestionResult] = []
-    for question in picked:
-        samples: list[SampleGrade] = []
-        for i, temp in enumerate(temps):
-            rec = client.complete(
-                messages=[{"role": "user", "content": salt_prompt(question.prompt, salt)}],
-                temperature=temp,
-                max_tokens=None,
-                kind=f"{kind_prefix}:{question.id}:t{temp}:n{i}",
-                stream=stream_metrics,
-            )
-            content = rec.content if rec.error is None else None
-            if rec.error is not None or rec.status_code is None or not (
-                200 <= (rec.status_code or 0) < 300
-            ):
-                grade = SampleGrade(
-                    temperature=temp,
-                    status="missing",
-                    passed=None,
-                    detail=rec.error or f"http {rec.status_code}",
-                    content=rec.content,
-                    reasoning=rec.reasoning,
-                )
-            else:
-                grade = grade_response(question, content, repo_root=root)
-                attach_temperature(grade, temp)
-                grade.reasoning = rec.reasoning
-                _apply_think_penalty(grade, question, rec)
-            samples.append(grade)
-        results.append(_summarize_question(question, samples))
+    jobs = [(question, i, temp) for question in picked for i, temp in enumerate(temps)]
+    graded = _run_jobs(
+        jobs,
+        client=client,
+        salt=salt,
+        root=root,
+        kind_prefix=kind_prefix,
+        stream_metrics=stream_metrics,
+        concurrency=concurrency,
+    )
+    results = [
+        _summarize_question(question, [graded[(question.id, i)] for i in range(len(temps))])
+        for question in picked
+    ]
     return _summarize_bank(results, salt=salt, quick=quick)
+
+
+def _run_jobs(
+    jobs: list[tuple[Question, int, float]],
+    *,
+    client: Any,
+    salt: str,
+    root: Path,
+    kind_prefix: str,
+    stream_metrics: bool,
+    concurrency: int,
+) -> dict[tuple[str, int], SampleGrade]:
+    workers = max(1, int(concurrency))
+
+    def _one(job: tuple[Question, int, float]) -> tuple[str, int, SampleGrade]:
+        question, i, temp = job
+        return question.id, i, _grade_one(
+            client,
+            question,
+            salt=salt,
+            root=root,
+            kind_prefix=kind_prefix,
+            stream_metrics=stream_metrics,
+            temp=temp,
+            sample_i=i,
+        )
+
+    if workers == 1 or len(jobs) <= 1:
+        return {(qid, i): grade for qid, i, grade in (_one(job) for job in jobs)}
+    graded: dict[tuple[str, int], SampleGrade] = {}
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for qid, i, grade in pool.map(_one, jobs):
+            graded[(qid, i)] = grade
+    return graded
+
+
+def _grade_one(
+    client: Any,
+    question: Question,
+    *,
+    salt: str,
+    root: Path,
+    kind_prefix: str,
+    stream_metrics: bool,
+    temp: float,
+    sample_i: int,
+) -> SampleGrade:
+    rec = client.complete(
+        messages=[{"role": "user", "content": salt_prompt(question.prompt, salt)}],
+        temperature=temp,
+        max_tokens=None,
+        kind=f"{kind_prefix}:{question.id}:t{temp}:n{sample_i}",
+        stream=stream_metrics,
+    )
+    if rec.error is not None or rec.status_code is None or not (
+        200 <= (rec.status_code or 0) < 300
+    ):
+        return SampleGrade(
+            temperature=temp,
+            status="missing",
+            passed=None,
+            detail=rec.error or f"http {rec.status_code}",
+            content=rec.content,
+            reasoning=rec.reasoning,
+        )
+    grade = grade_response(question, rec.content if isinstance(rec.content, str) else None, repo_root=root)
+    attach_temperature(grade, temp)
+    grade.reasoning = rec.reasoning
+    _apply_think_penalty(grade, question, rec)
+    return grade
 
 
 def _apply_think_penalty(grade: SampleGrade, question: Question, rec: Any) -> SampleGrade:
