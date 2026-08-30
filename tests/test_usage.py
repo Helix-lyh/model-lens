@@ -97,6 +97,30 @@ def test_missing_usage_stays_none() -> None:
     assert usage.cached_tokens is None
 
 
+def test_non_integer_usage_stays_none() -> None:
+    usage = extract_token_usage(
+        {"usage": {"prompt_tokens": "12", "completion_tokens": True, "input_tokens": 7.5}}
+    )
+    assert usage.prompt_tokens is None
+    assert usage.completion_tokens is None
+
+
+def test_anthropic_ephemeral_cache_write_sum() -> None:
+    usage = extract_token_usage(
+        {
+            "usage": {
+                "input_tokens": 10,
+                "output_tokens": 1,
+                "cache_creation": {
+                    "ephemeral_5m_input_tokens": 3,
+                    "ephemeral_1h_input_tokens": 4,
+                },
+            }
+        }
+    )
+    assert usage.cache_write_tokens == 7
+
+
 def test_count_request_chars() -> None:
     assert count_request_chars({"messages": [{"role": "user", "content": "abcd"}]}) == 4
 

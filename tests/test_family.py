@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
-from src.family import BASE, format_family_line, run_family
-from src.types import CompletionRecord, Probe
+import pytest
+
+from src.family import format_family_line, run_family
+from src.probes import load_family_probes
+from src.types import Completer, CompletionRecord, Probe
+
+BASE, _ = load_family_probes()
 
 
 class FakeVocab:
@@ -26,7 +31,17 @@ class FakeClient:
         self.responses = responses
         self.calls: list[dict] = []
 
-    def complete(self, messages, temperature=0, max_tokens=1, kind="", stream=False):
+    def complete(
+        self,
+        messages: list[dict],
+        *,
+        temperature: float = 0.0,
+        max_tokens: int | None = None,
+        extra: dict | None = None,
+        kind: str = "chat",
+        stream: bool = False,
+    ) -> CompletionRecord:
+        del extra, stream
         text = messages[0]["content"]
         self.calls.append(
             {
@@ -38,6 +53,15 @@ class FakeClient:
             }
         )
         spec = self.responses.get(text, {})
+        prompt_tokens = spec.get("prompt_tokens")
+        if "usage" in spec:
+            usage = spec["usage"]
+        elif type(prompt_tokens) is int:
+            usage = {"prompt_tokens": prompt_tokens}
+            if "cached_tokens" in spec:
+                usage["cached_tokens"] = spec["cached_tokens"]
+        else:
+            usage = None
         return CompletionRecord(
             kind=kind,
             endpoint="fake",
@@ -49,9 +73,10 @@ class FakeClient:
             },
             status_code=spec.get("status_code", 200),
             latency_ms=0,
-            prompt_tokens=spec.get("prompt_tokens"),
+            prompt_tokens=prompt_tokens,
             completion_tokens=1,
             content="",
+            usage=usage,
         )
 
 
@@ -242,6 +267,34 @@ def test_delta_api_lt_1_dropped_may_untrusted():
     assert result.family == "token_untrusted"
 
 
+def test_fake_client_is_completer() -> None:
+    assert isinstance(FakeClient({}), Completer)
+
+
+def test_complete_exception_propagates() -> None:
+    class Boom(Exception):
+        pass
+
+    class RaisingClient:
+        def complete(
+            self,
+            messages: list[dict],
+            *,
+            temperature: float = 0.0,
+            max_tokens: int | None = None,
+            extra: dict | None = None,
+            kind: str = "chat",
+            stream: bool = False,
+        ):
+            del messages, temperature, max_tokens, extra, kind, stream
+            raise Boom("network")
+
+    probes = _probes(8)
+    catalog = {"glm5": FakeVocab("glm5", _table(BASE, probes, [2] * 8))}
+    with pytest.raises(Boom):
+        run_family(RaisingClient(), catalog, BASE, probes)
+
+
 def test_n_hat_uses_differential_not_encode_x():
     probes = _probes(8)
     diff_hats = [3] * 8
@@ -266,3 +319,102 @@ def test_n_hat_uses_differential_not_encode_x():
         assert pd.delta_api == 3
     assert result.family == "weird"
     assert result.hits == 8
+
+
+def test_usage_prompt_tokens_preferred_over_top_level():
+    probes = _probes(8)
+    hats = [2] * 8
+    catalog = {
+        "glm5": FakeVocab("glm5", _table(BASE, probes, hats)),
+        "qwen2_5": FakeVocab("qwen2_5", _table(BASE, probes, [9] * 8)),
+    }
+    client = _client_for(BASE, probes, hats, overhead=50)
+    client.responses[BASE] = {
+        "status_code": 200,
+        "prompt_tokens": 999,
+        "usage": {"prompt_tokens": 50},
+    }
+    client.responses[BASE + probes[0].text] = {
+        "status_code": 200,
+        "prompt_tokens": 1,
+        "usage": {"prompt_tokens": 52},
+    }
+
+    result = run_family(client, catalog, BASE, probes)
+
+    assert result.status == "ok"
+    assert result.family == "glm5"
+    assert result.probes[0].prompt_tokens_base == 50
+    assert result.probes[0].prompt_tokens_probe == 52
+    assert result.probes[0].delta_api == 2
+    assert result.probes[0].dropped is False
+    assert result.hits == 8
+
+
+def test_base_cached_gt_prompt_untrusted():
+    probes = _probes(8)
+    catalog = {"glm5": FakeVocab("glm5", _table(BASE, probes, [2] * 8))}
+    client = FakeClient(
+        {
+            BASE: {
+                "status_code": 200,
+                "prompt_tokens": 50,
+                "usage": {"prompt_tokens": 50, "cached_tokens": 80},
+            }
+        }
+    )
+
+    result = run_family(client, catalog, BASE, probes)
+
+    assert result.status == "token_untrusted"
+    assert result.family == "token_untrusted"
+    assert result.untrusted_reason == "base_cached_gt_prompt"
+    assert all(c["kind"] != "family_probe:p00" for c in client.calls)
+
+
+def test_probe_cached_gt_prompt_dropped():
+    probes = _probes(14)
+    glm_hats = [i + 2 for i in range(14)]
+    qwen_hats = [i + 20 for i in range(14)]
+    catalog = {
+        "glm5": FakeVocab("glm5", _table(BASE, probes, glm_hats)),
+        "qwen2_5": FakeVocab("qwen2_5", _table(BASE, probes, qwen_hats)),
+    }
+    client = _client_for(BASE, probes, glm_hats, overhead=50)
+    client.responses[BASE + probes[0].text] = {
+        "status_code": 200,
+        "prompt_tokens": 52,
+        "usage": {"prompt_tokens": 52, "cached_tokens": 90},
+    }
+
+    result = run_family(client, catalog, BASE, probes)
+
+    assert result.probes[0].dropped is True
+    assert result.probes[0].drop_reason == "cached_gt_prompt"
+    assert result.n_probes == 13
+    assert result.status == "ok"
+    assert result.family == "glm5"
+
+
+def test_base_cached_positive_probe_cached_zero_dropped():
+    probes = _probes(14)
+    glm_hats = [i + 2 for i in range(14)]
+    qwen_hats = [i + 20 for i in range(14)]
+    catalog = {
+        "glm5": FakeVocab("glm5", _table(BASE, probes, glm_hats)),
+        "qwen2_5": FakeVocab("qwen2_5", _table(BASE, probes, qwen_hats)),
+    }
+    client = _client_for(BASE, probes, glm_hats, overhead=50)
+    client.responses[BASE]["cached_tokens"] = 10
+    for probe, hat in zip(probes, glm_hats, strict=True):
+        client.responses[BASE + probe.text]["cached_tokens"] = 10
+    client.responses[BASE + probes[0].text]["cached_tokens"] = 0
+
+    result = run_family(client, catalog, BASE, probes)
+
+    assert result.probes[0].dropped is True
+    assert result.probes[0].drop_reason == "cache_inconsistent"
+    assert all(not d.dropped for d in result.probes[1:])
+    assert result.n_probes == 13
+    assert result.status == "ok"
+    assert result.family == "glm5"

@@ -1,4 +1,6 @@
 .venv/
+.cache/
+audit-artifacts/
 __pycache__/
 *.py[cod]
 *.egg-info/

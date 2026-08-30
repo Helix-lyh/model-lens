@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.gallery import build_gallery, write_gallery
 from src.reasoning import extract_reasoning
-from src.report import write_family_report
+from src.report import write_run_report
 from src.types import (
     BankResult,
     Endpoint,
@@ -66,7 +66,7 @@ def test_gallery_html_switches_models(tmp_path) -> None:
         domain_pass0={"knowledge": {"passed": 1, "judged": 1, "missing": 0}},
         domain_points={"knowledge": {"earned": 1, "total": 1, "score10": 10.0}},
     )
-    write_family_report(
+    write_run_report(
         run_a,
         targets=targets_a,
         family=FamilyResult(
@@ -83,7 +83,7 @@ def test_gallery_html_switches_models(tmp_path) -> None:
         bank=bank,
         extra={"api_key": "sk-secret"},
     )
-    write_family_report(
+    write_run_report(
         run_b,
         targets=targets_b,
         family=FamilyResult(
@@ -117,6 +117,8 @@ def test_gallery_html_switches_models(tmp_path) -> None:
     q0 = payload["models"][0]["questions"][0]
     assert q0["id"] == "knowledge-easy-01"
     assert q0["difficulty"] == "easy"
+    assert q0["expected"] == ["见 pass_criteria"]
+    assert "0" not in q0["expected"]
     assert q0["samples"][0]["answer"] == "0"
     assert q0["samples"][0]["reasoning"] == "冰糖会化。"
     assert q0["samples"][0]["score10"] == 10.0

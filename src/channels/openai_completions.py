@@ -7,6 +7,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from src.channels.base import PreparedRequest, ResolvedChannel, first_user_text
+from src.stream import OpenAICompletionsStream
 from src.usage import TokenUsage, extract_token_usage
 
 _VERSIONED_ROOT = re.compile(r"/v\d+$")
@@ -44,7 +45,7 @@ def _max_tokens_field(resolved: ResolvedChannel) -> str:
     return field if isinstance(field, str) and field else "max_tokens"
 
 
-class OpenAICompletionsAdapter:
+class OpenAICompletionsAdapter(OpenAICompletionsStream):
     api = "openai-completions"
 
     def prepare(
@@ -76,10 +77,6 @@ class OpenAICompletionsAdapter:
 
     def parse_token_usage(self, data: object) -> TokenUsage:
         return extract_token_usage(data)
-
-    def parse_usage(self, data: object) -> tuple[int | None, int | None]:
-        usage = self.parse_token_usage(data)
-        return usage.prompt_tokens, usage.completion_tokens
 
     def parse_content(self, data: object) -> str | None:
         if not isinstance(data, dict):

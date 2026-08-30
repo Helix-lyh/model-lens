@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.report import render_run, write_family_report
+from src.report import render_run, write_run_report
 from src.types import (
     BankResult,
     Endpoint,
@@ -56,7 +56,7 @@ def test_report_three_columns_no_total_no_secret(tmp_path):
         ),
         reference=None,
     )
-    write_family_report(
+    write_run_report(
         run_dir,
         targets=targets,
         family=_ok_family(),
@@ -104,7 +104,7 @@ def test_render_run_rewrites_md(tmp_path):
         target=Endpoint(base_url="https://t.test/v1", api_key_env="TARGET_KEY", model="q"),
         reference=Endpoint(base_url="https://r.test/v1", api_key_env="REF_KEY", model="q"),
     )
-    write_family_report(run_dir, targets=targets, family=_ok_family())
+    write_run_report(run_dir, targets=targets, family=_ok_family())
     (run_dir / "report.md").write_text("stale\n", encoding="utf-8")
     (run_dir / "report.json").write_text("{}\n", encoding="utf-8")
 
@@ -127,7 +127,7 @@ def test_untrusted_and_ambiguous_bars(tmp_path):
         "target": {"base_url": "https://t", "api_key_env": "TARGET_KEY", "model": "x"},
         "reference": None,
     }
-    write_family_report(
+    write_run_report(
         run_dir,
         targets=targets,
         family=FamilyResult(
@@ -148,7 +148,7 @@ def test_untrusted_and_ambiguous_bars(tmp_path):
     assert "支持" not in md
 
     run_dir2 = tmp_path / "run-amb"
-    write_family_report(
+    write_run_report(
         run_dir2,
         targets=targets,
         family=FamilyResult(
@@ -179,7 +179,7 @@ def test_report_bank_domain_rates(tmp_path):
         salt="run-bank",
         questions=[
             QuestionResult(
-                question_id="coding-medium-01",
+                question_id="coding-medium-01-python",
                 domain="coding",
                 difficulty="medium",
                 samples=[
@@ -198,7 +198,7 @@ def test_report_bank_domain_rates(tmp_path):
                 score10=10.0,
             ),
             QuestionResult(
-                question_id="coding-medium-02",
+                question_id="coding-medium-02-python",
                 domain="coding",
                 difficulty="medium",
                 samples=[SampleGrade(temperature=0.0, status="missing", passed=None, detail="no fence")],
@@ -212,7 +212,7 @@ def test_report_bank_domain_rates(tmp_path):
         knowledge_all_wrong=False,
         n_questions=2,
     )
-    write_family_report(run_dir, targets=targets, family=_ok_family(), bank=bank)
+    write_run_report(run_dir, targets=targets, family=_ok_family(), bank=bank)
     md = (run_dir / "report.md").read_text(encoding="utf-8")
     assert "分域通过率" in md
     assert "分域折合10" in md
@@ -221,7 +221,7 @@ def test_report_bank_domain_rates(tmp_path):
     assert "coding 10.0" in md
     assert "medium 10.0" in md
     assert "score10" in md
-    assert "coding-medium-01" in md
+    assert "coding-medium-01-python" in md
     assert (run_dir / "bank.json").is_file()
     assert "支持" not in md
 
@@ -255,7 +255,7 @@ def test_report_includes_traffic_from_jsonl(tmp_path):
         + "\n",
         encoding="utf-8",
     )
-    write_family_report(run_dir, targets=targets, family=_ok_family())
+    write_run_report(run_dir, targets=targets, family=_ok_family())
     md = (run_dir / "report.md").read_text(encoding="utf-8")
     family = (run_dir / "family.json").read_text(encoding="utf-8")
     assert "流量 / 缓存 / 速率" in md

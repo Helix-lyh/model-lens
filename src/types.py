@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Protocol, runtime_checkable
 
 
 FamilyStatus = Literal["ok", "ambiguous", "token_untrusted"]
@@ -121,6 +121,7 @@ class Question:
     prompt: str
     grader: dict[str, Any]
     pass_criteria: str
+    language: str | None = None
 
 
 @dataclass
@@ -189,3 +190,19 @@ class Recorder(Protocol):
     path: Path
 
     def write(self, record: CompletionRecord) -> None: ...
+
+
+@runtime_checkable
+class Completer(Protocol):
+    """family / 题库共用的 complete 入口。ChatClient 与测试 FakeClient 都实现它。"""
+
+    def complete(
+        self,
+        messages: list[dict],
+        *,
+        temperature: float = 0.0,
+        max_tokens: int | None = None,
+        extra: dict | None = None,
+        kind: str = "chat",
+        stream: bool = False,
+    ) -> CompletionRecord: ...

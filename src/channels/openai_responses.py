@@ -6,10 +6,11 @@ from typing import Any
 
 from src.channels.base import PreparedRequest, ResolvedChannel, first_user_text
 from src.channels.openai_completions import openai_api_root
+from src.stream import OpenAIResponsesStream
 from src.usage import TokenUsage, extract_token_usage
 
 
-class OpenAIResponsesAdapter:
+class OpenAIResponsesAdapter(OpenAIResponsesStream):
     api = "openai-responses"
 
     def prepare(
@@ -42,10 +43,6 @@ class OpenAIResponsesAdapter:
 
     def parse_token_usage(self, data: object) -> TokenUsage:
         return extract_token_usage(data)
-
-    def parse_usage(self, data: object) -> tuple[int | None, int | None]:
-        usage = self.parse_token_usage(data)
-        return usage.prompt_tokens, usage.completion_tokens
 
     def parse_content(self, data: object) -> str | None:
         if not isinstance(data, dict):

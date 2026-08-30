@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from src.bank import load_questions, run_bank, salt_prompt, select_questions
-from src.types import CompletionRecord, Endpoint
+import pytest
+
+from src.bank import _expand_question, _majority, load_questions, run_bank, salt_prompt, select_questions
+from src.types import CompletionRecord, Question, SampleGrade
 
 
 class FakeClient:
@@ -40,9 +42,16 @@ def test_load_questions_size_and_ids() -> None:
     assert {q.domain for q in qs} == {"architecture", "coding", "knowledge"}
     assert {q.difficulty for q in qs} == {"easy", "medium", "hard"}
     for q in qs:
-        domain, diff, _seq = q.id.split("-")
-        assert domain == q.domain
-        assert diff == q.difficulty
+        parts = q.id.split("-")
+        assert parts[0] == q.domain
+        assert parts[1] == q.difficulty
+        if q.domain == "coding":
+            assert parts[-1] in {"python", "go", "typescript"}
+            assert q.language == parts[-1]
+    coding = [q for q in qs if q.domain == "coding"]
+    assert len(coding) == 24
+    assert {q.language for q in coding} == {"python", "go", "typescript"}
+    assert len(qs) == 40
     quick = select_questions(qs, "quick")
     full = select_questions(qs, "full")
     assert all(q.difficulty in {"easy", "medium"} for q in quick)
@@ -111,7 +120,13 @@ def test_think_penalty_halves_easy_score() -> None:
     result = run_bank(client, qs, salt="t", quick=True)
     assert result.questions[0].pass0 is True
     assert result.questions[0].score10 == 5.0
-    assert "think_penalty" in result.questions[0].samples[0].detail
+    sample = result.questions[0].samples[0]
+    assert sample.points == 1
+    assert sample.points_total == 2
+    assert result.domain_points["knowledge"]["earned"] == 1
+    assert result.domain_points["knowledge"]["total"] == 2
+    assert result.domain_points["knowledge"]["score10"] == 5.0
+    assert "think_penalty" in sample.detail
 
 
 def test_http_error_is_missing_not_abort() -> None:
@@ -130,8 +145,31 @@ def test_http_error_is_missing_not_abort() -> None:
                 error="HTTP 500",
             )
 
-    qs = [q for q in load_questions() if q.id == "coding-medium-01"]
+    qs = [q for q in load_questions() if q.id == "coding-medium-01-python"]
     result = run_bank(Boom(), qs, salt="t", quick=True)
     assert result.questions[0].samples[0].status == "missing"
     assert result.domain_pass0["coding"]["judged"] == 0
     assert result.domain_pass0["coding"]["missing"] == 1
+
+
+def test_expand_code_tests_requires_languages() -> None:
+    q = Question(
+        id="coding-easy-99",
+        domain="coding",
+        difficulty="easy",
+        prompt="x",
+        grader={"type": "code_tests", "tests_file": "bank/tests/b01_shelf.py"},
+        pass_criteria="t",
+    )
+    with pytest.raises(ValueError, match="languages"):
+        _expand_question(q)
+
+
+def test_majority_missing_is_none() -> None:
+    missing = SampleGrade(temperature=0.0, status="missing", passed=None, detail="x")
+    fail = SampleGrade(temperature=0.0, status="fail", passed=False, detail="x")
+    ok = SampleGrade(temperature=0.0, status="pass", passed=True, detail="x")
+    assert _majority([missing, missing, missing, missing]) is None
+    assert _majority([fail, fail, missing, missing]) is None
+    assert _majority([ok, ok, ok, missing]) is True
+    assert _majority([ok, fail, fail, fail]) is False

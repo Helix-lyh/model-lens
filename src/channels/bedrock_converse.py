@@ -10,6 +10,7 @@ from typing import Any
 from urllib.parse import quote
 
 from src.channels.base import PreparedRequest, ResolvedChannel, first_user_text
+from src.stream import BedrockConverseStream
 from src.usage import TokenUsage, extract_token_usage
 
 
@@ -22,7 +23,7 @@ def converse_url(base_url: str, model: str) -> str:
     return f"{root}/model/{quote(model, safe='')}/converse"
 
 
-class BedrockConverseAdapter:
+class BedrockConverseAdapter(BedrockConverseStream):
     api = "bedrock-converse"
 
     def prepare(
@@ -50,10 +51,6 @@ class BedrockConverseAdapter:
 
     def parse_token_usage(self, data: object) -> TokenUsage:
         return extract_token_usage(data)
-
-    def parse_usage(self, data: object) -> tuple[int | None, int | None]:
-        usage = self.parse_token_usage(data)
-        return usage.prompt_tokens, usage.completion_tokens
 
     def parse_content(self, data: object) -> str | None:
         if not isinstance(data, dict):

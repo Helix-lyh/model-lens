@@ -25,29 +25,6 @@ _SECRET_NAMES = frozenset(
 _CONF_ZH = {"high": "高", "medium": "中", "low": "低"}
 
 
-def write_family_report(
-    run_dir: Path,
-    *,
-    targets: Any,
-    family: FamilyResult | None,
-    extra: dict | None = None,
-    bank: BankResult | None = None,
-    bank_ref: BankResult | None = None,
-    identity: IdentityResult | None = None,
-    degrade: DegradeResult | None = None,
-) -> None:
-    write_run_report(
-        run_dir,
-        targets=targets,
-        family=family,
-        extra=extra,
-        bank=bank,
-        bank_ref=bank_ref,
-        identity=identity,
-        degrade=degrade,
-    )
-
-
 def write_run_report(
     run_dir: Path,
     *,
@@ -174,29 +151,41 @@ def _render_md(title: str, payload: dict[str, Any]) -> str:
     fam = payload.get("family") or {}
     target = payload.get("target") or {}
     reference = payload.get("reference")
-    lines = [
-        f"# {title}",
-        "",
-        f"- target: {_fmt_endpoint(target)}",
-        f"- claimed: {payload.get('claimed') or '（无）'}",
-        f"- reference: {_fmt_endpoint(reference) if reference else '（无）'}",
-        "",
-        f"- 家族：{_fmt_family_bar(fam) if fam else '（本 run 未跑 F）'}",
-        f"- 判真：{_fmt_identity(payload.get('identity'))}",
-        f"- 降智：{_fmt_degrade(payload.get('degrade'))}",
-        "",
-        *_render_bank_bars(payload.get("bank"), payload.get("bank_ref")),
-        *_render_traffic(payload.get("traffic")),
-        "## 附录",
-        "",
-        "### F 每条 delta vs 各候选 n_hat",
-        "",
-    ]
+    identity = payload.get("identity")
+    return "\n".join(
+        [
+            f"# {title}",
+            "",
+            f"- target: {_fmt_endpoint(target)}",
+            f"- claimed: {payload.get('claimed') or '（无）'}",
+            f"- reference: {_fmt_endpoint(reference) if reference else '（无）'}",
+            "",
+            f"- 家族：{_fmt_family_bar(fam) if fam else '（本 run 未跑 F）'}",
+            f"- 判真：{_fmt_identity(identity)}",
+            f"- 降智：{_fmt_degrade(payload.get('degrade'))}",
+            "",
+            *_render_bank_bars(payload.get("bank"), payload.get("bank_ref")),
+            *_render_traffic(payload.get("traffic")),
+            "## 附录",
+            "",
+            *_render_probe_table(fam),
+            *_render_bank_table(payload.get("bank"), "target"),
+            *_render_bank_table(payload.get("bank_ref"), "reference"),
+            *_render_coding_agree(identity.get("coding_agree") if isinstance(identity, dict) else None),
+        ]
+    )
+
+
+def _render_probe_table(fam: dict[str, Any]) -> list[str]:
     probes = fam.get("probes") or []
     catalog_ids = _catalog_ids(probes)
     header = ["probe", "delta_api", *catalog_ids, "dropped"]
-    lines.append("| " + " | ".join(header) + " |")
-    lines.append("| " + " | ".join("---" for _ in header) + " |")
+    lines = [
+        "### F 每条 delta vs 各候选 n_hat",
+        "",
+        "| " + " | ".join(header) + " |",
+        "| " + " | ".join("---" for _ in header) + " |",
+    ]
     for pd in probes:
         n_hat = pd.get("n_hat") or {}
         cells = [
@@ -207,10 +196,7 @@ def _render_md(title: str, payload: dict[str, Any]) -> str:
         ]
         lines.append("| " + " | ".join(cells) + " |")
     lines.append("")
-    lines.extend(_render_bank_table(payload.get("bank"), "target"))
-    lines.extend(_render_bank_table(payload.get("bank_ref"), "reference"))
-    lines.extend(_render_coding_agree((payload.get("identity") or {}).get("coding_agree")))
-    return "\n".join(lines)
+    return lines
 
 
 def _render_bank_bars(bank: Any, bank_ref: Any) -> list[str]:

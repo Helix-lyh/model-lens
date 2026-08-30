@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from src.types import (
+    Completer,
     CompletionRecord,
     Confidence,
     FamilyResult,
@@ -13,8 +12,6 @@ from src.types import (
     ProbeDelta,
     Vocab,
 )
-
-BASE = "The quick brown fox.\n"
 
 _MIN_VALID_PROBES = 8
 _MIN_EXACT_HITS = 6
@@ -25,7 +22,7 @@ _DELTA_SLACK = 500
 
 
 def run_family(
-    client: Any,
+    client: Completer,
     catalog: dict[str, Vocab],
     base: str,
     probes: list[Probe],
@@ -41,10 +38,12 @@ def run_family(
     base_rec = _complete(client, base, kind="family_base")
     if not _http_ok(base_rec):
         return _untrusted("base_http_error", probes=[], n_probes=0)
-    if not _int_tokens(base_rec.prompt_tokens):
+    prompt_tokens_base = _record_prompt_tokens(base_rec)
+    if prompt_tokens_base is None:
         return _untrusted("base_missing_prompt_tokens", probes=[], n_probes=0)
-
-    prompt_tokens_base: int = base_rec.prompt_tokens  # type: ignore[assignment]
+    cached_tokens_base = _record_cached_tokens(base_rec)
+    if _cached_exceeds_prompt(prompt_tokens_base, cached_tokens_base):
+        return _untrusted("base_cached_gt_prompt", probes=[], n_probes=0)
 
     deltas: list[ProbeDelta] = []
     for probe in probes:
@@ -55,6 +54,7 @@ def run_family(
                 base=base,
                 probe=probe,
                 prompt_tokens_base=prompt_tokens_base,
+                cached_tokens_base=cached_tokens_base,
             )
         )
 
@@ -125,45 +125,24 @@ def format_family_line(result: FamilyResult) -> str:
     return " ".join(parts)
 
 
-def run_protocol_probes(client: Any, *, enabled: bool = False) -> list[CompletionRecord]:
-    """预留。不进入家族结论；默认不启用，run_family 不调用。"""
-    del client
-    if not enabled:
-        return []
-    return []
-
-
-def _complete(client: Any, text: str, *, kind: str) -> CompletionRecord:
-    try:
-        return client.complete(
-            messages=[{"role": "user", "content": text}],
-            temperature=0,
-            max_tokens=None,
-            kind=kind,
-            stream=False,
-        )
-    except Exception as exc:  # noqa: BLE001 — 成对失败记缺测，不中断整场
-        return CompletionRecord(
-            kind=kind,
-            endpoint="",
-            model="",
-            request={"messages": [{"role": "user", "content": text}]},
-            status_code=None,
-            latency_ms=0,
-            prompt_tokens=None,
-            completion_tokens=None,
-            content=None,
-            error=str(exc),
-        )
+def _complete(client: Completer, text: str, *, kind: str) -> CompletionRecord:
+    return client.complete(
+        messages=[{"role": "user", "content": text}],
+        temperature=0,
+        max_tokens=None,
+        kind=kind,
+        stream=False,
+    )
 
 
 def _measure_probe(
-    client: Any,
+    client: Completer,
     *,
     catalog: dict[str, Vocab],
     base: str,
     probe: Probe,
     prompt_tokens_base: int,
+    cached_tokens_base: int | None,
 ) -> ProbeDelta:
     n_hat = _n_hats(catalog, base, probe)
     text = base + probe.text
@@ -173,11 +152,12 @@ def _measure_probe(
         return _dropped(
             probe,
             prompt_tokens_base=prompt_tokens_base,
-            prompt_tokens_probe=rec.prompt_tokens if _int_tokens(rec.prompt_tokens) else None,
+            prompt_tokens_probe=_record_prompt_tokens(rec),
             n_hat=n_hat,
             reason="http_non_2xx",
         )
-    if not _int_tokens(rec.prompt_tokens):
+    prompt_tokens_probe = _record_prompt_tokens(rec)
+    if prompt_tokens_probe is None:
         return _dropped(
             probe,
             prompt_tokens_base=prompt_tokens_base,
@@ -185,8 +165,24 @@ def _measure_probe(
             n_hat=n_hat,
             reason="missing_prompt_tokens",
         )
+    cached_tokens_probe = _record_cached_tokens(rec)
+    if _cached_exceeds_prompt(prompt_tokens_probe, cached_tokens_probe):
+        return _dropped(
+            probe,
+            prompt_tokens_base=prompt_tokens_base,
+            prompt_tokens_probe=prompt_tokens_probe,
+            n_hat=n_hat,
+            reason="cached_gt_prompt",
+        )
+    if _cache_inconsistent(cached_tokens_base, cached_tokens_probe):
+        return _dropped(
+            probe,
+            prompt_tokens_base=prompt_tokens_base,
+            prompt_tokens_probe=prompt_tokens_probe,
+            n_hat=n_hat,
+            reason="cache_inconsistent",
+        )
 
-    prompt_tokens_probe: int = rec.prompt_tokens  # type: ignore[assignment]
     delta_api = prompt_tokens_probe - prompt_tokens_base
     if delta_api < 1 or delta_api > len(probe.text) + _DELTA_SLACK:
         return _dropped(
@@ -272,8 +268,45 @@ def _http_ok(rec: CompletionRecord) -> bool:
     return sc is not None and 200 <= sc < 300
 
 
-def _int_tokens(value: int | None) -> bool:
+def _int_tokens(value: object) -> bool:
     return type(value) is int
+
+
+def _usage_int(rec: CompletionRecord, key: str) -> int | None:
+    usage = rec.usage
+    if not isinstance(usage, dict):
+        return None
+    value = usage.get(key)
+    return value if type(value) is int else None
+
+
+def _record_prompt_tokens(rec: CompletionRecord) -> int | None:
+    """整数 token：先信 usage.prompt_tokens，没有合法字段再回退顶栏。拒绝 bool。"""
+    from_usage = _usage_int(rec, "prompt_tokens")
+    if from_usage is not None:
+        return from_usage
+    if _int_tokens(rec.prompt_tokens):
+        return rec.prompt_tokens
+    return None
+
+
+def _record_cached_tokens(rec: CompletionRecord) -> int | None:
+    return _usage_int(rec, "cached_tokens")
+
+
+def _cached_exceeds_prompt(prompt: int, cached: int | None) -> bool:
+    return cached is not None and cached > prompt
+
+
+def _cache_inconsistent(base_cached: int | None, probe_cached: int | None) -> bool:
+    """一侧 cached>0、另一侧为 0 或缺失 → 不可信。两侧都无字段则不查。"""
+    if base_cached is None and probe_cached is None:
+        return False
+    if base_cached is not None and base_cached > 0 and (probe_cached is None or probe_cached == 0):
+        return True
+    if probe_cached is not None and probe_cached > 0 and (base_cached is None or base_cached == 0):
+        return True
+    return False
 
 
 def _dropped(

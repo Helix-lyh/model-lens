@@ -11,13 +11,29 @@ import unicodedata
 from pathlib import Path
 from typing import Any
 
+from src.toolchain import discover, ensure_cache_dirs
 from src.types import GradeStatus, Question, SampleGrade
 
-_FENCE = re.compile(
-    r"```(?:python|py)\s*\n(.*?)```",
-    re.IGNORECASE | re.DOTALL,
-)
 _FENCE_ANY = re.compile(r"```\s*\n(.*?)```", re.DOTALL)
+_FENCE_TAGS = {
+    "python": ("python", "py"),
+    "go": ("go", "golang"),
+    "typescript": ("typescript", "ts", "tsx", "javascript", "js"),
+}
+_GO_FORBIDDEN = re.compile(
+    r'(?m)^\s*(?:import\s*)?(?:(?:\w+|\.|_)\s+)?(?:\(\s*)?"(net|net/http|os/exec|plugin)"'
+)
+_TS_MOD = r"(?:node:)?(?:fs(?:/promises)?|net|http|https|child_process|dgram)"
+_TS_FORBIDDEN = re.compile(
+    rf"""(?:from|import)\s+['"]{_TS_MOD}['"]"""
+    rf"""|require\(\s*['"]{_TS_MOD}['"]\s*\)"""
+    rf"""|import\(\s*['"]{_TS_MOD}['"]\s*\)"""
+)
+_LOOKS_LIKE = {
+    "python": re.compile(r"^\s*(def|class|import|from)\b", re.MULTILINE),
+    "go": re.compile(r"^\s*(package|func|type|import)\b", re.MULTILINE),
+    "typescript": re.compile(r"^\s*(export|function|class|const|interface|type|import)\b", re.MULTILINE),
+}
 _PUNCT = dict.fromkeys(map(ord, ".,;:!?()[]{}'\"`·。，、：；！？（）【】「」"), None)
 _LATEX_OP = re.compile(r"\\(?:times|cdot|times\{\}|mathrm\{x\})", re.IGNORECASE)
 _MUL = str.maketrans({"×": "x", "✕": "x", "⋅": "x", "*": "x"})
@@ -33,8 +49,6 @@ def parse_points(text: str) -> tuple[int, int] | None:
 
 
 def _apply_points(grade: SampleGrade, pts: tuple[int, int] | None) -> SampleGrade:
-    if pts is None and grade.passed is True:
-        pts = (1, 1)
     if pts is None and grade.passed is False:
         pts = (0, 1)
     if pts is not None and pts[1] > 0:
@@ -84,8 +98,8 @@ def grade_response(question: Question, content: str | None, *, repo_root: Path) 
         return _grade_keyword(question, text)
     if gtype == "alias":
         return _grade_alias(question, text)
-    if gtype == "python_tests":
-        return _grade_python(question, text, repo_root=repo_root)
+    if gtype == "code_tests":
+        return _grade_code(question, text, repo_root=repo_root)
     if gtype == "structure":
         return _grade_structure(question, text, repo_root=repo_root)
     return SampleGrade(
@@ -97,23 +111,22 @@ def grade_response(question: Question, content: str | None, *, repo_root: Path) 
     )
 
 
-def extract_first_python_fence(text: str) -> str | None:
+def extract_fenced_code(text: str, language: str) -> str | None:
     if not text:
         return None
-    labeled = _FENCE.search(text)
+    tags = _FENCE_TAGS.get(language, (language,))
+    alt = "|".join(re.escape(tag) for tag in tags)
+    labeled = re.search(rf"```(?:{alt})\s*\n(.*?)```", text, re.IGNORECASE | re.DOTALL)
     if labeled:
         code = labeled.group(1).strip()
         return code or None
     unlabeled = _FENCE_ANY.search(text)
     if unlabeled:
         code = unlabeled.group(1).strip()
-        if code and _looks_like_python(code):
+        looks = _LOOKS_LIKE.get(language)
+        if code and looks is not None and looks.search(code):
             return code
     return None
-
-
-def _looks_like_python(code: str) -> bool:
-    return bool(re.search(r"^\s*(def|class|import|from)\b", code, re.MULTILINE))
 
 
 def _norm(text: str) -> str:
@@ -123,22 +136,22 @@ def _norm(text: str) -> str:
     return "".join(folded.translate(_PUNCT).casefold().split())
 
 
+def _hits_in_groups(groups: Any, blob: str) -> list[str]:
+    labels: list[str] = []
+    for group in groups or []:
+        aliases = group if isinstance(group, list) else [group]
+        if any(_norm(str(alias)) and _norm(str(alias)) in blob for alias in aliases):
+            labels.append(str(aliases[0]))
+    return labels
+
+
 def _grade_keyword(question: Question, text: str) -> SampleGrade:
     groups = question.grader.get("must_include") or []
     min_hits = int(question.grader.get("min_hits") or 0)
     blob = _norm(text)
-    hits = 0
-    hit_labels: list[str] = []
-    for group in groups:
-        aliases = group if isinstance(group, list) else [group]
-        if any(_norm(str(alias)) and _norm(str(alias)) in blob for alias in aliases):
-            hits += 1
-            hit_labels.append(str(aliases[0]))
-    banned: list[str] = []
-    for group in question.grader.get("must_exclude") or []:
-        aliases = group if isinstance(group, list) else [group]
-        if any(_norm(str(alias)) and _norm(str(alias)) in blob for alias in aliases):
-            banned.append(str(aliases[0]))
+    hit_labels = _hits_in_groups(groups, blob)
+    hits = len(hit_labels)
+    banned = _hits_in_groups(question.grader.get("must_exclude") or [], blob)
     passed = hits >= min_hits and not banned
     n_groups = max(len(groups), 1)
     extra = f" banned={banned}" if banned else ""
@@ -257,16 +270,29 @@ def _grade_structure(question: Question, text: str, *, repo_root: Path) -> Sampl
     )
 
 
-def _grade_python(question: Question, text: str, *, repo_root: Path) -> SampleGrade:
-    code = extract_first_python_fence(text)
+def _code_from_answer(question: Question, text: str) -> SampleGrade | tuple[str, str]:
+    lang = question.language
+    if not lang:
+        return SampleGrade(
+            temperature=0.0,
+            status="error",
+            passed=None,
+            detail="question.language missing",
+            content=text,
+        )
+    code = extract_fenced_code(text, lang)
     if not code:
         return SampleGrade(
             temperature=0.0,
             status="missing",
             passed=None,
-            detail="no fenced python block",
+            detail=f"no fenced {lang} block",
             content=text,
         )
+    return lang, code
+
+
+def _resolve_tests_file(question: Question, text: str, repo_root: Path) -> SampleGrade | Path:
     rel = question.grader.get("tests_file")
     if not rel:
         return SampleGrade(
@@ -285,18 +311,98 @@ def _grade_python(question: Question, text: str, *, repo_root: Path) -> SampleGr
             detail=f"tests file not found: {rel}",
             content=text,
         )
-    status, detail = run_sandbox(code, tests_path)
-    passed = status == "pass"
+    return tests_path
+
+
+def _toolchain_gap(lang: str, text: str) -> SampleGrade | None:
+    missing = discover().missing_for(lang)
+    if not missing:
+        return None
+    return SampleGrade(
+        temperature=0.0,
+        status="missing",
+        passed=None,
+        detail=f"toolchain missing: {', '.join(missing)}",
+        content=text,
+    )
+
+
+def _forbidden_grade(code: str, lang: str, text: str) -> SampleGrade | None:
+    banned = _forbidden_import(code, lang)
+    if not banned:
+        return None
+    return _apply_points(
+        SampleGrade(
+            temperature=0.0,
+            status="fail",
+            passed=False,
+            detail=f"forbidden import {banned} POINTS 0/1",
+            content=text,
+        ),
+        (0, 1),
+    )
+
+
+def _run_lang_sandbox(lang: str, code: str, tests_path: Path) -> tuple[GradeStatus, str]:
+    if lang == "python":
+        return run_sandbox(code, tests_path)
+    if lang == "go":
+        return run_go_sandbox(code, tests_path)
+    if lang == "typescript":
+        return run_ts_sandbox(code, tests_path)
+    return "error", f"unsupported language {lang!r}"
+
+
+def _code_sample_grade(status: GradeStatus, detail: str, text: str) -> SampleGrade:
+    if status in {"missing", "error"}:
+        return SampleGrade(
+            temperature=0.0,
+            status=status,
+            passed=None,
+            detail=detail,
+            content=text,
+        )
+    pts = parse_points(detail)
+    if pts is None and status == "fail":
+        pts = (0, 1)
     return _apply_points(
         SampleGrade(
             temperature=0.0,
             status=status,
-            passed=passed if status != "missing" else None,
+            passed=status == "pass",
             detail=detail,
             content=text,
         ),
-        parse_points(detail),
+        pts,
     )
+
+
+def _grade_code(question: Question, text: str, *, repo_root: Path) -> SampleGrade:
+    pulled = _code_from_answer(question, text)
+    if isinstance(pulled, SampleGrade):
+        return pulled
+    lang, code = pulled
+    tests = _resolve_tests_file(question, text, repo_root)
+    if isinstance(tests, SampleGrade):
+        return tests
+    gap = _toolchain_gap(lang, text)
+    if gap is not None:
+        return gap
+    banned = _forbidden_grade(code, lang, text)
+    if banned is not None:
+        return banned
+    status, detail = _run_lang_sandbox(lang, code, tests)
+    return _code_sample_grade(status, detail, text)
+
+
+def _forbidden_import(code: str, lang: str) -> str | None:
+    if lang == "go":
+        hit = _GO_FORBIDDEN.search(code)
+        return hit.group(1) if hit else None
+    if lang == "typescript":
+        hit = _TS_FORBIDDEN.search(code)
+        return hit.group(0) if hit else None
+    return None
 
 
 def run_sandbox(
@@ -329,18 +435,125 @@ def run_sandbox(
             )
         except subprocess.TimeoutExpired:
             return "fail", f"timeout>{timeout_s}s"
-        blob = f"{proc.stdout or ''}\n{proc.stderr or ''}"
-        pts = parse_points(blob)
-        if pts is not None:
-            earned, total = pts
-            if earned == total and total > 0:
-                return "pass", f"POINTS {earned}/{total}"
-            extra = blob.strip()[-300:]
-            return "fail", f"POINTS {earned}/{total}\n{extra}".strip()
-        if proc.returncode == 0:
-            return "pass", "sandbox ok"
-        err = blob.strip()
-        return "fail", err[-400:] or f"exit {proc.returncode}"
+        return _sandbox_result(proc)
+
+
+def run_go_sandbox(code: str, tests_path: Path, *, timeout_s: float = 15.0) -> tuple[GradeStatus, str]:
+    tools = discover()
+    if tools.missing_for("go"):
+        return "missing", f"toolchain missing: {', '.join(tools.missing_for('go'))}"
+    go = tools.go.path
+    assert go
+    cache = ensure_cache_dirs()
+    with tempfile.TemporaryDirectory(prefix="mlens-go-") as tmp:
+        root = Path(tmp)
+        (root / "go.mod").write_text("module solution\n\ngo 1.20\n", encoding="utf-8")
+        (root / "solution.go").write_text(code.rstrip() + "\n", encoding="utf-8")
+        dest = root / tests_path.name
+        if not dest.name.endswith("_test.go"):
+            dest = root / "solution_test.go"
+        dest.write_text(tests_path.read_text(encoding="utf-8"), encoding="utf-8")
+        env = _sandbox_env(root)
+        env["PATH"] = str(Path(go).parent) + os.pathsep + env.get("PATH", "")
+        env["GOPROXY"] = "off"
+        env["GOSUMDB"] = "off"
+        env["GOTOOLCHAIN"] = "local"
+        env["GOCACHE"] = str(cache / "gocache")
+        env["GOMODCACHE"] = str(root / ".gomodcache")
+        env["GOFLAGS"] = "-mod=mod"
+        env["CGO_ENABLED"] = "0"
+        try:
+            proc = subprocess.run(
+                [go, "test", "-count=1", "-v", "."],
+                cwd=root,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=timeout_s,
+            )
+        except subprocess.TimeoutExpired:
+            return "fail", f"timeout>{timeout_s}s"
+        return _sandbox_result(proc)
+
+
+_TSCONFIG = """{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "rootDir": ".",
+    "noEmitOnError": true
+  },
+  "include": ["*.ts"]
+}
+"""
+
+
+def run_ts_sandbox(code: str, tests_path: Path, *, timeout_s: float = 45.0) -> tuple[GradeStatus, str]:
+    tools = discover()
+    missing = tools.missing_for("typescript")
+    if missing:
+        return "missing", f"toolchain missing: {', '.join(missing)}"
+    tsc = list(tools.tsc.argv)
+    node = tools.node.path
+    assert tsc and node
+    with tempfile.TemporaryDirectory(prefix="mlens-ts-") as tmp:
+        root = Path(tmp)
+        (root / "tsconfig.json").write_text(_TSCONFIG, encoding="utf-8")
+        (root / "solution.ts").write_text(code.rstrip() + "\n", encoding="utf-8")
+        (root / "run_test.ts").write_text(tests_path.read_text(encoding="utf-8"), encoding="utf-8")
+        compile_env = _toolchain_env(root)
+        compile_env["PATH"] = str(Path(node).parent) + os.pathsep + compile_env.get("PATH", "")
+        try:
+            compiled = subprocess.run(
+                [*tsc, "-p", "tsconfig.json", "--pretty", "false"],
+                cwd=root,
+                env=compile_env,
+                capture_output=True,
+                text=True,
+                timeout=timeout_s,
+            )
+        except subprocess.TimeoutExpired:
+            return "fail", f"timeout>{timeout_s}s"
+        if compiled.returncode != 0:
+            blob = f"{compiled.stdout or ''}\n{compiled.stderr or ''}".strip()
+            return "fail", f"compile failed\n{blob[-400:]}" if blob else "compile failed"
+        js = root / "dist" / "run_test.js"
+        if not js.is_file():
+            return "fail", "compile produced no run_test.js"
+        run_env = _sandbox_env(root)
+        run_env["PATH"] = str(Path(node).parent) + os.pathsep + run_env.get("PATH", "")
+        try:
+            proc = subprocess.run(
+                [node, str(js)],
+                cwd=root / "dist",
+                env=run_env,
+                capture_output=True,
+                text=True,
+                timeout=min(timeout_s, 8.0),
+            )
+        except subprocess.TimeoutExpired:
+            return "fail", f"timeout>{min(timeout_s, 8.0)}s"
+        return _sandbox_result(proc)
+
+
+def _sandbox_result(proc: subprocess.CompletedProcess[str]) -> tuple[GradeStatus, str]:
+    stdout = proc.stdout or ""
+    blob = f"{stdout}\n{proc.stderr or ''}"
+    pts = parse_points(stdout)
+    if pts is not None:
+        earned, total = pts
+        if earned == total and total > 0:
+            return "pass", f"POINTS {earned}/{total}"
+        extra = blob.strip()[-300:]
+        return "fail", f"POINTS {earned}/{total}\n{extra}".strip()
+    extra = blob.strip()[-400:]
+    if proc.returncode != 0:
+        return "fail", extra or f"exit {proc.returncode}"
+    return "fail", extra or "no POINTS in sandbox output"
 
 
 def _sandbox_env(tmp: Path) -> dict[str, str]:
@@ -349,6 +562,14 @@ def _sandbox_env(tmp: Path) -> dict[str, str]:
     cleaned["PYTHONNOUSERSITE"] = "1"
     cleaned["NO_PROXY"] = "*"
     cleaned["no_proxy"] = "*"
+    return cleaned
+
+
+def _toolchain_env(tmp: Path) -> dict[str, str]:
+    cleaned = _sandbox_env(tmp)
+    for key in ("HOME", "NPM_CONFIG_CACHE", "npm_config_cache", "XDG_CACHE_HOME"):
+        if key in os.environ:
+            cleaned[key] = os.environ[key]
     return cleaned
 
 

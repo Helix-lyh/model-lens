@@ -61,60 +61,71 @@ def extract_token_usage(data: object) -> TokenUsage:
     return _from_usage_object(usage)
 
 
+_PROMPT_KEYS = ("prompt_tokens", "input_tokens", "inputTokens")
+_COMPLETION_KEYS = ("completion_tokens", "output_tokens", "outputTokens")
+_TOTAL_KEYS = ("total_tokens", "totalTokens")
+_CACHED_KEYS = (
+    "cached_tokens",
+    "cache_read_input_tokens",
+    "prompt_cache_hit_tokens",
+    "cacheReadInputTokens",
+)
+_CACHED_NESTED = (("prompt_tokens_details", "cached_tokens"), ("input_tokens_details", "cached_tokens"))
+_CACHE_WRITE_KEYS = ("cache_creation_input_tokens", "cacheWriteInputTokens")
+_CACHE_WRITE_EPHEMERAL = ("ephemeral_5m_input_tokens", "ephemeral_1h_input_tokens")
+_REASONING_KEYS = ("reasoning_tokens",)
+_REASONING_NESTED = (
+    ("completion_tokens_details", "reasoning_tokens"),
+    ("output_tokens_details", "reasoning_tokens"),
+)
+
+
+def _first_int_key(usage: dict[str, Any], keys: tuple[str, ...]) -> int | None:
+    for key in keys:
+        value = int_or_none(usage.get(key))
+        if value is not None:
+            return value
+    return None
+
+
+def _first_nested_int(usage: dict[str, Any], paths: tuple[tuple[str, ...], ...]) -> int | None:
+    for path in paths:
+        value = nested_int(usage, *path)
+        if value is not None:
+            return value
+    return None
+
+
+def _cache_write_tokens(usage: dict[str, Any]) -> int | None:
+    found = _first_int_key(usage, _CACHE_WRITE_KEYS)
+    if found is not None:
+        return found
+    created = usage.get("cache_creation")
+    if not isinstance(created, dict):
+        return None
+    parts = [_first_int_key(created, (key,)) for key in _CACHE_WRITE_EPHEMERAL]
+    known = [p for p in parts if p is not None]
+    return sum(known) if known else None
+
+
 def _from_usage_object(usage: dict[str, Any]) -> TokenUsage:
-    prompt = int_or_none(usage.get("prompt_tokens"))
-    if prompt is None:
-        prompt = int_or_none(usage.get("input_tokens"))
-    if prompt is None:
-        prompt = int_or_none(usage.get("inputTokens"))
-    completion = int_or_none(usage.get("completion_tokens"))
-    if completion is None:
-        completion = int_or_none(usage.get("output_tokens"))
-    if completion is None:
-        completion = int_or_none(usage.get("outputTokens"))
-    total = int_or_none(usage.get("total_tokens"))
-    if total is None:
-        total = int_or_none(usage.get("totalTokens"))
+    prompt = _first_int_key(usage, _PROMPT_KEYS)
+    completion = _first_int_key(usage, _COMPLETION_KEYS)
+    total = _first_int_key(usage, _TOTAL_KEYS)
     if total is None and prompt is not None and completion is not None:
         total = prompt + completion
-
-    cached = int_or_none(usage.get("cached_tokens"))
+    cached = _first_int_key(usage, _CACHED_KEYS)
     if cached is None:
-        cached = int_or_none(usage.get("cache_read_input_tokens"))
-    if cached is None:
-        cached = int_or_none(usage.get("prompt_cache_hit_tokens"))
-    if cached is None:
-        cached = int_or_none(usage.get("cacheReadInputTokens"))
-    if cached is None:
-        cached = nested_int(usage, "prompt_tokens_details", "cached_tokens")
-    if cached is None:
-        cached = nested_int(usage, "input_tokens_details", "cached_tokens")
-
-    cache_write = int_or_none(usage.get("cache_creation_input_tokens"))
-    if cache_write is None:
-        cache_write = int_or_none(usage.get("cacheWriteInputTokens"))
-    if cache_write is None:
-        created = usage.get("cache_creation")
-        if isinstance(created, dict):
-            parts = [
-                int_or_none(created.get("ephemeral_5m_input_tokens")),
-                int_or_none(created.get("ephemeral_1h_input_tokens")),
-            ]
-            known = [p for p in parts if p is not None]
-            cache_write = sum(known) if known else None
-
-    reasoning = nested_int(usage, "completion_tokens_details", "reasoning_tokens")
+        cached = _first_nested_int(usage, _CACHED_NESTED)
+    reasoning = _first_nested_int(usage, _REASONING_NESTED)
     if reasoning is None:
-        reasoning = nested_int(usage, "output_tokens_details", "reasoning_tokens")
-    if reasoning is None:
-        reasoning = int_or_none(usage.get("reasoning_tokens"))
-
+        reasoning = _first_int_key(usage, _REASONING_KEYS)
     return TokenUsage(
         prompt_tokens=prompt,
         completion_tokens=completion,
         total_tokens=total,
         cached_tokens=cached,
-        cache_write_tokens=cache_write,
+        cache_write_tokens=_cache_write_tokens(usage),
         reasoning_tokens=reasoning,
     )
 

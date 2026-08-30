@@ -11,6 +11,7 @@ import yaml
 from tiktoken.load import load_tiktoken_bpe
 from tokenizers import Tokenizer
 
+from src.match import exact_or_longest_prefix
 from src.types import Vocab
 
 # tokenization_kimi.py pretok，必须字节级一致。
@@ -161,19 +162,52 @@ def _load_hf(entry: dict, path: Path) -> HFTokenizerVocab:
     return HFTokenizerVocab(str(entry["id"]), Tokenizer.from_file(str(path)))
 
 
+_BACKEND_LOADERS = {
+    "tiktoken.model": _load_kimi,
+    "tiktoken.hunyuan": _load_hunyuan,
+    "tiktoken.tok.json": _load_grok_tok,
+    "tokenizers": _load_hf,
+}
+
+
+def _entry_backend(entry: dict) -> str:
+    return str(entry.get("backend") or "")
+
+
+def _load_entry(entry: dict, local: Path) -> Vocab | None:
+    vid = str(entry["id"])
+    backend = _entry_backend(entry)
+    try:
+        if backend == "tiktoken":
+            return _load_tiktoken_builtin(entry)
+        loader = _BACKEND_LOADERS.get(backend)
+        if loader is None:
+            warnings.warn(
+                f"catalog vocab {vid!r} unknown backend {backend!r}; skipped",
+                UserWarning,
+                stacklevel=2,
+            )
+            return None
+        return loader(entry, local)
+    except Exception as exc:
+        warnings.warn(
+            f"catalog vocab {vid!r} failed to load ({exc}); skipped",
+            UserWarning,
+            stacklevel=2,
+        )
+        return None
+
+
 def load_catalog(root: Path | None = None) -> dict[str, Vocab]:
     """加载可本地编码的词表。内置 tiktoken 始终可加载；缺文件的 HF / Kimi 跳过并 warning。"""
     root = root or repo_root()
     out: dict[str, Vocab] = {}
     for entry in _load_manifest(root):
         vid = str(entry["id"])
-        backend = str(entry.get("backend") or "")
         local = _resolve_local(root, entry.get("local_path"))
-
-        if backend == "tiktoken" and local is None:
+        if _entry_backend(entry) == "tiktoken" and local is None:
             out[vid] = _load_tiktoken_builtin(entry)
             continue
-
         if local is None or not local.is_file():
             warnings.warn(
                 f"catalog vocab {vid!r} missing local file; skipped",
@@ -181,30 +215,9 @@ def load_catalog(root: Path | None = None) -> dict[str, Vocab]:
                 stacklevel=2,
             )
             continue
-
-        try:
-            if backend == "tiktoken.model":
-                out[vid] = _load_kimi(entry, local)
-            elif backend == "tiktoken.hunyuan":
-                out[vid] = _load_hunyuan(entry, local)
-            elif backend == "tiktoken.tok.json":
-                out[vid] = _load_grok_tok(entry, local)
-            elif backend == "tokenizers":
-                out[vid] = _load_hf(entry, local)
-            elif backend == "tiktoken":
-                out[vid] = _load_tiktoken_builtin(entry)
-            else:
-                warnings.warn(
-                    f"catalog vocab {vid!r} unknown backend {backend!r}; skipped",
-                    UserWarning,
-                    stacklevel=2,
-                )
-        except Exception as exc:
-            warnings.warn(
-                f"catalog vocab {vid!r} failed to load ({exc}); skipped",
-                UserWarning,
-                stacklevel=2,
-            )
+        loaded = _load_entry(entry, local)
+        if loaded is not None:
+            out[vid] = loaded
     return out
 
 
@@ -220,23 +233,4 @@ def load_model_family_map(root: Path | None = None) -> dict[str, str]:
 def lookup_claimed_family(claimed: str, mapping: dict[str, str] | None = None) -> str | None:
     """精确命中，否则最长前缀（大小写不敏感）。qwen3.8* 优先于 qwen3。"""
     mapping = mapping if mapping is not None else load_model_family_map()
-    key = claimed.strip()
-    if not key:
-        return None
-    if key in mapping:
-        return mapping[key]
-    folded = {k.casefold(): v for k, v in mapping.items()}
-    if key.casefold() in folded:
-        return folded[key.casefold()]
-    best_id: str | None = None
-    best_len = 0
-    for raw, catalog_id in mapping.items():
-        needle = raw.casefold()
-        if key.casefold().startswith(needle) and len(needle) > best_len:
-            best_id = catalog_id
-            best_len = len(needle)
-    return best_id
-
-
-def available_ids(catalog: dict[str, Vocab]) -> list[str]:
-    return sorted(catalog.keys())
+    return exact_or_longest_prefix(claimed, mapping)

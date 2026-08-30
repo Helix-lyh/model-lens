@@ -113,6 +113,16 @@ def test_untrusted_skips_identity() -> None:
     assert "token_untrusted" in i.note
 
 
+def test_no_reference_skips_identity() -> None:
+    i = decide_identity(
+        _family(family="qwen2_5", confidence="high"),
+        _targets(ref=False),
+        claimed_family="glm5",
+    )
+    assert i.status == "skipped"
+    assert i.note == "无参考源"
+
+
 def test_unregistered_claimed() -> None:
     i = decide_identity(_family(), _targets(claimed="mystery"), claimed_family=None)
     assert i.status == "skipped"
@@ -127,12 +137,15 @@ def test_same_gateway_invalid() -> None:
 
 
 def test_cross_family_not_supported() -> None:
+    t = _targets()
+    assert t.reference is not None
     i = decide_identity(
         _family(family="qwen2_5", confidence="medium"),
-        _targets(),
+        t,
         claimed_family="glm5",
     )
     assert i.status == "不支持"
+    assert i.observed_family == "qwen2_5"
     assert "支持" not in i.note or i.status != "支持"
 
 
@@ -168,6 +181,21 @@ def test_gateway_caps_high_unless_usage_ok() -> None:
     ep = _targets().target
     assert confidence_for_identity(fam, ep, usage_ok=False) == "medium"
     assert confidence_for_identity(_family(confidence="high"), ep, usage_ok=True) == "high"
+
+
+def test_gateway_alias_caps_high_when_usage_inconsistent() -> None:
+    dropped = [
+        ProbeDelta("p", "x", False, 10, 12, 2, True, drop_reason="no usage"),
+    ]
+    fam = _family(confidence="high", probes=dropped, status="ok")
+    for alias in ("new-api", "openai-compat"):
+        ep = Endpoint(
+            base_url="https://gw.example/v1",
+            api_key_env="TARGET_KEY",
+            model="glm-5.3-flash",
+            channel=alias,
+        )
+        assert confidence_for_identity(fam, ep, usage_ok=False) == "medium", alias
 
 
 def test_degrade_quick_skipped() -> None:

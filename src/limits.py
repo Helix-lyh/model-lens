@@ -6,6 +6,8 @@ from pathlib import Path
 
 import yaml
 
+from src.match import exact_or_longest_prefix
+
 
 def repo_root() -> Path:
     return Path(__file__).resolve().parent.parent
@@ -28,19 +30,4 @@ def load_output_limits(root: Path | None = None) -> dict[str, int]:
 def official_max_output(model: str, limits: dict[str, int] | None = None) -> int | None:
     """精确命中，否则最长前缀（大小写不敏感）。"""
     limits = limits if limits is not None else load_output_limits()
-    key = model.strip()
-    if not key:
-        return None
-    if key in limits:
-        return limits[key]
-    folded = {k.casefold(): v for k, v in limits.items()}
-    if key.casefold() in folded:
-        return folded[key.casefold()]
-    best: int | None = None
-    best_len = 0
-    for raw, value in limits.items():
-        needle = raw.casefold()
-        if key.casefold().startswith(needle) and len(needle) > best_len:
-            best = value
-            best_len = len(needle)
-    return best
+    return exact_or_longest_prefix(model, limits)

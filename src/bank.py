@@ -3,18 +3,23 @@
 from __future__ import annotations
 
 import re
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Literal
 
 import yaml
 
 from src.grade import attach_temperature, grade_response
+from src.toolchain import CODE_LANGS
 from src.types import BankResult, Difficulty, Question, QuestionResult, SampleGrade
 
 DOMAINS = ("architecture", "coding", "knowledge")
 DIFFICULTIES: tuple[Difficulty, ...] = ("easy", "medium", "hard")
 QUESTION_ID_RE = re.compile(r"^(architecture|coding|knowledge)-(easy|medium|hard)-(\d{2})$")
+_LANG_HEAD = {
+    "python": "只输出一个 python 代码块。不要解释。不要第三方库。",
+    "go": "只输出一个 go 代码块。文件必须是 package solution。不要解释。不要第三方库。不要发起网络请求。",
+    "typescript": "只输出一个 typescript 代码块。用 export 导出符号。不要解释。不要 npm 包。不要使用 fs/net。",
+}
 BANK_MIN = 20
 BANK_MAX = 60
 QUICK_DIFFICULTIES: tuple[Difficulty, ...] = ("easy", "medium")
@@ -31,7 +36,9 @@ def load_questions(root: Path | None = None, *, mode: BankMode | None = None) ->
     raw = yaml.safe_load((root / "bank" / "questions.yaml").read_text(encoding="utf-8"))
     if not isinstance(raw, list):
         raise ValueError("bank/questions.yaml 必须是题列表")
-    questions = [_as_question(item) for item in raw]
+    questions: list[Question] = []
+    for item in raw:
+        questions.extend(_expand_question(_as_question(item)))
     _validate_bank(questions)
     return select_questions(questions, mode) if mode else questions
 
@@ -67,6 +74,47 @@ def _as_question(item: object) -> Question:
         prompt=str(item["prompt"]),
         grader=dict(item.get("grader") or {}),
         pass_criteria=str(item.get("pass_criteria") or ""),
+    )
+
+
+def _expand_question(q: Question) -> list[Question]:
+    gtype = str(q.grader.get("type") or "")
+    if gtype != "code_tests":
+        return [q]
+    langs = q.grader.get("languages")
+    if not isinstance(langs, dict) or not langs:
+        raise ValueError(f"{q.id} 需要 grader.languages")
+    unknown = [lang for lang in langs if lang not in CODE_LANGS]
+    if unknown:
+        raise ValueError(f"{q.id} 不支持的语言 {unknown}，只做 {', '.join(CODE_LANGS)}")
+    out: list[Question] = []
+    for lang in CODE_LANGS:
+        spec = langs.get(lang)
+        if spec is None:
+            continue
+        if not isinstance(spec, dict) or not spec.get("tests_file"):
+            raise ValueError(f"{q.id} languages.{lang}.tests_file 缺失")
+        out.append(_coding_variant(q, lang, spec))
+    return out
+
+
+def _coding_variant(q: Question, lang: str, spec: dict[str, Any]) -> Question:
+    grader = {**q.grader, "type": "code_tests", "language": lang, "tests_file": spec["tests_file"]}
+    grader.pop("languages", None)
+    head = _LANG_HEAD[lang]
+    sig = str(spec.get("signature") or "").strip()
+    suffix = str(spec.get("prompt_suffix") or "").strip()
+    extra = f"\n实现：{sig}" if sig else ""
+    extra += f"\n{suffix}" if suffix else ""
+    prompt = f"{head}\n\n{q.prompt.strip()}{extra}\n"
+    return Question(
+        id=f"{q.id}-{lang}",
+        domain=q.domain,
+        difficulty=q.difficulty,
+        prompt=prompt,
+        grader=grader,
+        pass_criteria=q.pass_criteria,
+        language=lang,
     )
 
 
@@ -146,6 +194,8 @@ def _apply_think_penalty(grade: SampleGrade, question: Question, rec: Any) -> Sa
     if tokens <= cap:
         return grade
     grade.score10 = round(grade.score10 * 0.5, 2)
+    if grade.points_total is not None:
+        grade.points_total = grade.points_total * 2
     grade.detail = f"{grade.detail} think_penalty tokens={tokens}>{cap}"
     return grade
 
@@ -165,51 +215,62 @@ def _summarize_question(question: Question, samples: list[SampleGrade]) -> Quest
 
 
 def _majority(samples: list[SampleGrade]) -> bool | None:
-    if len(samples) < 4:
+    judged = [s for s in samples if s.passed is not None]
+    if len(judged) < 3:
         return None
-    wins = sum(1 for s in samples if s.passed is True)
-    return True if wins >= 3 else False
+    return sum(1 for s in judged if s.passed is True) >= 3
+
+
+def _group_stats(items: list[QuestionResult]) -> dict[str, Any]:
+    judged = 0
+    passed = 0
+    missing = 0
+    earned = 0
+    total = 0
+    score_sum = 0.0
+    score_n = 0
+    for q in items:
+        if q.pass0 is None:
+            missing += 1
+        else:
+            judged += 1
+            if q.pass0:
+                passed += 1
+        if q.score10 is not None:
+            score_sum += q.score10
+            score_n += 1
+        if q.samples:
+            sample = q.samples[0]
+            if sample.points is not None:
+                earned += sample.points
+            if sample.points_total is not None:
+                total += sample.points_total
+    return {
+        "passed": passed,
+        "judged": judged,
+        "missing": missing,
+        "earned": earned,
+        "total": total,
+        "score10": round(score_sum / score_n, 2) if score_n else None,
+    }
 
 
 def _summarize_bank(results: list[QuestionResult], *, salt: str, quick: bool) -> BankResult:
     domain_pass0: dict[str, dict[str, int]] = {}
     domain_points: dict[str, dict[str, float | int | None]] = {}
     for domain in DOMAINS:
-        items = [q for q in results if q.domain == domain]
-        judged = [q for q in items if q.pass0 is not None]
-        passed = [q for q in judged if q.pass0]
-        earned = sum(s.points or 0 for q in items for s in q.samples[:1] if s.points is not None)
-        total = sum(s.points_total or 0 for q in items for s in q.samples[:1] if s.points_total is not None)
-        scores = [q.score10 for q in items if q.score10 is not None]
-        domain_pass0[domain] = {
-            "passed": len(passed),
-            "judged": len(judged),
-            "missing": sum(1 for q in items if q.pass0 is None),
-        }
-        domain_points[domain] = {
-            "earned": earned,
-            "total": total,
-            "score10": round(sum(scores) / len(scores), 2) if scores else None,
-        }
+        stats = _group_stats([q for q in results if q.domain == domain])
+        domain_pass0[domain] = _pass_slice(stats)
+        domain_points[domain] = _points_slice(stats)
     difficulty_points: dict[str, dict[str, float | int | None]] = {}
     for diff in DIFFICULTIES:
-        items = [q for q in results if q.difficulty == diff]
-        earned = sum(s.points or 0 for q in items for s in q.samples[:1] if s.points is not None)
-        total = sum(s.points_total or 0 for q in items for s in q.samples[:1] if s.points_total is not None)
-        scores = [q.score10 for q in items if q.score10 is not None]
-        judged = [q for q in items if q.pass0 is not None]
-        passed = [q for q in judged if q.pass0]
+        stats = _group_stats([q for q in results if q.difficulty == diff])
         difficulty_points[str(diff)] = {
-            "passed": len(passed),
-            "judged": len(judged),
-            "earned": earned,
-            "total": total,
-            "score10": round(sum(scores) / len(scores), 2) if scores else None,
+            "passed": stats["passed"],
+            "judged": stats["judged"],
+            **_points_slice(stats),
         }
-    knowledge = [q for q in results if q.domain == "knowledge"]
-    judged_k = [q for q in knowledge if q.pass0 is not None]
-    all_wrong = bool(judged_k) and all(q.pass0 is False for q in judged_k)
-    alarm = "世界知识全错，像空响应或完全不对题" if all_wrong else None
+    all_wrong, alarm = _knowledge_alarm(results)
     return BankResult(
         quick=quick,
         salt=salt,
@@ -223,5 +284,25 @@ def _summarize_bank(results: list[QuestionResult], *, salt: str, quick: bool) ->
     )
 
 
-def bank_asdict(result: BankResult) -> dict[str, Any]:
-    return asdict(result)
+def _pass_slice(stats: dict[str, Any]) -> dict[str, int]:
+    return {
+        "passed": stats["passed"],
+        "judged": stats["judged"],
+        "missing": stats["missing"],
+    }
+
+
+def _points_slice(stats: dict[str, Any]) -> dict[str, float | int | None]:
+    return {
+        "earned": stats["earned"],
+        "total": stats["total"],
+        "score10": stats["score10"],
+    }
+
+
+def _knowledge_alarm(results: list[QuestionResult]) -> tuple[bool, str | None]:
+    knowledge = [q for q in results if q.domain == "knowledge"]
+    judged_k = [q for q in knowledge if q.pass0 is not None]
+    all_wrong = bool(judged_k) and all(q.pass0 is False for q in judged_k)
+    alarm = "世界知识全错，像空响应或完全不对题" if all_wrong else None
+    return all_wrong, alarm

@@ -8,7 +8,7 @@
 
 ## 怎么跑
 
-默认命令是 `family`：家族栏，并按 F 给出判真（无参考源也可跨族标「不支持」或同族未分型）。`bank` 只跑题库。`audit` = F + C + I + D。`--quick` 为快速模式：只跑 easy/medium、每题 T=0，且 **D=skipped**。默认全量三档。禁止输出「支持」。
+默认命令是 `family`：只跑家族栏。无参考源时判真/降智一律 `skipped`，不要跨族标「不支持」。`bank` 只跑题库。`audit` = F + C + I + D（无 `reference` 则 I/D = skipped）。`--quick` 为快速模式：只跑 easy/medium、每题 T=0，且 **D=skipped**。默认全量三档。禁止输出「支持」。
 
 ```bash
 export TARGET_KEY=...          # 不要写进 yaml / 仓库
@@ -70,4 +70,13 @@ target:
 
 ## 依赖
 
-Python 3.11+。`httpx` + `pyyaml`（客户端 / CLI）。词表侧由 catalog 模块使用 `tiktoken` / `tokenizers`，本仓库不引入 `transformers`。
+Python 3.11+、编码沙箱还要 `go` ≥ 1.20 和 `node`（`tsc` 5.8.2 由初始化脚本钉到 `.cache/tsc`）。词表侧用 `tiktoken` / `tokenizers`，不引入 `transformers`。
+
+Agent / 本机开场先跑：
+
+```bash
+python cursor_workspace/build_scripts/init_env.py
+python cursor_workspace/build_scripts/init_env.py --check
+```
+
+缺 `go` / `node` 时对应语言题记 missing，不记模型 0 分。约定见 `AGENTS.md`。

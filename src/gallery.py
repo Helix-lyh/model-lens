@@ -11,6 +11,8 @@ from src.reasoning import extract_reasoning
 
 SCHEMA = "model-lens.gallery.v1"
 _TEMPLATE = Path(__file__).resolve().parent.parent / "web" / "gallery.html"
+_CODE_TYPES = frozenset({"code_tests"})
+_CRITERIA_TYPES = frozenset({"alias", "keyword", "structure"})
 
 
 def write_run_gallery(run_dir: Path, *, root: Path | None = None) -> dict[str, Any]:
@@ -42,73 +44,34 @@ def build_gallery(run_dirs: list[Path], *, root: Path | None = None) -> dict[str
 
 
 def build_model(run_dir: Path, questions: dict[str, Any]) -> dict[str, Any]:
-    family_payload = _read_json(run_dir / "family.json") or _read_json(run_dir / "report.json") or {}
-    bank = family_payload.get("bank") or _read_json(run_dir / "bank.json") or {}
-    report = _read_json(run_dir / "report.json") or {}
+    src = _read_json(run_dir / "report.json") or _read_json(run_dir / "family.json") or {}
+    bank = src.get("bank") or {}
     by_kind = _index_jsonl(run_dir / "requests.jsonl")
-    claimed = family_payload.get("claimed") or report.get("claimed")
-    target = family_payload.get("target") or report.get("target") or {}
-    model_id = str((target or {}).get("model") or claimed or run_dir.name)
-    rows = []
-    for item in bank.get("questions") or []:
-        qid = str(item.get("question_id") or "")
-        spec = questions.get(qid)
-        samples = []
-        for i, sample in enumerate(item.get("samples") or []):
-            kind = f"bank:{qid}:t{sample.get('temperature')}:n{i}"
-            rec = by_kind.get(kind) or {}
-            reasoning = sample.get("reasoning") or extract_reasoning(rec.get("raw"))
-            if not reasoning:
-                reasoning = rec.get("reasoning")
-            samples.append(
-                {
-                    "temperature": sample.get("temperature"),
-                    "status": sample.get("status"),
-                    "passed": sample.get("passed"),
-                    "detail": sample.get("detail"),
-                    "answer": sample.get("content") if sample.get("content") is not None else rec.get("content"),
-                    "reasoning": reasoning,
-                    "latency_ms": rec.get("latency_ms"),
-                    "points": sample.get("points"),
-                    "points_total": sample.get("points_total"),
-                    "score10": sample.get("score10"),
-                }
-            )
-        rows.append(
-            {
-                "id": qid,
-                "domain": item.get("domain") or (spec.domain if spec else None),
-                "title": (spec.pass_criteria if spec else "") or qid,
-                "prompt": spec.prompt if spec else "",
-                "pass_criteria": spec.pass_criteria if spec else "",
-                "expected": _expected(spec.grader) if spec else [],
-                "pass0": item.get("pass0"),
-                "majority": item.get("majority"),
-                "score10": item.get("score10"),
-                "difficulty": item.get("difficulty") or (spec.difficulty if spec else None),
-                "samples": samples,
-            }
-        )
-    columns = report.get("columns") or {}
+    claimed = src.get("claimed")
+    target = src.get("target") or {}
+    columns = _columns(src)
     return {
-        "id": model_id,
+        "id": str(target.get("model") or claimed or run_dir.name),
         "claimed": claimed,
         "run": run_dir.name,
         "target": {
-            "base_url": (target or {}).get("base_url"),
-            "model": (target or {}).get("model"),
-            "channel": (target or {}).get("channel"),
+            "base_url": target.get("base_url"),
+            "model": target.get("model"),
+            "channel": target.get("channel"),
         },
-        "family": columns.get("family") or _family_brief(family_payload.get("family")),
-        "identity": columns.get("identity") or family_payload.get("identity"),
-        "degrade": columns.get("degrade") or family_payload.get("degrade"),
-        "traffic": family_payload.get("traffic") or report.get("traffic"),
-        "domains": (bank.get("domain_pass0") or {}),
-        "domain_points": (bank.get("domain_points") or {}),
-        "difficulty_points": (bank.get("difficulty_points") or {}),
+        "family": columns["family"],
+        "identity": columns["identity"],
+        "degrade": columns["degrade"],
+        "traffic": src.get("traffic"),
+        "domains": bank.get("domain_pass0") or {},
+        "domain_points": bank.get("domain_points") or {},
+        "difficulty_points": bank.get("difficulty_points") or {},
         "quick": bool(bank.get("quick")),
         "n_questions": bank.get("n_questions") or len(bank.get("questions") or []),
-        "questions": rows,
+        "questions": [
+            _question_row(item, questions.get(str(item.get("question_id") or "")), by_kind)
+            for item in bank.get("questions") or []
+        ],
     }
 
 
@@ -118,17 +81,69 @@ def render_html(payload: dict[str, Any]) -> str:
     return template.replace("/*__GALLERY_DATA__*/null", blob)
 
 
-def _expected(grader: dict[str, Any] | None) -> list[str]:
+def _columns(src: dict[str, Any]) -> dict[str, Any]:
+    cols = src.get("columns")
+    if isinstance(cols, dict):
+        return {
+            "family": cols.get("family"),
+            "identity": cols.get("identity"),
+            "degrade": cols.get("degrade"),
+        }
+    return {
+        "family": _family_brief(src.get("family")),
+        "identity": src.get("identity"),
+        "degrade": src.get("degrade"),
+    }
+
+
+def _question_row(item: dict[str, Any], spec: Any, by_kind: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    qid = str(item.get("question_id") or "")
+    return {
+        "id": qid,
+        "domain": item.get("domain") or (spec.domain if spec else None),
+        "title": (spec.pass_criteria if spec else "") or qid,
+        "prompt": spec.prompt if spec else "",
+        "pass_criteria": spec.pass_criteria if spec else "",
+        "expected": _expected(spec.grader, spec.language if spec else None) if spec else [],
+        "pass0": item.get("pass0"),
+        "majority": item.get("majority"),
+        "score10": item.get("score10"),
+        "difficulty": item.get("difficulty") or (spec.difficulty if spec else None),
+        "language": spec.language if spec else None,
+        "samples": _samples_for(item, qid, by_kind),
+    }
+
+
+def _samples_for(item: dict[str, Any], qid: str, by_kind: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    rows = []
+    for i, sample in enumerate(item.get("samples") or []):
+        rec = by_kind.get(f"bank:{qid}:t{sample.get('temperature')}:n{i}") or {}
+        rows.append(
+            {
+                "temperature": sample.get("temperature"),
+                "status": sample.get("status"),
+                "passed": sample.get("passed"),
+                "detail": sample.get("detail"),
+                "answer": sample.get("content") if sample.get("content") is not None else rec.get("content"),
+                "reasoning": sample.get("reasoning") or extract_reasoning(rec.get("raw")) or rec.get("reasoning"),
+                "latency_ms": rec.get("latency_ms"),
+                "points": sample.get("points"),
+                "points_total": sample.get("points_total"),
+                "score10": sample.get("score10"),
+            }
+        )
+    return rows
+
+
+def _expected(grader: dict[str, Any] | None, language: str | None = None) -> list[str]:
     if not grader:
         return []
-    if grader.get("type") == "alias":
-        return [str(x) for x in (grader.get("answers") or [])]
-    if grader.get("type") == "keyword":
-        return [f"要点≥{grader.get('min_hits')}"]
-    if grader.get("type") in {"python", "python_tests"}:
-        return ["逐条计点，满点才通过"]
-    if grader.get("type") == "structure":
-        return ["结构断言逐条计点"]
+    gtype = grader.get("type")
+    if gtype in _CODE_TYPES:
+        lang = language or grader.get("language")
+        return [f"{lang} 逐条计点"] if lang else ["逐条计点"]
+    if gtype in _CRITERIA_TYPES:
+        return ["见 pass_criteria"]
     return []
 
 

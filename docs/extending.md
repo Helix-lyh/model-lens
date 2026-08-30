@@ -4,7 +4,7 @@
 
 ## 加题（Module C）
 
-题库 **20–60** 题。编号 `{architecture|coding|knowledge}-{easy|medium|hard}-{序号}`，例如 `coding-medium-01`。`src/bank.py` 校验总数、三域都有三档、id 与 domain/difficulty 一致。快速模式只跑 easy/medium。加到 60 题以内即可；超过先淘汰。
+题库 **20–60** 题（编码按语言展开后计数）。编号 `{architecture|coding|knowledge}-{easy|medium|hard}-{序号}`，例如 `coding-medium-01`。编码题加载后变成 `coding-medium-01-python` / `-go` / `-typescript`。`src/bank.py` 校验总数、三域都有三档、id 与 domain/difficulty 一致。快速模式只跑 easy/medium。加到 60 题以内即可；超过先淘汰。不做 Java/C#/C++，不做 3 轮回修。
 
 1. 在 `bank/questions.yaml` 加一条（或替换）：
 
@@ -21,15 +21,24 @@
     answers: ["0"]
 ```
 
-2. 编码题 `grader.type: python_tests` 必须再写一个沙箱文件：
+2. 编码题 `grader.type: code_tests`，同一题面写 python / go / typescript 三套测文件：
 
 ```yaml
   grader:
-    type: python_tests
-    tests_file: bank/tests/b09_foo.py
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b09_foo.py
+        signature: foo(xs: list[int]) -> int
+      go:
+        tests_file: bank/tests/go/foo_test.go
+        signature: func Foo(xs []int) int
+      typescript:
+        tests_file: bank/tests/ts/foo.ts
+        signature: "export function foo(xs: number[]): number"
 ```
 
-`bank/tests/b09_foo.py` 从模型回答里抽出 fenced Python，在无网沙箱里逐条计点。参考已有 `b01`–`b08`。stdout 必须出现 `POINTS n/m`（取最后一次）。满点才 pass；部分对仍记 `score10`。不要用「全有或全无」的裸 `assert` 当唯一出口。
+yaml 里的 `prompt` 只写题意，不要写「只输出 Python」。加载器会按语言补围栏约束和 `signature`。测文件 stdout 必须出现 `POINTS n/m`（只认 stdout 里最后一次匹配；stderr / 编译日志里的 POINTS 不算）。没有 POINTS 记 fail，不得因 exit 0 记 pass。满点才 pass；部分对仍记 `score10`。不要用「全有或全无」的裸 `assert` 当唯一出口。Go 测文件 `package solution`；TS 从 `./solution` import。编译失败、禁运 import、或超时记 0 分。
 
 3. grader 约定：
 
@@ -37,7 +46,7 @@
 |---|---|
 | `keyword` | 每组 `must_include` 1 分；命中 ≥ `min_hits` 才 pass。可选 `must_exclude`，命中则不得过 |
 | `alias` | 规范化后命中 `answers` 得 1 分。`match: contains`（默认）或 `exact`。知识题用 `exact` |
-| `python` / `python_tests` | 抽代码 + 跑 `tests_file`，按 `POINTS n/m` 计分 |
+| `code_tests` | 必须带 `languages`；按语言抽代码；Python 沙箱 / Go `go test` / TS `tsc`+`node`，按 `POINTS n/m` 计分 |
 | `structure` | 抽 json/text 块写入 payload，跑 `tests_file` 逐条计点 |
 
 每题折合满分 10：`score10 = 10 × n / m`。报告写分域、分难度平均折合，**不要**再合成总分。

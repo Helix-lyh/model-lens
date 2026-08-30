@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from urllib.parse import urlparse
 
-from src.catalog import lookup_claimed_family
 from src.channels.resolve import resolve_channel
 from src.types import (
     BankResult,
@@ -18,7 +17,7 @@ from src.types import (
 )
 
 _CONF_RANK = {"low": 1, "medium": 2, "high": 3}
-_GATEWAY_CHANNELS = frozenset({"newapi", "openai-compat", "gateway"})
+_GATEWAY_CHANNELS = frozenset({"newapi"})
 PASS0_LINE = 0.25
 STAB_LINE = 0.20
 SMALL = 0.10
@@ -63,12 +62,10 @@ def confidence_for_identity(
     conf: Confidence = family.confidence
     if usage_ok is None:
         usage_ok = usage_self_consistent(family)
-    channel = (target.channel or "").strip().lower()
-    if not channel:
-        try:
-            channel = resolve_channel(target).channel_id
-        except ValueError:
-            channel = "newapi"
+    try:
+        channel = resolve_channel(target).channel_id
+    except ValueError:
+        channel = "newapi"
     if channel in _GATEWAY_CHANNELS and not usage_ok and conf == "high":
         return "medium"
     return conf
@@ -85,6 +82,15 @@ def decide_identity(
     coding_agree = coding_agreement(bank, bank_ref)
     if family.status == "token_untrusted":
         return _identity("skipped", claimed_family, None, None, "F=token_untrusted", coding_agree)
+    if targets.reference is None:
+        return _identity(
+            "skipped",
+            claimed_family,
+            family.family if family.status == "ok" else None,
+            family.confidence,
+            "无参考源",
+            coding_agree,
+        )
     if same_gateway(targets.target, targets.reference):
         return _identity(
             "invalid",
@@ -132,20 +138,11 @@ def decide_degrade(
     quick: bool,
     force: bool = False,
 ) -> DegradeResult:
-    if quick:
-        return _degrade("skipped", "--quick 不出降智")
-    if family.status in {"token_untrusted", "ambiguous"}:
-        return _degrade("skipped", f"F={family.status}")
-    if targets.reference is None or bank_ref is None:
-        return _degrade("skipped", "无不同网关参考源")
-    if same_gateway(targets.target, targets.reference):
-        return _degrade("skipped", "T/R 同网关")
-    if identity.status == "不支持" and not force:
-        return _degrade("skipped", "换家族报换货，不报降智")
-    if identity.status != "同族未分型" and not force:
-        return _degrade("skipped", f"I={identity.status}")
-    if bank is None:
-        return _degrade("skipped", "无 target 题库")
+    skipped = _degrade_precheck(
+        identity, family, targets, bank, bank_ref, quick=quick, force=force
+    )
+    if skipped is not None:
+        return skipped
 
     p0_t = _coding_pass0(bank)
     p0_r = _coding_pass0(bank_ref)
@@ -161,24 +158,7 @@ def decide_degrade(
     d0 = p0_r - p0_t
     ds = st_r - st_t
     d10 = None if s10_t is None or s10_r is None else s10_r - s10_t
-    pass_hit = d0 >= PASS0_LINE and ds >= STAB_LINE
-    score_hit = d10 is not None and d10 >= SCORE10_LINE
-    small = d0 < SMALL and ds < SMALL and (d10 is None or d10 < SCORE10_SMALL)
-    if pass_hit or score_hit:
-        status = "疑似衰减"
-        note = f"pass0Δ={d0:.2f} stabΔ={ds:.2f}"
-        if d10 is not None:
-            note += f" score10Δ={d10:.2f}"
-        note += "。" + DEGRADE_FOOTNOTE
-    elif small:
-        status = "未检出衰减"
-        note = DEGRADE_FOOTNOTE
-    else:
-        status = "偏离不足以下结论"
-        note = f"pass0Δ={d0:.2f} stabΔ={ds:.2f}"
-        if d10 is not None:
-            note += f" score10Δ={d10:.2f}"
-        note += "，未同时破线。" + DEGRADE_FOOTNOTE
+    status, note = _degrade_verdict(d0, ds, d10)
     return DegradeResult(
         status=status,
         pass0_target=p0_t,
@@ -192,6 +172,26 @@ def decide_degrade(
         score10_ref=s10_r,
         score10_delta=None if d10 is None else round(d10, 4),
     )
+
+
+def _degrade_verdict(
+    d0: float, ds: float, d10: float | None
+) -> tuple[str, str]:
+    pass_hit = d0 >= PASS0_LINE and ds >= STAB_LINE
+    score_hit = d10 is not None and d10 >= SCORE10_LINE
+    small = d0 < SMALL and ds < SMALL and (d10 is None or d10 < SCORE10_SMALL)
+    if pass_hit or score_hit:
+        return "疑似衰减", _delta_note(d0, ds, d10) + "。" + DEGRADE_FOOTNOTE
+    if small:
+        return "未检出衰减", DEGRADE_FOOTNOTE
+    return "偏离不足以下结论", _delta_note(d0, ds, d10) + "，未同时破线。" + DEGRADE_FOOTNOTE
+
+
+def _delta_note(d0: float, ds: float, d10: float | None) -> str:
+    note = f"pass0Δ={d0:.2f} stabΔ={ds:.2f}"
+    if d10 is not None:
+        note += f" score10Δ={d10:.2f}"
+    return note
 
 
 def coding_agreement(bank: BankResult | None, bank_ref: BankResult | None) -> dict | None:
@@ -210,8 +210,31 @@ def coding_agreement(bank: BankResult | None, bank_ref: BankResult | None) -> di
     }
 
 
-def lookup_family(claimed: str) -> str | None:
-    return lookup_claimed_family(claimed)
+def _degrade_precheck(
+    identity: IdentityResult,
+    family: FamilyResult,
+    targets: Targets,
+    bank: BankResult | None,
+    bank_ref: BankResult | None,
+    *,
+    quick: bool,
+    force: bool,
+) -> DegradeResult | None:
+    if quick:
+        return _degrade("skipped", "--quick 不出降智")
+    if family.status in {"token_untrusted", "ambiguous"}:
+        return _degrade("skipped", f"F={family.status}")
+    if targets.reference is None or bank_ref is None:
+        return _degrade("skipped", "无不同网关参考源")
+    if same_gateway(targets.target, targets.reference):
+        return _degrade("skipped", "T/R 同网关")
+    if identity.status == "不支持" and not force:
+        return _degrade("skipped", "换家族报换货，不报降智")
+    if identity.status != "同族未分型" and not force:
+        return _degrade("skipped", f"I={identity.status}")
+    if bank is None:
+        return _degrade("skipped", "无 target 题库")
+    return None
 
 
 def _coding_qs(bank: BankResult) -> list[QuestionResult]:

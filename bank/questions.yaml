@@ -1,4 +1,5 @@
 # 题库 20–60 题。编号：domain-difficulty-序号，例如 coding-medium-01。
+# 编码题加载时按 python/go/typescript 展开为 coding-medium-01-python 等。
 # 快速模式只跑 easy/medium；全量三档都跑。架构/知识只进附录；编码进 I 附录与 D。
 # 每题若干得分点，折合满分 10；只分域/分难度展示，不合成总分。
 - id: architecture-easy-01
@@ -237,103 +238,167 @@
   difficulty: easy
   pass_criteria: 连续相同整数压成 (值, 长度)，5 个用例
   prompt: |
-    只输出一个 Python 代码块。实现 pack_runs(xs: list[int]) -> list[tuple[int,int]]。
     从左到右把连续相同的整数压成 (值, 长度)。例如 [1,1,1,2,2] → [(1,3),(2,2)]。
-    空列表返回 []。不要合并不相邻的相同值。不要解释。
+    空列表返回空结果。不要合并不相邻的相同值。
   grader:
-    type: python_tests
-    tests_file: bank/tests/b04_pack_runs.py
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b04_pack_runs.py
+        signature: "pack_runs(xs: list[int]) -> list[tuple[int,int]]"
+      go:
+        tests_file: bank/tests/go/pack_runs_test.go
+        signature: func PackRuns(xs []int) [][2]int
+      typescript:
+        tests_file: bank/tests/ts/pack_runs.ts
+        signature: "export function packRuns(xs: number[]): Array<[number, number]>"
 - id: coding-easy-02
   domain: coding
   difficulty: easy
   pass_criteria: validate_user 5 个用例各 1 分
   prompt: |
-    只输出一个 Python 代码块。实现 validate_user(obj: dict) -> list[str]：
-    检查 name 为非空字符串、age 为 0..120 的 int。
+    校验对象：name 为非空字符串，age 为 0..120 的整数。
     缺字段或类型不对时往返回列表加入 "name" 或 "age"。通过则返回空列表。
-    不要解释。
   grader:
-    type: python_tests
-    tests_file: bank/tests/b05_validate_user.py
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b05_validate_user.py
+        signature: "validate_user(obj: dict) -> list[str]"
+      go:
+        tests_file: bank/tests/go/validate_user_test.go
+        signature: func ValidateUser(obj map[string]any) []string
+      typescript:
+        tests_file: bank/tests/ts/validate_user.ts
+        signature: "export function validateUser(obj: Record<string, unknown>): string[]"
 - id: coding-easy-03
   domain: coding
   difficulty: easy
   pass_criteria: 工牌戳 YY#MM.DD+N，5 个用例
   prompt: |
-    只输出一个 Python 代码块。实现 parse_badge(s: str)：
-    格式必须是 YY#MM.DD+N（两位年、两位月、两位日、一位数字 N）。
+    解析工牌戳。格式必须是 YY#MM.DD+N（两位年、两位月、两位日、一位数字 N）。
     年 00–99 映射到 2000–2099。月 1–12，日必须在该月真实存在（含闰年）。N 为 0–9。
-    成功返回 (年, 月, 日, N) 四个整数；否则 None。不要解释。
+    成功返回年、月、日、N 四个整数；失败表示无效。
   grader:
-    type: python_tests
-    tests_file: bank/tests/b08_badge.py
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b08_badge.py
+        signature: "parse_badge(s: str) -> (年, 月, 日, N) | None"
+      go:
+        tests_file: bank/tests/go/parse_badge_test.go
+        signature: func ParseBadge(s string) (year, month, day, n int, ok bool)
+      typescript:
+        tests_file: bank/tests/ts/parse_badge.ts
+        signature: "export function parseBadge(s: string): [number, number, number, number] | null"
 - id: coding-medium-01
   domain: coding
   difficulty: medium
   pass_criteria: 货架三格状态机，6 个用例各 1 分
   prompt: |
-    只输出一个 Python 代码块。实现 apply_ops(ops: list[str]) -> dict。
-    货架三格 A/B/C，初始都是 0。按顺序执行 ops，最后返回 {"A":int,"B":int,"C":int}。
+    货架三格 A/B/C，初始都是 0。按顺序执行 ops，最后返回 A/B/C 三个整数。
     操作（空格分隔）：
     + X n   给格子 X 加上正整数 n
     - X n   从 X 减去 n；若不够减，整条操作忽略
     > X Y   把 X 的当前值全部加到 Y，X 清零
     ? X     若 X>0：X 减 1，并把 1 加到「下一个」格子。顺序 A→B→C→A
-    不要解释。不要第三方库。
   grader:
-    type: python_tests
-    tests_file: bank/tests/b01_shelf.py
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b01_shelf.py
+        signature: "apply_ops(ops: list[str]) -> dict"
+      go:
+        tests_file: bank/tests/go/apply_ops_test.go
+        signature: func ApplyOps(ops []string) map[string]int
+      typescript:
+        tests_file: bank/tests/ts/apply_ops.ts
+        signature: "export function applyOps(ops: string[]): {A: number, B: number, C: number}"
 - id: coding-medium-02
   domain: coding
   difficulty: medium
   pass_criteria: 逐字符规则统计，5 个用例各 1 分
   prompt: |
-    只输出一个 Python 代码块。实现 cook_text(s: str) -> dict。
-    从左到右扫一遍 s：
+    从左到右扫一遍字符串：
     1. 元音 aeiou（大小写都算）按小写字母计数，写入 vowels。
     2. 连续相同字母（区分大小写）每压缩掉 1 个重复计 1 次 squeezes。例如 book 的 oo 计 1。
     3. 连续数字合成一个整数，按出现顺序放入 nums。例如 a12b3 → [12, 3]。
-    返回 {"vowels": {字母:次数}, "squeezes": int, "nums": [int]}。
-    空串返回空 vowels、0、[]。不要解释。
+    返回 vowels、squeezes、nums。空串返回空 vowels、0、空 nums。
   grader:
-    type: python_tests
-    tests_file: bank/tests/b02_chars.py
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b02_chars.py
+        signature: "cook_text(s: str) -> {vowels, squeezes, nums}"
+      go:
+        tests_file: bank/tests/go/cook_text_test.go
+        signature: "type CookResult struct { Vowels map[string]int; Squeezes int; Nums []int }; func CookText(s string) CookResult"
+      typescript:
+        tests_file: bank/tests/ts/cook_text.ts
+        signature: "export function cookText(s: string): { vowels: Record<string, number>; squeezes: number; nums: number[] }"
 - id: coding-medium-03
   domain: coding
   difficulty: medium
   pass_criteria: SQL 约束 7 个得分点
   prompt: |
-    只输出一个 Python 代码块。实现 orders_for_user_sql(user_id: int) -> str：
     返回查询某用户最近订单的 SQL 字符串。表 orders(id, user_id, created_at, amount)。
     必须带 user_id 条件、按 created_at 倒序、LIMIT，不要 SELECT *。
-    不要解释。
   grader:
-    type: python_tests
-    tests_file: bank/tests/b07_orders_sql.py
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b07_orders_sql.py
+        signature: "orders_for_user_sql(user_id: int) -> str"
+      go:
+        tests_file: bank/tests/go/orders_sql_test.go
+        signature: func OrdersForUserSQL(userID int) string
+      typescript:
+        tests_file: bank/tests/ts/orders_sql.ts
+        signature: "export function ordersForUserSql(userId: number): string"
 - id: coding-hard-01
   domain: coding
   difficulty: hard
   pass_criteria: FreezeBag 冻结键不淘汰，4 个状态点
   prompt: |
-    只输出一个 Python 代码块。实现类 FreezeBag(capacity)：
-    put(key, value) 写入；get(key) 未命中返回 None。
+    实现容量为 capacity 的 FreezeBag：
+    put(key, value) 写入；get(key) 未命中表示没有该键。
     freeze(key) 之后该键不会被淘汰。容量满时淘汰「最久未 put 且未冻结」的键。
     若剩下的键全部已冻结，新 put 的非冻结新键直接忽略（已有键仍可更新值）。
-    get 不改变淘汰顺序。不要解释。
+    get 不改变淘汰顺序。
   grader:
-    type: python_tests
-    tests_file: bank/tests/b03_freeze.py
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b03_freeze.py
+        signature: class FreezeBag(capacity); put/get/freeze；get 未命中返回 None
+      go:
+        tests_file: bank/tests/go/freeze_bag_test.go
+        signature: NewFreezeBag(capacity int) *FreezeBag；Put/Get/Freeze；Get 返回 (int, bool)
+      typescript:
+        tests_file: bank/tests/ts/freeze_bag.ts
+        signature: "export class FreezeBag { constructor(capacity: number); put(key: string, value: number): void; get(key: string): number | null; freeze(key: string): void }"
 - id: coding-hard-02
   domain: coding
   difficulty: hard
-  pass_criteria: SafeCounter 并发计数 1 分
+  pass_criteria: SafeCounter 计数 1 分
   prompt: |
-    只输出一个 Python 代码块。实现线程安全类 SafeCounter：
-    increment() 加一，value() 返回当前值。多线程同时 increment 不能丢计数。
-    不要解释。
+    实现计数器：increment 加一，value 返回当前值。
+    Python：必须线程安全，多线程同时 increment 不能丢计数。
+    Go：必须并发安全，多 goroutine 同时 Increment 不能丢计数。
+    TypeScript：单线程连续 increment 1600 次，value 必须为 1600（不测数据竞争）。
   grader:
-    type: python_tests
-    tests_file: bank/tests/b06_safe_counter.py
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b06_safe_counter.py
+        signature: class SafeCounter; increment(); value()
+      go:
+        tests_file: bank/tests/go/safe_counter_test.go
+        signature: NewSafeCounter() *SafeCounter；Increment(); Value() int
+      typescript:
+        tests_file: bank/tests/ts/safe_counter.ts
+        signature: "export class SafeCounter { increment(): void; value(): number }"
+        prompt_suffix: 本题 TypeScript 只在单线程连续调用，不要假装有数据竞争。
 - id: knowledge-easy-01
   domain: knowledge
   difficulty: easy

@@ -6,8 +6,9 @@ from pathlib import Path
 import httpx
 import pytest
 
+from src.channels.resolve import get_adapter
 from src.client import ChatClient, JsonlRecorder
-from src.stream import StreamUnsupported, apply_stream, assemble_stream, feed_sse, parse_sse_block
+from src.stream import StreamUnsupported, assemble_stream, feed_sse, parse_sse_block
 from src.types import Endpoint
 
 
@@ -20,7 +21,7 @@ def test_parse_sse_and_openai_assemble() -> None:
     )
     buf, events = feed_sse("", text)
     events.extend(parse_sse_block(buf) and [parse_sse_block(buf)] or [])
-    assembled = assemble_stream("openai-completions", events)
+    assembled = assemble_stream(get_adapter("openai-completions"), events)
     assert assembled.content == "Hello"
     assert assembled.payload["usage"]["prompt_tokens"] == 3
     assert assembled.payload["usage"]["completion_tokens"] == 2
@@ -32,7 +33,7 @@ def test_anthropic_usage_merges_start_and_delta() -> None:
         {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "ok"}},
         {"type": "message_delta", "usage": {"output_tokens": 4}},
     ]
-    assembled = assemble_stream("anthropic-messages", events)
+    assembled = assemble_stream(get_adapter("anthropic-messages"), events)
     assert assembled.content == "ok"
     assert assembled.payload["usage"]["input_tokens"] == 11
     assert assembled.payload["usage"]["output_tokens"] == 4
@@ -47,7 +48,7 @@ def test_apply_stream_openai_sets_include_usage() -> None:
         headers={"Content-Type": "application/json"},
         body={"model": "x", "stream": False},
     )
-    out = apply_stream(prepared, "openai-completions")
+    out = get_adapter("openai-completions").apply_stream(prepared)
     assert out.body["stream"] is True
     assert out.body["stream_options"]["include_usage"] is True
 
@@ -61,7 +62,7 @@ def test_apply_stream_google_rewrites_url() -> None:
         headers={},
         body={},
     )
-    out = apply_stream(prepared, "google-generative-ai")
+    out = get_adapter("google-generative-ai").apply_stream(prepared)
     assert ":streamGenerateContent" in out.url
     assert "alt=sse" in out.url
 
@@ -76,7 +77,7 @@ def test_apply_stream_bedrock_unsupported() -> None:
         body={},
     )
     with pytest.raises(StreamUnsupported):
-        apply_stream(prepared, "bedrock-converse")
+        get_adapter("bedrock-converse").apply_stream(prepared)
 
 
 def test_client_stream_fills_ttft_and_decode(

@@ -96,7 +96,8 @@ def _cmd_family(args: argparse.Namespace) -> int:
     )
     _write_report(run_dir, targets, result, identity=identity)
     print(format_family_line(result))
-    print(f"I={identity.status}")
+    if targets.reference is not None:
+        print(f"I={identity.status}")
     print(run_dir)
     return 0
 

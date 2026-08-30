@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import warnings
+from pathlib import Path
 
 import pytest
 
-from src.catalog import available_ids, load_catalog, load_model_family_map, lookup_claimed_family
+from src.catalog import _load_entry, load_catalog, load_model_family_map, lookup_claimed_family
 from src.probes import load_family_probes
 
 
@@ -16,7 +17,7 @@ def test_tiktoken_always_loadable() -> None:
     assert "o200k_base" in catalog
     assert catalog["cl100k_base"].encode_len("hello") > 0
     assert catalog["o200k_base"].encode_len("hello") > 0
-    ids = available_ids(catalog)
+    ids = sorted(catalog.keys())
     assert "cl100k_base" in ids
     assert "o200k_base" in ids
 
@@ -175,3 +176,37 @@ def test_glm_gmask_escaped_differs_if_present() -> None:
     n_esc = glm.n_hat(base, "[gMASK]", escaped=True)
     n_raw = glm.n_hat(base, "[gMASK]", escaped=False)
     assert n_esc != n_raw
+
+
+def test_load_entry_unknown_backend_skips() -> None:
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = _load_entry({"id": "x", "backend": "nope"}, Path("/tmp/unused"))
+    assert result is None
+    assert any("unknown backend" in str(w.message) for w in caught)
+
+
+def test_load_entry_failure_skips(tmp_path: Path) -> None:
+    bogus = tmp_path / "bad.json"
+    bogus.write_text("not-a-tokenizer", encoding="utf-8")
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = _load_entry({"id": "x", "backend": "tokenizers"}, bogus)
+    assert result is None
+    assert any("failed to load" in str(w.message) for w in caught)
+
+
+def test_load_catalog_skips_missing_optional_file(tmp_path: Path) -> None:
+    manifest = tmp_path / "catalog"
+    manifest.mkdir()
+    (manifest / "manifest.json").write_text(
+        '{"vocabs": [{"id": "cl100k_base", "backend": "tiktoken", "local_path": null},'
+        ' {"id": "ghost", "backend": "tokenizers", "local_path": "missing.json", "optional": true}]}',
+        encoding="utf-8",
+    )
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        catalog = load_catalog(tmp_path)
+    assert "cl100k_base" in catalog
+    assert "ghost" not in catalog
+    assert any("missing local file" in str(w.message) for w in caught)

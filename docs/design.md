@@ -144,9 +144,10 @@ Phase 1 必收（互不塌缩、均已核实可公开获取）：
 
 题库 **20–60** 题，三域都要有，且每域覆盖 easy / medium / hard。  
 编号：`{architecture|coding|knowledge}-{easy|medium|hard}-{两位序号}`，例如 `coding-medium-01`。  
+编码题加载时按语言展开为 `coding-medium-01-python` / `-go` / `-typescript`。  
 `--quick` 快速：只跑 easy/medium，每题 `temperature=0` 一次。  
 默认全量：三档都跑，每题 `0` 一次再 `0.7` × 3。  
-当前 24 题时，快速 18 题 × 1 次；全量 24 × 4 + F 约 30 次。
+当前 40 题（8 架构 + 8 知识 + 8 编码×3 语）时，快速 30 题 × 1 次；全量 40 × 4 + F。
 
 ### 3.2 出题
 
@@ -158,26 +159,26 @@ Phase 1 必收（互不塌缩、均已核实可公开获取）：
 
 ### 3.3 评分
 
-不用 LLM-as-judge。不用 6 语言编译矩阵，也不做 3 轮自动修。
+不用 LLM-as-judge。编码同一题面分别用 Python / Go / TypeScript 抽代码、编译、跑测。不做 Java / C# / C++，不做 3 轮自动修。
 
-每题若干得分点。沙箱 stdout 最后一行 `POINTS n/m`（或 keyword/alias 自己写入）即计点。`score10 = 10 × n / m`。满点才算该题 `pass`；部分对仍记折合分。架构题可写 `must_exclude`：套话命中则不得 pass。easy/medium/hard 的 completion_tokens 超过 80K/100K/128K 时，该次折合分减半（pass 不因此翻盘）。分域、分难度各自展示通过率与折合 10。**禁止**再合成 0–100 总分。
+每题若干得分点。沙箱 **stdout** 必须出现 `POINTS n/m`（只认 stdout 里最后一次匹配；stderr / 编译日志不算。keyword/alias 自己写入后传入）。没有 POINTS 记 fail，不得因 exit 0 记 pass。`score10 = 10 × n / m`。满点才算该题 `pass`；部分对仍记折合分。架构题可写 `must_exclude`：套话命中则不得 pass。easy/medium/hard 的 completion_tokens 超过 80K/100K/128K 时，该次折合分与 points 同步减半（pass 不因此翻盘）。分域、分难度各自展示通过率与折合 10。**禁止**再合成 0–100 总分。
 
 | 域 | grader | 进 Module I 向量 | 进 Module D 决策 |
 |---|---|---|---|
 | 架构 | 关键词组各 1 分；命中 ≥ `min_hits` 且未触 `must_exclude` 才 pass | **否** | **否**（只进分域附录） |
-| 编码 | 抽第一个 fenced Python 块，本地 subprocess + timeout + 无网跑 `bank/tests/`；用例各 1 分 | **是**（抽不出记 `missing`） | 是 |
+| 编码 | 按语言抽第一个 fenced 块；Python 无网沙箱，Go `go test`（GOPROXY=off），TS `tsc` 后再 `node`；用例各 1 分；编译失败或超时记 0 | **是**（抽不出记 `missing`） | 是 |
 | 知识 | 短答 exact 1 分；`structure` 每条硬规则 1 分 | **否**（过易，只当冒烟：全错才报警） | **否** |
 
-编码抽不出代码：该题 `missing`，不中断整场。沙箱清空 `TARGET_KEY` / `REF_KEY` 及进程里其它 API 环境变量。编译/运行异常或超时记 0 分。猜对不算：知识栏 `match: exact`，带解释的句子不得分。
+编码抽不出代码、本机缺该语言工具链、或工具链低于门槛（Python 3.11 / go 1.20）：该题 `missing`，不中断整场，不进 D 分母。沙箱清空 `TARGET_KEY` / `REF_KEY` 及进程里其它 API 环境变量。编译失败、禁运 import、跑完没有 `POINTS`、或超时记 0 分。猜对不算：知识栏 `match: exact`，带解释的句子不得分。环境初始化见 `AGENTS.md` 与 `cursor_workspace/build_scripts/init_env.py`。
 
 ---
 
 ## 4. Module I：型号判真（Phase 3）
 
-不新增题。无参考源、声称型号未登记、或 T/R 同一网关缓存域：`identity=skipped` / `invalid`。
+不新增题。无参考源只出家族：I = `skipped`。声称型号未登记：`skipped`。T/R 同一网关缓存域：`invalid`。`family` 无 reference 时不打印 I，仍可把 skipped 写入报告。
 
-1. F 为 `token_untrusted`：I = `skipped`。
-2. F 家族与声称型号所属家族不一致，且 F 置信度 ≥ 中：`不支持`（跨族换货）。F 为 `ambiguous`：不走本条。中转目标默认置信封顶「中」，除非 usage 自洽通过。
+1. F 为 `token_untrusted`：I = `skipped`。无参考源：I = `skipped`（在 token_untrusted 之后立刻短路）。
+2. F 家族与声称型号所属家族不一致，且 F 置信度 ≥ 中：`不支持`（跨族换货；必须有参考源）。F 为 `ambiguous`：不走本条。中转目标（规范 channel=`newapi`）默认置信封顶「中」，除非 usage 自洽通过。
 3. F 显示同族：I = `同族未分型`（**禁止**写「支持」）。词表分不开 Flash/Pro。
 4. 不再用全库对错 Hamming 声称「同一分布」。编码题一致率只进附录，不单独把 I 推成「支持」。
 
@@ -308,7 +309,7 @@ Python 3.11+。依赖：`httpx`、`pyyaml`、`tiktoken`、`tokenizers`。独立 
 
 ### Phase 2
 
-写满题库与 grader（20–60，三档编号）。编码：抽代码 + 无网沙箱。用任一能用的模型跑通，修评分误杀。
+写满题库与 grader（20–60，三档编号）。编码：同一题面 Python / Go / TypeScript 抽代码 + 编译跑测。用任一能用的模型跑通，修评分误杀。
 
 ### Phase 3
 

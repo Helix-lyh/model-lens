@@ -18,14 +18,7 @@ from src.channels.openai_completions import chat_completions_url
 from src.channels.resolve import get_adapter, resolve_channel
 from src.config import resolve_api_key
 from src.limits import official_max_output
-from src.stream import (
-    StreamUnsupported,
-    apply_stream,
-    assemble_stream,
-    content_delta,
-    feed_sse,
-    flush_sse,
-)
+from src.stream import StreamUnsupported, assemble_stream, feed_sse, flush_sse
 from src.reasoning import extract_reasoning
 from src.types import CompletionRecord, Endpoint
 from src.usage import (
@@ -111,8 +104,8 @@ class ChatClient:
         use_stream = stream
         if stream:
             try:
-                prepared = apply_stream(
-                    prepared, self.resolved.api, compat=self.resolved.compat
+                prepared = self.adapter.apply_stream(
+                    prepared, compat=self.resolved.compat
                 )
             except StreamUnsupported as exc:
                 use_stream = False
@@ -122,9 +115,66 @@ class ChatClient:
             auth=self.resolved.auth,
             api_key=self._api_key,
         )
+        record = self._retry_loop(
+            kind=kind,
+            prepared=prepared,
+            headers=headers,
+            use_stream=use_stream,
+        )
+        if stream:
+            record = self._annotate_stream_metrics(
+                record, requested=True, used=use_stream, note=stream_note
+            )
+        self.recorder.write(record)
+        return record
+
+    def _nonstream_attempt(
+        self,
+        *,
+        kind: str,
+        prepared: Any,
+        headers: dict[str, str],
+        t0: float,
+    ) -> tuple[CompletionRecord, bool]:
+        resp = self._http.request(
+            prepared.method,
+            prepared.url,
+            json=prepared.body,
+            headers=headers,
+        )
+        latency_ms = int((time.perf_counter() - t0) * 1000)
+        status = resp.status_code
+        if 200 <= status < 300:
+            return (
+                self._success(
+                    kind=kind,
+                    request=prepared.body,
+                    resp=resp,
+                    latency_ms=latency_ms,
+                ),
+                False,
+            )
+        return (
+            self._failure(
+                kind=kind,
+                request=prepared.body,
+                status_code=status,
+                latency_ms=latency_ms,
+                error=_http_error_message(resp),
+            ),
+            500 <= status <= 599,
+        )
+
+    def _retry_loop(
+        self,
+        *,
+        kind: str,
+        prepared: Any,
+        headers: dict[str, str],
+        use_stream: bool,
+    ) -> CompletionRecord:
         attempts = self.max_retries + 1
         record: CompletionRecord | None = None
-
         for attempt in range(attempts):
             t0 = time.perf_counter()
             try:
@@ -136,63 +186,43 @@ class ChatClient:
                         t0=t0,
                     )
                 else:
-                    resp = self._http.request(
-                        prepared.method,
-                        prepared.url,
-                        json=prepared.body,
-                        headers=headers,
-                    )
-                    latency_ms = int((time.perf_counter() - t0) * 1000)
-                    status = resp.status_code
-                    if 500 <= status <= 599 and attempt < attempts - 1:
-                        continue
-                    if 200 <= status < 300:
-                        record = self._success(
-                            kind=kind,
-                            request=prepared.body,
-                            resp=resp,
-                            latency_ms=latency_ms,
-                        )
-                        break
-                    record = self._failure(
+                    record, retryable = self._nonstream_attempt(
                         kind=kind,
-                        request=prepared.body,
-                        status_code=status,
-                        latency_ms=latency_ms,
-                        error=_http_error_message(resp),
+                        prepared=prepared,
+                        headers=headers,
+                        t0=t0,
                     )
-                    break
+                    if retryable and attempt < attempts - 1:
+                        continue
+                    return record
             except httpx.RequestError as exc:
                 latency_ms = int((time.perf_counter() - t0) * 1000)
                 if attempt < attempts - 1:
                     continue
-                record = self._failure(
+                return self._failure(
                     kind=kind,
                     request=prepared.body,
                     status_code=None,
                     latency_ms=latency_ms,
                     error=str(exc) or type(exc).__name__,
                 )
-                break
-
             if record is None:
                 continue
-            if (
-                use_stream
-                and record.status_code is not None
-                and 500 <= record.status_code <= 599
-                and attempt < attempts - 1
-            ):
+            if self._stream_5xx_retryable(record, attempt, attempts):
                 continue
-            break
-
+            return record
         assert record is not None
-        if stream:
-            record = self._annotate_stream_metrics(
-                record, requested=True, used=use_stream, note=stream_note
-            )
-        self.recorder.write(record)
         return record
+
+    def _stream_5xx_retryable(
+        self, record: CompletionRecord, attempt: int, attempts: int
+    ) -> bool:
+        status = record.status_code
+        return (
+            status is not None
+            and 500 <= status <= 599
+            and attempt < attempts - 1
+        )
 
     def _success(
         self,
@@ -320,7 +350,7 @@ class ChatClient:
             raise
 
         latency_ms = int((time.perf_counter() - t0) * 1000)
-        assembled = assemble_stream(self.resolved.api, events)
+        assembled = assemble_stream(self.adapter, events)
         usage = self.adapter.parse_token_usage(assembled.payload)
         content = assembled.content or self.adapter.parse_content(assembled.payload)
         metrics = derive_metrics(
@@ -350,7 +380,7 @@ class ChatClient:
         )
 
     def _event_has_text(self, event: dict[str, Any]) -> bool:
-        return bool(content_delta(self.resolved.api, event))
+        return bool(self.adapter.content_delta(event))
 
     def _annotate_stream_metrics(
         self,
