@@ -109,7 +109,7 @@ class Vocab(Protocol):
 
 
 GradeStatus = Literal["pass", "fail", "missing", "error"]
-DomainName = Literal["architecture", "coding", "knowledge"]
+DomainName = Literal["architecture", "coding", "knowledge", "reasoning"]
 Difficulty = Literal["easy", "medium", "hard"]
 
 

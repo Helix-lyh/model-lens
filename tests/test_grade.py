@@ -85,12 +85,27 @@ def test_alias_grader() -> None:
 
 def test_knowledge_trap_canonical_and_intuition() -> None:
     by_id = {q.id: q for q in load_questions() if q.domain == "knowledge"}
-    assert set(by_id) == {"knowledge-easy-01", "knowledge-easy-02", "knowledge-easy-03", "knowledge-medium-01", "knowledge-medium-02", "knowledge-medium-03", "knowledge-hard-01", "knowledge-hard-02"}
+    assert set(by_id) == {
+        "knowledge-easy-01",
+        "knowledge-easy-02",
+        "knowledge-easy-03",
+        "knowledge-easy-04",
+        "knowledge-medium-01",
+        "knowledge-medium-02",
+        "knowledge-medium-03",
+        "knowledge-medium-04",
+        "knowledge-hard-01",
+        "knowledge-hard-02",
+        "knowledge-hard-03",
+        "knowledge-hard-04",
+    }
     expect = {
         "knowledge-easy-01": ("0", "7"),
         "knowledge-easy-02": ("地面", "空中"),
         "knowledge-medium-01": ("不扳", "扳"),
         "knowledge-easy-03": ("0", "50"),
+        "knowledge-easy-04": ("一样重", "铁"),
+        "knowledge-medium-04": ("更低", "相同"),
     }
     for qid, (good, bad) in expect.items():
         q = by_id[qid]
@@ -107,9 +122,12 @@ def test_structure_follow_pass_and_fail() -> None:
         "knowledge-medium-02": "<<HEAD>>\ndrahcro\n7\ndra*cro\n<<TAIL>>",
         "knowledge-hard-02": '[{"i":0,"sq":0,"mark":"n"},{"i":1,"sq":1,"mark":"n"},{"i":2,"sq":4,"mark":"n"},null,{"i":4,"sq":16,"mark":"n"},{"i":5,"sq":25,"mark":"N"}]',
         "knowledge-medium-03": '{"z":{"z":{"z":"ok"}},"a":[],"z2":-0}',
+        "knowledge-hard-03": "[[v2]]\nsgnl\nsgnl-sgnl\n9\nlngs\n[[end]]",
+        "knowledge-hard-04": '{"data":["0",0,false,null],"meta":{"v":1e2,"k k":{}}}',
     }
+    text_payloads = {"knowledge-medium-02", "knowledge-hard-03"}
     for qid, payload in good.items():
-        boxed = f"```json\n{payload}\n```" if qid != "knowledge-medium-02" else f"```text\n{payload}\n```"
+        boxed = f"```text\n{payload}\n```" if qid in text_payloads else f"```json\n{payload}\n```"
         grade = grade_response(by_id[qid], boxed, repo_root=repo_root())
         assert grade.passed is True, (qid, grade.detail)
         assert grade.score10 == 10.0

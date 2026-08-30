@@ -176,6 +176,109 @@ func NewSafeCounter() *SafeCounter { return &SafeCounter{} }
 func (c *SafeCounter) Increment() { c.mu.Lock(); c.n++; c.mu.Unlock() }
 func (c *SafeCounter) Value() int { c.mu.Lock(); defer c.mu.Unlock(); return c.n }
 """,
+    "bank/tests/go/tag_scores_test.go": """
+package solution
+import (
+    "strconv"
+    "strings"
+)
+func TagScores(items []string) map[string]int {
+    out := map[string]int{}
+    for _, item := range items {
+        idx := strings.Index(item, ":")
+        if idx <= 0 { continue }
+        val, err := strconv.Atoi(item[idx+1:])
+        if err != nil { continue }
+        out[item[:idx]] += val
+    }
+    return out
+}
+""",
+    "bank/tests/go/render_test.go": """
+package solution
+import "strings"
+func isNameChar(c byte) bool {
+    return c == '_' || (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+func Render(template string, vars map[string]string) string {
+    var b strings.Builder
+    i := 0
+    for i < len(template) {
+        if strings.HasPrefix(template[i:], "{{") { b.WriteByte('{'); i += 2; continue }
+        if strings.HasPrefix(template[i:], "}}") { b.WriteByte('}'); i += 2; continue }
+        if template[i] == '{' {
+            j := i + 1
+            for j < len(template) && isNameChar(template[j]) { j++ }
+            if j > i+1 && j < len(template) && template[j] == '}' {
+                if val, ok := vars[template[i+1:j]]; ok { b.WriteString(val) } else { b.WriteString(template[i : j+1]) }
+                i = j + 1
+                continue
+            }
+        }
+        b.WriteByte(template[i])
+        i++
+    }
+    return b.String()
+}
+""",
+    "bank/tests/go/limiter_test.go": """
+package solution
+type SlidingLimiter struct {
+    limit, window int
+    allowed       []int
+}
+func NewSlidingLimiter(limit, window int) *SlidingLimiter {
+    return &SlidingLimiter{limit: limit, window: window}
+}
+func (s *SlidingLimiter) Allow(ts int) bool {
+    lo := ts - s.window
+    kept := s.allowed[:0]
+    for _, t := range s.allowed {
+        if t > lo { kept = append(kept, t) }
+    }
+    s.allowed = kept
+    if len(s.allowed) < s.limit {
+        s.allowed = append(s.allowed, ts)
+        return true
+    }
+    return false
+}
+""",
+    "bank/tests/go/plan_tasks_test.go": """
+package solution
+import "sort"
+func PlanTasks(tasks []string, deps [][2]string) ([]string, bool) {
+    seen := map[[2]string]bool{}
+    indeg := map[string]int{}
+    after := map[string][]string{}
+    for _, t := range tasks { indeg[t] = 0 }
+    for _, d := range deps {
+        if seen[d] { continue }
+        seen[d] = true
+        indeg[d[0]]++
+        after[d[1]] = append(after[d[1]], d[0])
+    }
+    var ready []string
+    for _, t := range tasks {
+        if indeg[t] == 0 { ready = append(ready, t) }
+    }
+    sort.Strings(ready)
+    var out []string
+    for len(ready) > 0 {
+        t := ready[0]
+        ready = ready[1:]
+        out = append(out, t)
+        changed := false
+        for _, nxt := range after[t] {
+            indeg[nxt]--
+            if indeg[nxt] == 0 { ready = append(ready, nxt); changed = true }
+        }
+        if changed { sort.Strings(ready) }
+    }
+    if len(out) != len(tasks) { return nil, false }
+    return out, true
+}
+""",
 }
 
 TS = {
@@ -284,6 +387,87 @@ export class SafeCounter {
   n = 0;
   increment() { this.n++; }
   value() { return this.n; }
+}
+""",
+    "bank/tests/ts/tag_scores.ts": """
+export function tagScores(items: string[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const item of items) {
+    const idx = item.indexOf(":");
+    if (idx <= 0) continue;
+    const score = item.slice(idx + 1);
+    if (!/^-?\\d+$/.test(score)) continue;
+    const tag = item.slice(0, idx);
+    out[tag] = (out[tag] ?? 0) + parseInt(score, 10);
+  }
+  return out;
+}
+""",
+    "bank/tests/ts/render.ts": """
+export function render(template: string, vars: Record<string, string>): string {
+  let out = "";
+  let i = 0;
+  const re = /\\{([A-Za-z0-9_]+)\\}/y;
+  while (i < template.length) {
+    if (template.startsWith("{{", i)) { out += "{"; i += 2; continue; }
+    if (template.startsWith("}}", i)) { out += "}"; i += 2; continue; }
+    if (template[i] === "{") {
+      re.lastIndex = i;
+      const m = re.exec(template);
+      if (m) {
+        out += Object.prototype.hasOwnProperty.call(vars, m[1]) ? vars[m[1]] : m[0];
+        i = re.lastIndex;
+        continue;
+      }
+    }
+    out += template[i];
+    i++;
+  }
+  return out;
+}
+""",
+    "bank/tests/ts/limiter.ts": """
+export class SlidingLimiter {
+  private allowed: number[] = [];
+  constructor(private limit: number, private window: number) {}
+  allow(ts: number): boolean {
+    const lo = ts - this.window;
+    this.allowed = this.allowed.filter((t) => t > lo);
+    if (this.allowed.length < this.limit) {
+      this.allowed.push(ts);
+      return true;
+    }
+    return false;
+  }
+}
+""",
+    "bank/tests/ts/plan_tasks.ts": """
+export function planTasks(tasks: string[], deps: Array<[string, string]>): string[] | null {
+  const seen = new Set<string>();
+  const indeg = new Map<string, number>();
+  const after = new Map<string, string[]>();
+  for (const t of tasks) indeg.set(t, 0);
+  for (const [a, b] of deps) {
+    const key = a + "\\u0000" + b;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    indeg.set(a, (indeg.get(a) ?? 0) + 1);
+    if (!after.has(b)) after.set(b, []);
+    after.get(b)!.push(a);
+  }
+  const ready = tasks.filter((t) => indeg.get(t) === 0).sort();
+  const out: string[] = [];
+  while (ready.length > 0) {
+    const t = ready.shift()!;
+    out.push(t);
+    let changed = false;
+    for (const nxt of after.get(t) ?? []) {
+      indeg.set(nxt, indeg.get(nxt)! - 1);
+      if (indeg.get(nxt) === 0) { ready.push(nxt); changed = true; }
+    }
+    if (changed) ready.sort();
+  }
+  return out.length === tasks.length ? out : null;
 }
 """,
 }

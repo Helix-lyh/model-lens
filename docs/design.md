@@ -26,7 +26,7 @@
 targets.yaml
     → 多渠道 httpx client（默认非流式；题库可 --stream-metrics）+ jsonl recorder
          → Module F  词表差分（独立）
-         → Module C  三域题库（独立）
+         → Module C  四域题库（独立）
               → Module I  判真（跨族靠 F；同族只标未分型）
               → Module D  降智粗筛（仅 I=同族未分型 且参考源不同网关）
     → report.md / report.json    三栏独立
@@ -142,12 +142,12 @@ Phase 1 必收（互不塌缩、均已核实可公开获取）：
 
 ### 3.1 规模
 
-题库 **20–60** 题，三域都要有，且每域覆盖 easy / medium / hard。  
-编号：`{architecture|coding|knowledge}-{easy|medium|hard}-{两位序号}`，例如 `coding-medium-01`。  
+题库 **20–60** 条原始题（编码按 1 题计，不按语言展开后计数），四域都要有，且每域覆盖 easy / medium / hard。  
+编号：`{architecture|coding|knowledge|reasoning}-{easy|medium|hard}-{两位序号}`，例如 `coding-medium-01`。  
 编码题加载时按语言展开为 `coding-medium-01-python` / `-go` / `-typescript`。  
 `--quick` 快速：只跑 easy/medium，每题 `temperature=0` 一次。  
 默认全量：三档都跑，每题 `0` 一次再 `0.7` × 3。  
-当前 40 题（8 架构 + 8 知识 + 8 编码×3 语）时，快速 30 题 × 1 次；全量 40 × 4 + F。
+当前 48 条原始题（12 架构 + 12 知识 + 12 推理 + 12 编码），展开后 72 道；快速 48 道 × 1 次；全量 72 × 4 + F。
 
 ### 3.2 出题
 
@@ -350,7 +350,7 @@ README 写清：准确率预期、8-bit 与同家族弱档、token 不可信、�
 ## 11. 硬约束
 
 1. 先 F，再题库。  
-2. 题库 20–60 题，三域 × 三档英文编号；快速只跑 easy/medium。   
+2. 题库 20–60 条原始题（展开前计数），四域 × 三档英文编号；快速只跑 easy/medium。   
 3. 三栏不准加权总分。  
 4. 请求落 jsonl，分析可离线重放。  
 5. 密钥只走环境变量。  

@@ -4,13 +4,13 @@
 
 ## 加题（Module C）
 
-题库 **20–60** 题（编码按语言展开后计数）。编号 `{architecture|coding|knowledge}-{easy|medium|hard}-{序号}`，例如 `coding-medium-01`。编码题加载后变成 `coding-medium-01-python` / `-go` / `-typescript`。`src/bank.py` 校验总数、三域都有三档、id 与 domain/difficulty 一致。快速模式只跑 easy/medium。加到 60 题以内即可；超过先淘汰。不做 Java/C#/C++，不做 3 轮回修。
+题库 **20–60** 条原始题（编码按 1 题计，**不**按语言展开后计数）。编号 `{architecture|coding|knowledge|reasoning}-{easy|medium|hard}-{序号}`，例如 `coding-medium-01`。编码题加载后变成 `coding-medium-01-python` / `-go` / `-typescript`。`src/bank.py` 校验展开前总数、四域都有三档、id 与 domain/difficulty 一致。快速模式只跑 easy/medium。加到 60 条以内即可；超过先淘汰。不做 Java/C#/C++，不做 3 轮回修。
 
 1. 在 `bank/questions.yaml` 加一条（或替换）：
 
 ```yaml
 - id: knowledge-medium-04
-  domain: knowledge          # architecture | coding | knowledge
+  domain: knowledge          # architecture | coding | knowledge | reasoning
   difficulty: medium         # easy | medium | hard，必须与 id 第二段一致
   prompt: |
     题面。不要写标准答案。末行锁死输出（只输出一个整数）。

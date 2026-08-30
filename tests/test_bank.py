@@ -38,8 +38,9 @@ class FakeClient:
 
 def test_load_questions_size_and_ids() -> None:
     qs = load_questions()
-    assert 20 <= len(qs) <= 60
-    assert {q.domain for q in qs} == {"architecture", "coding", "knowledge"}
+    raw_count = len([q for q in qs if q.language in (None, "python")])
+    assert 20 <= raw_count <= 60
+    assert {q.domain for q in qs} == {"architecture", "coding", "knowledge", "reasoning"}
     assert {q.difficulty for q in qs} == {"easy", "medium", "hard"}
     for q in qs:
         parts = q.id.split("-")
@@ -49,9 +50,10 @@ def test_load_questions_size_and_ids() -> None:
             assert parts[-1] in {"python", "go", "typescript"}
             assert q.language == parts[-1]
     coding = [q for q in qs if q.domain == "coding"]
-    assert len(coding) == 24
+    assert len(coding) == 36
     assert {q.language for q in coding} == {"python", "go", "typescript"}
-    assert len(qs) == 40
+    assert raw_count == 48
+    assert len(qs) == 72
     quick = select_questions(qs, "quick")
     full = select_questions(qs, "full")
     assert all(q.difficulty in {"easy", "medium"} for q in quick)

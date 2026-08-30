@@ -90,6 +90,43 @@
       - 投递
       - 确认
       - ack
+- id: architecture-easy-04
+  domain: architecture
+  difficulty: easy
+  pass_criteria: 主从延迟成因与至少两种缓解思路
+  prompt: |
+    MySQL 做了读写分离（一主多从）后，用户改完昵称立刻刷新页面，偶尔看到的还是旧昵称。
+    解释原因，并给出至少两种缓解思路。
+  grader:
+    type: keyword
+    min_hits: 4
+    must_exclude:
+    - - 综上所述
+    - - 总而言之
+    - - 作为一名
+    must_include:
+    - - 主从
+      - 从库
+      - 复制
+      - replica
+      - 副本
+    - - 延迟
+      - lag
+      - 异步
+    - - 读主
+      - 主库
+      - 强制走主
+      - 强一致
+    - - 会话
+      - 粘性
+      - session
+      - 写后读
+      - read-after-write
+    - - 缓存
+      - 位点
+      - gtid
+      - 本地回显
+      - 版本号
 - id: architecture-medium-01
   domain: architecture
   difficulty: medium
@@ -175,6 +212,40 @@
     - - 请求
       - 链路
       - 调用链
+- id: architecture-medium-04
+  domain: architecture
+  difficulty: medium
+  pass_criteria: 灰度切流、观测指标、回滚条件三件套
+  prompt: |
+    推荐服务要上新版本，直接全量发布风险太大。
+    设计灰度（金丝雀）发布方案：流量怎么切、观察什么指标、什么条件触发回滚。
+  grader:
+    type: keyword
+    min_hits: 4
+    must_exclude:
+    - - 综上所述
+    - - 总而言之
+    - - 作为一名
+    must_include:
+    - - 灰度
+      - 金丝雀
+      - canary
+    - - 流量
+      - 权重
+      - 比例
+      - 白名单
+    - - 指标
+      - 错误率
+      - 延迟
+      - 监控
+      - p99
+    - - 回滚
+      - rollback
+      - 降级
+    - - 兼容
+      - 双写
+      - schema
+      - 版本
 - id: architecture-hard-01
   domain: architecture
   difficulty: hard
@@ -233,6 +304,77 @@
     - - 扫描
       - 病毒
       - 回调
+- id: architecture-hard-03
+  domain: architecture
+  difficulty: hard
+  pass_criteria: Redis 互斥锁的过期、续期与防误删
+  prompt: |
+    定时对账任务部署了 3 个实例，但同一时刻只允许一个实例执行。
+    用 Redis 实现互斥锁要注意什么？锁到期但任务还没跑完怎么办？误删别人的锁怎么防？
+  grader:
+    type: keyword
+    min_hits: 4
+    must_exclude:
+    - - 综上所述
+    - - 总而言之
+    - - 作为一名
+    must_include:
+    - - setnx
+      - set nx
+      - 互斥
+      - 排他
+    - - 过期
+      - ttl
+      - 超时
+    - - 续期
+      - 看门狗
+      - watchdog
+      - 续约
+    - - 唯一
+      - 标识
+      - token
+      - lua
+      - 校验
+    - - fencing
+      - 幂等
+      - redlock
+      - 兜底
+- id: architecture-hard-04
+  domain: architecture
+  difficulty: hard
+  pass_criteria: 支付回调防重复入账与漏单补偿
+  prompt: |
+    第三方支付的回调通知可能重复、乱序，甚至丢失。
+    设计回调处理流程：如何防止重复入账？收不到回调的漏单怎么补？
+  grader:
+    type: keyword
+    min_hits: 4
+    must_exclude:
+    - - 综上所述
+    - - 总而言之
+    - - 作为一名
+    must_include:
+    - - 幂等
+      - 去重
+      - 唯一索引
+      - 唯一约束
+      - 防重
+    - - 状态机
+      - 状态
+      - 终态
+      - 已支付
+    - - 对账
+      - 补单
+      - 主动查询
+      - 定时查询
+      - 轮询
+    - - 事务
+      - 原子
+      - 一致
+    - - 乱序
+      - 顺序
+      - 版本
+      - 时间戳
 - id: coding-easy-01
   domain: coding
   difficulty: easy
@@ -291,6 +433,26 @@
       typescript:
         tests_file: bank/tests/ts/parse_badge.ts
         signature: "export function parseBadge(s: string): [number, number, number, number] | null"
+- id: coding-easy-04
+  domain: coding
+  difficulty: easy
+  pass_criteria: tag:score 汇总，非法项整条忽略，5 个用例
+  prompt: |
+    输入若干形如 "tag:score" 的字符串。按第一个冒号拆成 tag 和 score。
+    tag 必须非空，score 必须是十进制整数（可带负号），否则整条忽略。
+    把同名 tag 的 score 相加，返回 tag 到总分的映射。空输入返回空映射。
+  grader:
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b09_tag_scores.py
+        signature: "tag_scores(items: list[str]) -> dict[str, int]"
+      go:
+        tests_file: bank/tests/go/tag_scores_test.go
+        signature: func TagScores(items []string) map[string]int
+      typescript:
+        tests_file: bank/tests/ts/tag_scores.ts
+        signature: "export function tagScores(items: string[]): Record<string, number>"
 - id: coding-medium-01
   domain: coding
   difficulty: medium
@@ -355,6 +517,28 @@
       typescript:
         tests_file: bank/tests/ts/orders_sql.ts
         signature: "export function ordersForUserSql(userId: number): string"
+- id: coding-medium-04
+  domain: coding
+  difficulty: medium
+  pass_criteria: 模板占位符替换与花括号转义，6 个用例
+  prompt: |
+    实现模板渲染，从左到右扫描：
+    1. "{{" 输出一个 "{"，"}}" 输出一个 "}"（转义优先于占位符）。
+    2. "{name}" 中 name 只含字母、数字、下划线且非空：vars 里有 name 就替换成对应字符串；
+       没有则整段原样保留（含花括号）。
+    3. 其余的 "{" 或 "}"（含 "{a b}" 这类非法占位符、未闭合的 "{"）原样输出。
+  grader:
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b10_render.py
+        signature: "render(template: str, vars: dict[str, str]) -> str"
+      go:
+        tests_file: bank/tests/go/render_test.go
+        signature: func Render(template string, vars map[string]string) string
+      typescript:
+        tests_file: bank/tests/ts/render.ts
+        signature: "export function render(template: string, vars: Record<string, string>): string"
 - id: coding-hard-01
   domain: coding
   difficulty: hard
@@ -399,6 +583,48 @@
         tests_file: bank/tests/ts/safe_counter.ts
         signature: "export class SafeCounter { increment(): void; value(): number }"
         prompt_suffix: 本题 TypeScript 只在单线程连续调用，不要假装有数据竞争。
+- id: coding-hard-03
+  domain: coding
+  difficulty: hard
+  pass_criteria: 滑动窗口限流器，左开右闭、拒绝不计数，6 个用例
+  prompt: |
+    实现滑动窗口限流器，构造时给 limit 和 window（秒）。
+    allow(ts)：ts 是不减的整数秒。统计时间区间 (ts-window, ts] 内已被允许的请求数：
+    小于 limit 则本次允许、计入统计并返回真；否则返回假，且被拒绝的请求不计入统计。
+    注意区间左开右闭：恰好在 ts-window 时刻被允许的旧请求已经过期。
+  grader:
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b11_limiter.py
+        signature: "class SlidingLimiter(limit: int, window: int); allow(ts: int) -> bool"
+      go:
+        tests_file: bank/tests/go/limiter_test.go
+        signature: NewSlidingLimiter(limit, window int) *SlidingLimiter；Allow(ts int) bool
+      typescript:
+        tests_file: bank/tests/ts/limiter.ts
+        signature: "export class SlidingLimiter { constructor(limit: number, window: number); allow(ts: number): boolean }"
+- id: coding-hard-04
+  domain: coding
+  difficulty: hard
+  pass_criteria: 字典序稳定拓扑排序与环判定，6 个用例
+  prompt: |
+    给任务名列表 tasks（互不相同）和依赖对列表 deps，每项 (a, b) 表示 a 依赖 b，b 必须排在 a 前面。
+    返回满足全部依赖的执行顺序；多个任务同时可选时，取名字字典序最小的那个（结果唯一）。
+    deps 里的名字保证都在 tasks 中；同一依赖对可能重复出现，重复只按一条算。
+    存在循环依赖时按签名说明返回失败值。
+  grader:
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b12_plan_tasks.py
+        signature: "plan_tasks(tasks: list[str], deps: list[tuple[str, str]]) -> list[str] | None；有环返回 None"
+      go:
+        tests_file: bank/tests/go/plan_tasks_test.go
+        signature: func PlanTasks(tasks []string, deps [][2]string) ([]string, bool)；有环返回 (nil, false)
+      typescript:
+        tests_file: bank/tests/ts/plan_tasks.ts
+        signature: "export function planTasks(tasks: string[], deps: Array<[string, string]>): string[] | null；有环返回 null"
 - id: knowledge-easy-01
   domain: knowledge
   difficulty: easy
@@ -440,6 +666,18 @@
     match: exact
     answers:
     - '0'
+- id: knowledge-easy-04
+  domain: knowledge
+  difficulty: easy
+  pass_criteria: 一公斤棉花与一公斤铁一样重
+  prompt: |
+    一公斤棉花和一公斤铁，哪个更重？
+    只输出「一样重」「棉花」或「铁」三者之一，不要其他字。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - 一样重
 - id: knowledge-medium-01
   domain: knowledge
   difficulty: medium
@@ -488,6 +726,18 @@
   grader:
     type: structure
     tests_file: bank/tests/c08_oneline.py
+- id: knowledge-medium-04
+  domain: knowledge
+  difficulty: medium
+  pass_criteria: 先涨 10% 再降 10%，现价低于原价
+  prompt: |
+    一件商品先涨价 10%，随后在新价格的基础上再降价 10%。
+    现价与原价相比是怎样？只输出「更高」「更低」或「相同」，不要解释。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - 更低
 - id: knowledge-hard-01
   domain: knowledge
   difficulty: hard
@@ -526,3 +776,191 @@
   grader:
     type: structure
     tests_file: bank/tests/c07_array.py
+- id: knowledge-hard-03
+  domain: knowledge
+  difficulty: hard
+  pass_criteria: 6 行文本协议，signal 去元音、复制、倒序
+  prompt: |
+    按流程输出恰好 6 行纯文本，用一个 text 代码块包起来。不要解释。
+
+    流程：
+    1. 第 1 行必须完全等于 [[v2]]，左右无空格。
+    2. 取单词 signal，删掉其中所有元音字母，作为第 2 行。
+    3. 第 3 行 = 第 2 行、连字符 -、再复制一遍第 2 行（例如 ab 变成 ab-ab）。
+    4. 第 4 行是第 3 行的字符个数，只能是数字，不能带单位。
+    5. 第 5 行是第 2 行的倒序。
+    6. 第 6 行必须完全等于 [[end]]，行末不能有空格，之后不要有第 7 行。
+    7. 全文任何位置都不能出现正序的 signal。
+    8. 不要编号，不要 markdown 标题。
+  grader:
+    type: structure
+    tests_file: bank/tests/c09_lines6.py
+- id: knowledge-hard-04
+  domain: knowledge
+  difficulty: hard
+  pass_criteria: JSON 类型体操，data 四元组类型钉死，v 原文写 1e2
+  prompt: |
+    按流程输出一份 JSON。只输出一个 json 代码块，不要解释。
+
+    流程（后一条覆盖前一条）：
+    1. 顶层是对象，键顺序必须是 data 然后 meta，不得有第三个键。
+    2. data 是长度 4 的数组，元素依次为：字符串 "0"、数字 0、布尔 false、null。
+       类型不能写错，位置不能互换。
+    3. meta 是对象，恰好两个键：v 和 "k k"（键名是 k、空格、k 三个字符）。
+    4. v 的值在 JSON 原文里必须写成 1e2（数字一、小写字母 e、数字二），解析后是数字 100。
+       不要「简化」成 100。
+    5. "k k" 的值是空对象。
+    6. 允许换行与缩进。禁止注释，禁止尾逗号。
+  grader:
+    type: structure
+    tests_file: bank/tests/c10_meta.py
+- id: reasoning-easy-01
+  domain: reasoning
+  difficulty: easy
+  pass_criteria: n(n+1) 数列下一项 42
+  prompt: |
+    数列 2, 6, 12, 20, 30 的下一项是多少？
+    只输出一个整数，不要解释。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - '42'
+- id: reasoning-easy-02
+  domain: reasoning
+  difficulty: easy
+  pass_criteria: 唯一自洽解是乙说真话
+  prompt: |
+    甲说：「乙在说谎。」乙说：「丙在说谎。」丙说：「甲和乙都在说谎。」
+    三人中恰好一人说真话。说真话的是谁？
+    只输出「甲」「乙」或「丙」一个字。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - 乙
+- id: reasoning-easy-03
+  domain: reasoning
+  difficulty: easy
+  pass_criteria: 100 mod 7 = 2，周三后两天是周五
+  prompt: |
+    今天是星期三。100 天之后是星期几？
+    只输出「星期一」到「星期日」中的一个，不要解释。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - 星期五
+    - 周五
+- id: reasoning-easy-04
+  domain: reasoning
+  difficulty: easy
+  pass_criteria: 容斥 30+25-(50-10)=15
+  prompt: |
+    班里 50 人：30 人会 Python，25 人会 Go，10 人两样都不会。
+    既会 Python 又会 Go 的有几人？只输出一个整数。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - '15'
+- id: reasoning-medium-01
+  domain: reasoning
+  difficulty: medium
+  pass_criteria: 3+3 分组称重，最坏 2 次
+  prompt: |
+    8 个外观相同的球，其中 1 个偏重，其余重量相同。用没有砝码的天平，
+    最坏情况下最少称几次能保证找出重球？只输出一个整数。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - '2'
+- id: reasoning-medium-02
+  domain: reasoning
+  difficulty: medium
+  pass_criteria: 小孙排除工程师和医生得教师，医生只能是小钱
+  prompt: |
+    小赵、小钱、小孙的职业分别是医生、教师、工程师中的一个，互不相同。
+    已知：小赵不是医生；小孙既不是工程师也不是医生。
+    小钱的职业是什么？只输出「医生」「教师」或「工程师」。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - 医生
+- id: reasoning-medium-03
+  domain: reasoning
+  difficulty: medium
+  pass_criteria: 肯定后件谬误，草地湿不必然下过雨
+  prompt: |
+    规则：如果下雨，草地一定会湿。现在观察到草地是湿的。
+    能否由此断定下过雨？只输出「能」或「不能」。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - 不能
+- id: reasoning-medium-04
+  domain: reasoning
+  difficulty: medium
+  pass_criteria: 10:15–10:30 三场重叠，需要 3 间
+  prompt: |
+    三场会议的时间是 9:00–10:30、10:00–11:00、10:15–12:00。
+    同一会议室同一时刻只能开一场会。最少需要几个会议室？
+    只输出一个整数。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - '3'
+- id: reasoning-hard-01
+  domain: reasoning
+  difficulty: hard
+  pass_criteria: A 必为说谎者，故 B 是诚实者
+  prompt: |
+    岛上的人要么永远说真话，要么永远说假话。
+    A 说：「我和 B 都是说谎者。」
+    B 是哪种人？只输出「诚实者」或「说谎者」。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - 诚实者
+- id: reasoning-hard-02
+  domain: reasoning
+  difficulty: hard
+  pass_criteria: 只有完全平方数编号被按奇数次，1..100 有 10 个
+  prompt: |
+    100 盏编号 1 到 100 的灯全部关着。第 k 轮（k 从 1 到 100）把所有编号是 k 的倍数的灯的开关按一次。
+    100 轮结束后有几盏灯亮着？只输出一个整数。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - '10'
+- id: reasoning-hard-03
+  domain: reasoning
+  difficulty: hard
+  pass_criteria: 逻辑网格唯一解 A=2层茶、B=3层咖啡、C=1层可乐
+  prompt: |
+    A、B、C 三人分别在 1、2、3 层办公（互不相同），分别喝咖啡、茶、可乐（互不相同）。
+    线索：A 不在 1 层；喝茶的人在 2 层；B 喝咖啡；C 在 1 层。
+    推理出每个人的楼层和饮品，只输出一个 json 代码块，不要解释：
+    顶层键顺序必须是 A、B、C；每人是一个对象，键顺序 floor 然后 drink；
+    floor 是数字，drink 是「咖啡」「茶」「可乐」之一。
+  grader:
+    type: structure
+    tests_file: bank/tests/c11_logic_grid.py
+- id: reasoning-hard-04
+  domain: reasoning
+  difficulty: hard
+  pass_criteria: 4u=16 唯一解 844
+  prompt: |
+    一个三位数满足：三位数字之和是 16；百位数字是个位数字的 2 倍；十位数字等于百位数字减去个位数字。
+    这个三位数是多少？只输出这个三位数。
+  grader:
+    type: alias
+    match: exact
+    answers:
+    - '844'

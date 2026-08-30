@@ -12,9 +12,9 @@ from src.grade import attach_temperature, grade_response
 from src.toolchain import CODE_LANGS
 from src.types import BankResult, Difficulty, Question, QuestionResult, SampleGrade
 
-DOMAINS = ("architecture", "coding", "knowledge")
+DOMAINS = ("architecture", "coding", "knowledge", "reasoning")
 DIFFICULTIES: tuple[Difficulty, ...] = ("easy", "medium", "hard")
-QUESTION_ID_RE = re.compile(r"^(architecture|coding|knowledge)-(easy|medium|hard)-(\d{2})$")
+QUESTION_ID_RE = re.compile(r"^(architecture|coding|knowledge|reasoning)-(easy|medium|hard)-(\d{2})$")
 _LANG_HEAD = {
     "python": "只输出一个 python 代码块。不要解释。不要第三方库。",
     "go": "只输出一个 go 代码块。文件必须是 package solution。不要解释。不要第三方库。不要发起网络请求。",
@@ -36,10 +36,11 @@ def load_questions(root: Path | None = None, *, mode: BankMode | None = None) ->
     raw = yaml.safe_load((root / "bank" / "questions.yaml").read_text(encoding="utf-8"))
     if not isinstance(raw, list):
         raise ValueError("bank/questions.yaml 必须是题列表")
+    raw_questions = [_as_question(item) for item in raw]
+    _validate_bank(raw_questions)
     questions: list[Question] = []
-    for item in raw:
-        questions.extend(_expand_question(_as_question(item)))
-    _validate_bank(questions)
+    for q in raw_questions:
+        questions.extend(_expand_question(q))
     return select_questions(questions, mode) if mode else questions
 
 
@@ -119,6 +120,7 @@ def _coding_variant(q: Question, lang: str, spec: dict[str, Any]) -> Question:
 
 
 def _validate_bank(questions: list[Question]) -> None:
+    """校验展开前的原始题列表；编码题按 1 题计，不按语言展开后计数。"""
     ids: set[str] = set()
     for q in questions:
         if q.id in ids:
@@ -126,7 +128,7 @@ def _validate_bank(questions: list[Question]) -> None:
         ids.add(q.id)
     n = len(questions)
     if not (BANK_MIN <= n <= BANK_MAX):
-        raise ValueError(f"题库必须 {BANK_MIN}–{BANK_MAX} 题，当前 {n}")
+        raise ValueError(f"题库必须 {BANK_MIN}–{BANK_MAX} 题（展开前），当前 {n}")
     for domain in DOMAINS:
         have = {q.difficulty for q in questions if q.domain == domain}
         missing = [d for d in DIFFICULTIES if d not in have]

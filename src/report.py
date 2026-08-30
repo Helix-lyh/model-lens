@@ -7,6 +7,7 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
 
+from src.bank import DOMAINS
 from src.types import BankResult, DegradeResult, FamilyResult, IdentityResult
 from src.usage import summarize_jsonl
 
@@ -223,7 +224,7 @@ def _render_bank_bars(bank: Any, bank_ref: Any) -> list[str]:
 def _fmt_domain_rates(bank: dict[str, Any]) -> str:
     rates = bank.get("domain_pass0") or {}
     parts = []
-    for domain in ("architecture", "coding", "knowledge"):
+    for domain in DOMAINS:
         row = rates.get(domain) or {}
         parts.append(f"{domain} {row.get('passed', 0)}/{row.get('judged', 0)}")
     return "；".join(parts)
@@ -246,7 +247,7 @@ def _fmt_difficulty_score10(bank: dict[str, Any]) -> str:
 def _fmt_domain_score10(bank: dict[str, Any]) -> str:
     rows = bank.get("domain_points") or {}
     parts = []
-    for domain in ("architecture", "coding", "knowledge"):
+    for domain in DOMAINS:
         row = rows.get(domain) or {}
         score = row.get("score10")
         earned = row.get("earned")

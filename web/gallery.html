@@ -114,7 +114,7 @@
     const models = (raw && raw.models) || [];
     let cur = 0;
     let domain = "all";
-    const DOMAIN_ZH = { architecture: "架构", coding: "编码", knowledge: "知识" };
+    const DOMAIN_ZH = { architecture: "架构", coding: "编码", knowledge: "知识", reasoning: "推理" };
     const DIFF_ZH = { easy: "easy", medium: "medium", hard: "hard" };
 
     function verdict(v) {
@@ -132,7 +132,7 @@
         btn.onclick = () => { cur = Number(btn.dataset.i); render(); };
       });
       const domains = document.getElementById("domains");
-      const keys = ["all", "architecture", "coding", "knowledge"];
+      const keys = ["all", "architecture", "coding", "knowledge", "reasoning"];
       domains.innerHTML = keys.map((k) =>
         `<button class="dom${domain === k ? " active" : ""}" data-d="${k}">${k === "all" ? "全部" : DOMAIN_ZH[k]}</button>`
       ).join("");
@@ -146,7 +146,7 @@
       const deg = m.degrade || {};
       const rates = m.domains || {};
       const points = m.domain_points || {};
-      const rateLine = ["architecture", "coding", "knowledge"].map((k) => {
+      const rateLine = ["architecture", "coding", "knowledge", "reasoning"].map((k) => {
         const row = rates[k] || {};
         const pts = points[k] || {};
         const score = pts.score10 == null ? "—" : pts.score10;
