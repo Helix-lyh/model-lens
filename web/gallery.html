@@ -115,7 +115,7 @@
     let cur = 0;
     let domain = "all";
     const DOMAIN_ZH = { architecture: "架构", coding: "编码", knowledge: "知识", reasoning: "推理" };
-    const DIFF_ZH = { easy: "easy", medium: "medium", hard: "hard" };
+    const DIFF_ZH = { easy: "easy", medium: "medium", hard: "hard", extreme: "extreme" };
 
     function verdict(v) {
       if (v === true) return ["pass", "通过"];
@@ -126,7 +126,7 @@
     function render() {
       const types = document.getElementById("types");
       types.innerHTML = models.map((m, i) =>
-        `<button class="type${i === cur ? " active" : ""}" data-i="${i}">${m.claimed || m.id}</button>`
+        `<button class="type${i === cur ? " active" : ""}" data-i="${i}">${esc(m.claimed || m.id || "")}</button>`
       ).join("") || "<span>没有模型数据</span>";
       types.querySelectorAll("button").forEach((btn) => {
         btn.onclick = () => { cur = Number(btn.dataset.i); render(); };
@@ -153,16 +153,18 @@
         return `${DOMAIN_ZH[k]} ${row.passed || 0}/${row.judged || 0} 折合${score}`;
       }).join(" · ");
       const diffs = m.difficulty_points || {};
-      const diffLine = ["easy", "medium", "hard"].map((k) => {
+      const diffLine = ["easy", "medium", "hard", "extreme"].map((k) => {
         const row = diffs[k] || {};
         const score = row.score10 == null ? "—" : row.score10;
         return `${DIFF_ZH[k]} ${row.passed || 0}/${row.judged || 0} 折合${score}`;
       }).join(" · ");
       document.getElementById("meta").innerHTML = [
-        `<div>模型 ${m.target && m.target.model || m.id} · claimed ${m.claimed || "—"} · run ${m.run || ""} · ${m.quick ? "快速" : "全量"} n=${m.n_questions || (m.questions || []).length}</div>`,
-        `<div>家族 ${fam.family || fam.status || "—"} · 判真 ${idn.status || "—"} · 降智 ${deg.status || "—"}</div>`,
-        `<div>${rateLine}</div>`,
-        `<div>${diffLine}</div>`,
+        `<div>模型 ${esc((m.target && m.target.model) || m.id || "")} · claimed ${esc(m.claimed || "—")} · run ${esc(m.run || "")} · ${m.quick ? "快速" : "全量"} raw=${esc(m.raw_question_count || "—")} expanded=${esc(m.expanded_question_count || m.n_questions || (m.questions || []).length)}</div>`,
+        `<div>编码 raw cluster ${esc(m.coding_cluster_count || "—")} · 语言变体 ${esc(m.coding_variant_count || "—")}</div>`,
+        `<div>raw 矩阵 ${esc(rawMatrixLine(m.raw_matrix))}</div>`,
+        `<div>家族 ${esc(fam.family || fam.status || "—")} · 判真 ${esc(idn.status || "—")} · 降智 ${esc(deg.status || "—")}</div>`,
+        `<div>${esc(rateLine)}</div>`,
+        `<div>${esc(diffLine)}</div>`,
       ].join("");
       const qs = (m.questions || []).filter((q) => domain === "all" || q.domain === domain);
       document.getElementById("cards").innerHTML = qs.map((q) => {
@@ -175,10 +177,10 @@
           ? `${sample.points}/${sample.points_total}` : "—";
         return `<article>
           <header class="q">
-            <span class="qid">${q.id} · ${DOMAIN_ZH[q.domain] || q.domain} · ${DIFF_ZH[q.difficulty] || q.difficulty || ""}</span>
-            <span class="verdict ${cls}">判定 ${lab} · 折合${score} · ${pts}</span>
+            <span class="qid">${esc(q.id || "")} · ${esc(DOMAIN_ZH[q.domain] || q.domain || "")} · ${esc(DIFF_ZH[q.difficulty] || q.difficulty || "")}</span>
+            <span class="verdict ${cls}">判定 ${lab} · 折合${esc(score)} · ${esc(pts)}</span>
           </header>
-          <h2>${q.title || q.id}</h2>
+          <h2>${esc(q.title || q.id || "")}</h2>
           <div class="ans"><b>题干</b></div>
           <pre>${esc(q.prompt || "")}</pre>
           <details>
@@ -191,6 +193,14 @@
           <div class="ans"><b>判分说明</b> ${esc(sample.detail || "")}</div>
         </article>`;
       }).join("");
+    }
+    function rawMatrixLine(matrix) {
+      const m = matrix || {};
+      return ["architecture", "coding", "knowledge", "reasoning"].map((domain) => {
+        const row = m[domain] || {};
+        const values = ["easy", "medium", "hard", "extreme"].map((diff) => row[diff] || 0).join("/");
+        return `${DOMAIN_ZH[domain]} ${values}`;
+      }).join(" · ");
     }
     function esc(s) {
       return String(s).replace(/[&<>"']/g, (c) => ({

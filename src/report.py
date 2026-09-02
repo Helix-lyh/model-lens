@@ -204,7 +204,10 @@ def _render_bank_bars(bank: Any, bank_ref: Any) -> list[str]:
     if not isinstance(bank, dict):
         return []
     lines = [
-        f"- 模式：{'快速（easy/medium，T=0）' if bank.get('quick') else '全量（三档，4 次采样）'}，本题 {bank.get('n_questions') or len(bank.get('questions') or [])} 道",
+        f"- 模式：{'快速（easy/medium，T=0）' if bank.get('quick') else '全量（四档，4 次采样）'}，原始题 {bank.get('raw_question_count') or _raw_count(bank)} 道，展开题 {bank.get('expanded_question_count') or bank.get('n_questions') or len(bank.get('questions') or [])} 道",
+        f"- 编码题：raw cluster {bank.get('coding_cluster_count') or '—'}，语言变体 {bank.get('coding_variant_count') or '—'}；主统计按 raw cluster 等权，可用语言缺测不按失败计",
+        f"- 编码题可用语言口径：{_fmt_coding_stats(bank.get('coding_available'))}；三语齐全口径：{_fmt_coding_stats(bank.get('coding_strict'))}",
+        f"- raw 难度矩阵：{_fmt_raw_matrix(bank)}",
         f"- 分域通过率（temperature=0，missing 不进分母）：{_fmt_domain_rates(bank)}",
         f"- 分域折合10（每题得分点/总分×10，再按域平均；不合成总分）：{_fmt_domain_score10(bank)}",
         f"- 分难度折合10：{_fmt_difficulty_score10(bank)}",
@@ -221,6 +224,36 @@ def _render_bank_bars(bank: Any, bank_ref: Any) -> list[str]:
     return lines
 
 
+def _raw_count(bank: dict[str, Any]) -> int:
+    seen: set[str] = set()
+    for row in bank.get("questions") or []:
+        if not isinstance(row, dict):
+            continue
+        raw = row.get("raw_id") or row.get("cluster_id") or row.get("question_id")
+        if raw:
+            seen.add(str(raw))
+    return len(seen)
+
+
+def _fmt_raw_matrix(bank: dict[str, Any]) -> str:
+    matrix = bank.get("raw_matrix") or {}
+    parts = []
+    for domain in DOMAINS:
+        row = matrix.get(domain) or {}
+        values = "/".join(str(row.get(diff, 0)) for diff in ("easy", "medium", "hard", "extreme"))
+        parts.append(f"{domain} {values}")
+    return "；".join(parts)
+
+
+def _fmt_coding_stats(stats: Any) -> str:
+    if not isinstance(stats, dict):
+        return "—"
+    rate = stats.get("rate")
+    return f"{stats.get('passed', 0)}/{stats.get('judged', 0)}" + (
+        f" ({rate})" if rate is not None else ""
+    )
+
+
 def _fmt_domain_rates(bank: dict[str, Any]) -> str:
     rates = bank.get("domain_pass0") or {}
     parts = []
@@ -232,15 +265,15 @@ def _fmt_domain_rates(bank: dict[str, Any]) -> str:
 
 def _fmt_difficulty_score10(bank: dict[str, Any]) -> str:
     rows = bank.get("difficulty_points") or {}
-    labels = {"easy": "easy", "medium": "medium", "hard": "hard"}
     parts = []
-    for key in ("easy", "medium", "hard"):
+    for key in ("easy", "medium", "hard", "extreme"):
         row = rows.get(key) or {}
         score = row.get("score10")
+        label = key
         if score is None:
-            parts.append(f"{labels[key]} —")
+            parts.append(f"{label} —")
         else:
-            parts.append(f"{labels[key]} {score}（{row.get('passed', 0)}/{row.get('judged', 0)}）")
+            parts.append(f"{label} {score}（{row.get('passed', 0)}/{row.get('judged', 0)}）")
     return "；".join(parts)
 
 

@@ -96,6 +96,29 @@ def _coding_bank(pass0s: list[bool | None], majority: list[bool | None] | None =
     )
 
 
+def _coding_variant_bank(
+    rows: list[tuple[str, str, bool | None]],
+    *,
+    metadata: bool = True,
+) -> BankResult:
+    questions = []
+    for cluster, language, passed in rows:
+        status = "pass" if passed is True else "fail" if passed is False else "missing"
+        questions.append(
+            QuestionResult(
+                question_id=f"{cluster}-{language}",
+                domain="coding",
+                pass0=passed,
+                majority=passed,
+                language=language if metadata else None,
+                raw_id=cluster if metadata else None,
+                cluster_id=cluster if metadata else None,
+                samples=[SampleGrade(0.0, status, passed, "x")],
+            )
+        )
+    return BankResult(quick=False, salt="t", questions=questions)
+
+
 def test_lookup_longest_prefix() -> None:
     assert lookup_claimed_family("glm-5.3-flash") == "glm5"
     assert lookup_claimed_family("qwen3-8b") == "qwen2_5"
@@ -264,3 +287,62 @@ def test_coding_agree_appendix_only() -> None:
     assert block is not None
     assert block["agree"] == 2
     assert "支持" in block["note"]  # 文案写明不把 I 推成支持
+
+
+def test_coding_agreement_merges_languages_and_keeps_strict_complete_case() -> None:
+    target = _coding_variant_bank(
+        [
+            ("coding-hard-01", "python", True),
+            ("coding-hard-01", "go", True),
+            ("coding-hard-01", "typescript", None),
+            ("coding-hard-02", "python", True),
+            ("coding-hard-02", "go", False),
+            ("coding-hard-02", "typescript", True),
+            ("coding-hard-03", "python", None),
+            ("coding-hard-03", "go", None),
+            ("coding-hard-03", "typescript", None),
+        ]
+    )
+    reference = _coding_variant_bank(
+        [
+            ("coding-hard-01", "python", True),
+            ("coding-hard-01", "go", True),
+            ("coding-hard-01", "typescript", True),
+            ("coding-hard-02", "python", True),
+            ("coding-hard-02", "go", True),
+            ("coding-hard-02", "typescript", True),
+            ("coding-hard-03", "python", None),
+            ("coding-hard-03", "go", None),
+            ("coding-hard-03", "typescript", None),
+        ]
+    )
+    block = coding_agreement(target, reference)
+    assert block == {
+        "compared": 2,
+        "agree": 1,
+        "rate": 0.5,
+        "clusters": 3,
+        "strict_compared": 1,
+        "strict_agree": 0,
+        "strict_rate": 0.0,
+        "strict_clusters": 3,
+        "note": "按 coding raw cluster 比较，只进附录，不把 I 推成「支持」；strict 只纳入三语均已判定的 cluster",
+    }
+
+
+def test_coding_agreement_legacy_language_suffix_fallback() -> None:
+    rows = [
+        ("coding-extreme-01", "python", True),
+        ("coding-extreme-01", "go", True),
+        ("coding-extreme-01", "typescript", True),
+    ]
+    block = coding_agreement(
+        _coding_variant_bank(rows, metadata=False),
+        _coding_variant_bank(rows, metadata=False),
+    )
+    assert block is not None
+    assert block["clusters"] == 1
+    assert block["compared"] == 1
+    assert block["strict_clusters"] == 1
+    assert block["strict_compared"] == 1
+    assert block["strict_rate"] == 1.0

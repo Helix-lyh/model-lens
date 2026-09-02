@@ -208,9 +208,26 @@ def test_report_bank_domain_rates(tmp_path):
         ],
         domain_pass0={"architecture": {"passed": 6, "judged": 8, "missing": 0}, "coding": {"passed": 1, "judged": 1, "missing": 1}, "knowledge": {"passed": 8, "judged": 8, "missing": 0}, "reasoning": {"passed": 4, "judged": 8, "missing": 0}},
         domain_points={"architecture": {"earned": 0, "total": 0, "score10": None}, "coding": {"earned": 6, "total": 6, "score10": 10.0}, "knowledge": {"earned": 8, "total": 8, "score10": 10.0}, "reasoning": {"earned": 4, "total": 8, "score10": 5.0}},
-        difficulty_points={"easy": {"passed": 0, "judged": 0, "earned": 0, "total": 0, "score10": None}, "medium": {"passed": 1, "judged": 1, "earned": 6, "total": 6, "score10": 10.0}, "hard": {"passed": 0, "judged": 0, "earned": 0, "total": 0, "score10": None}},
+        difficulty_points={
+            "easy": {"passed": 0, "judged": 0, "earned": 0, "total": 0, "score10": None},
+            "medium": {"passed": 1, "judged": 1, "earned": 6, "total": 6, "score10": 10.0},
+            "hard": {"passed": 0, "judged": 0, "earned": 0, "total": 0, "score10": None},
+            "extreme": {"passed": 0, "judged": 1, "earned": 2, "total": 4, "score10": 5.0},
+        },
         knowledge_all_wrong=False,
         n_questions=2,
+        raw_question_count=50,
+        expanded_question_count=74,
+        coding_cluster_count=12,
+        coding_variant_count=36,
+        coding_available={"passed": 10, "judged": 11, "missing": 1, "rate": 0.9091},
+        coding_strict={"passed": 8, "judged": 9, "missing": 3, "rate": 0.8889},
+        raw_matrix={
+            "architecture": {"easy": 1, "medium": 1, "hard": 5, "extreme": 5},
+            "coding": {"easy": 1, "medium": 1, "hard": 5, "extreme": 5},
+            "knowledge": {"easy": 1, "medium": 1, "hard": 5, "extreme": 5},
+            "reasoning": {"easy": 2, "medium": 2, "hard": 5, "extreme": 5},
+        },
     )
     write_run_report(run_dir, targets=targets, family=_ok_family(), bank=bank)
     md = (run_dir / "report.md").read_text(encoding="utf-8")
@@ -225,6 +242,15 @@ def test_report_bank_domain_rates(tmp_path):
     assert "knowledge 10.0" in md
     assert "reasoning 5.0" in md
     assert "medium 10.0" in md
+    assert "extreme 5.0" in md
+    assert "原始题 50 道" in md
+    assert "展开题 74 道" in md
+    assert "raw cluster 12" in md
+    assert "语言变体 36" in md
+    assert "编码题可用语言口径：10/11 (0.9091)" in md
+    assert "三语齐全口径：8/9 (0.8889)" in md
+    assert "architecture 1/1/5/5" in md
+    assert "reasoning 2/2/5/5" in md
     assert "score10" in md
     assert "coding-medium-01-python" in md
     assert (run_dir / "bank.json").is_file()

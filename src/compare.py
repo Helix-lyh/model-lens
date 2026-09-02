@@ -18,6 +18,7 @@ from src.types import (
 
 _CONF_RANK = {"low": 1, "medium": 2, "high": 3}
 _GATEWAY_CHANNELS = frozenset({"newapi"})
+_CODE_LANGS = ("python", "go", "typescript")
 PASS0_LINE = 0.25
 STAB_LINE = 0.20
 SMALL = 0.10
@@ -197,16 +198,28 @@ def _delta_note(d0: float, ds: float, d10: float | None) -> str:
 def coding_agreement(bank: BankResult | None, bank_ref: BankResult | None) -> dict | None:
     if bank is None or bank_ref is None:
         return None
-    t = {q.question_id: q.pass0 for q in bank.questions if q.domain == "coding"}
-    r = {q.question_id: q.pass0 for q in bank_ref.questions if q.domain == "coding"}
+    t = _coding_clusters(bank, field="pass0")
+    r = _coding_clusters(bank_ref, field="pass0")
     ids = sorted(set(t) & set(r))
     both = [i for i in ids if t[i] is not None and r[i] is not None]
     agree = sum(1 for i in both if t[i] == r[i])
+    strict_t = _coding_clusters(bank, field="pass0", strict=True)
+    strict_r = _coding_clusters(bank_ref, field="pass0", strict=True)
+    strict_ids = sorted(set(strict_t) & set(strict_r))
+    strict_both = [
+        i for i in strict_ids if strict_t[i] is not None and strict_r[i] is not None
+    ]
+    strict_agree = sum(1 for i in strict_both if strict_t[i] == strict_r[i])
     return {
         "compared": len(both),
         "agree": agree,
         "rate": round(agree / len(both), 4) if both else None,
-        "note": "只进附录，不把 I 推成「支持」",
+        "clusters": len(ids),
+        "strict_compared": len(strict_both),
+        "strict_agree": strict_agree,
+        "strict_rate": round(strict_agree / len(strict_both), 4) if strict_both else None,
+        "strict_clusters": len(strict_ids),
+        "note": "按 coding raw cluster 比较，只进附录，不把 I 推成「支持」；strict 只纳入三语均已判定的 cluster",
     }
 
 
@@ -241,22 +254,107 @@ def _coding_qs(bank: BankResult) -> list[QuestionResult]:
     return [q for q in bank.questions if q.domain == "coding"]
 
 
+def _cluster_key(question: QuestionResult) -> str:
+    if question.cluster_id or question.raw_id:
+        return str(question.cluster_id or question.raw_id)
+    if question.language or any(question.question_id.endswith(f"-{lang}") for lang in ("python", "go", "typescript")):
+        return question.question_id.rsplit("-", 1)[0]
+    return question.question_id
+
+
+def _question_language(question: QuestionResult) -> str | None:
+    if question.language:
+        return question.language
+    for lang in ("python", "go", "typescript"):
+        if question.question_id.endswith(f"-{lang}"):
+            return lang
+    return None
+
+
+def _coding_clusters(
+    bank: BankResult,
+    *,
+    field: str,
+    strict: bool = False,
+) -> dict[str, bool | None]:
+    """Reduce language variants to one deterministic raw-cluster result.
+
+    Available-language mode is judged when at least one language is judged. It
+    passes only when every judged language passes; missing toolchains therefore
+    never become a model failure. Strict mode is complete-case only: all three
+    language variants must be present and judged before the cluster enters the
+    denominator.
+    """
+    grouped: dict[str, list[QuestionResult]] = {}
+    for question in _coding_qs(bank):
+        grouped.setdefault(_cluster_key(question), []).append(question)
+    out: dict[str, bool | None] = {}
+    for cluster, variants in grouped.items():
+        by_language = {_question_language(item) or item.question_id: item for item in variants}
+        if strict:
+            if any(
+                lang not in by_language or getattr(by_language[lang], field) is None
+                for lang in _CODE_LANGS
+            ):
+                out[cluster] = None
+                continue
+            out[cluster] = all(
+                getattr(by_language[lang], field) is True for lang in _CODE_LANGS
+            )
+            continue
+        values = [getattr(question, field) for question in variants]
+        judged = [value for value in values if value is not None]
+        out[cluster] = None if not judged else all(value is True for value in judged)
+    return out
+
+
+def coding_diagnostics(bank: BankResult | None) -> dict[str, dict]:
+    if bank is None:
+        return {}
+    grouped: dict[str, list[QuestionResult]] = {}
+    for question in _coding_qs(bank):
+        grouped.setdefault(_cluster_key(question), []).append(question)
+    out: dict[str, dict] = {}
+    for cluster, variants in grouped.items():
+        by_lang = {_question_language(q) or q.question_id: q for q in variants}
+        out[cluster] = {
+            "available_languages": [lang for lang in _CODE_LANGS if lang in by_lang and by_lang[lang].pass0 is not None],
+            "missing_languages": [lang for lang in _CODE_LANGS if lang not in by_lang or by_lang[lang].pass0 is None],
+            "strict_complete": all(lang in by_lang and by_lang[lang].pass0 is not None for lang in _CODE_LANGS),
+            "languages": {
+                lang: {
+                    "pass0": by_lang[lang].pass0,
+                    "majority": by_lang[lang].majority,
+                    "score10": by_lang[lang].score10,
+                    "status": by_lang[lang].samples[0].status if by_lang[lang].samples else None,
+                }
+                for lang in ("python", "go", "typescript") if lang in by_lang
+            },
+        }
+    return out
+
+
 def _coding_pass0(bank: BankResult) -> float | None:
-    judged = [q.pass0 for q in _coding_qs(bank) if q.pass0 is not None]
+    judged = [value for value in _coding_clusters(bank, field="pass0").values() if value is not None]
     if not judged:
         return None
-    return sum(1 for x in judged if x) / len(judged)
+    return sum(1 for value in judged if value) / len(judged)
 
 
 def _coding_stab(bank: BankResult) -> float | None:
-    qs = [q for q in _coding_qs(bank) if q.majority is not None]
-    if not qs:
+    judged = [value for value in _coding_clusters(bank, field="majority").values() if value is not None]
+    if not judged:
         return None
-    return sum(1 for q in qs if q.majority) / len(qs)
+    return sum(1 for value in judged if value) / len(judged)
 
 
 def _coding_score10(bank: BankResult) -> float | None:
-    scores = [q.score10 for q in _coding_qs(bank) if q.score10 is not None]
+    grouped: dict[str, list[float]] = {}
+    for question in _coding_qs(bank):
+        if question.score10 is None:
+            continue
+        grouped.setdefault(_cluster_key(question), []).append(question.score10)
+    scores = [sum(values) / len(values) for values in grouped.values() if values]
     if not scores:
         return None
     return round(sum(scores) / len(scores), 4)

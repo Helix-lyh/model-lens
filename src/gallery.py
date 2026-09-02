@@ -13,6 +13,7 @@ SCHEMA = "model-lens.gallery.v1"
 _TEMPLATE = Path(__file__).resolve().parent.parent / "web" / "gallery.html"
 _CODE_TYPES = frozenset({"code_tests"})
 _CRITERIA_TYPES = frozenset({"alias", "keyword", "structure"})
+_LANG_SUFFIXES = ("python", "go", "typescript")
 
 
 def write_run_gallery(run_dir: Path, *, root: Path | None = None) -> dict[str, Any]:
@@ -67,6 +68,19 @@ def build_model(run_dir: Path, questions: dict[str, Any]) -> dict[str, Any]:
         "domain_points": bank.get("domain_points") or {},
         "difficulty_points": bank.get("difficulty_points") or {},
         "quick": bool(bank.get("quick")),
+        "schema_version": bank.get("schema_version") or "model-lens.bank.v1",
+        "raw_question_count": bank.get("raw_question_count") or _raw_count(bank),
+        "expanded_question_count": bank.get("expanded_question_count") or bank.get("n_questions") or len(bank.get("questions") or []),
+        "raw_domain_counts": bank.get("raw_domain_counts") or {},
+        "raw_difficulty_counts": bank.get("raw_difficulty_counts") or {},
+        "expanded_domain_counts": bank.get("expanded_domain_counts") or {},
+        "expanded_difficulty_counts": bank.get("expanded_difficulty_counts") or {},
+        "coding_cluster_count": bank.get("coding_cluster_count") or _coding_count(bank),
+        "coding_variant_count": bank.get("coding_variant_count") or _coding_variant_count(bank),
+        "coding_available": bank.get("coding_available") or {},
+        "coding_strict": bank.get("coding_strict") or {},
+        "raw_matrix": bank.get("raw_matrix") or _raw_matrix(bank),
+        "coding_cluster_diagnostics": bank.get("coding_cluster_diagnostics") or {},
         "n_questions": bank.get("n_questions") or len(bank.get("questions") or []),
         "questions": [
             _question_row(item, questions.get(str(item.get("question_id") or "")), by_kind)
@@ -77,8 +91,75 @@ def build_model(run_dir: Path, questions: dict[str, Any]) -> dict[str, Any]:
 
 def render_html(payload: dict[str, Any]) -> str:
     template = _TEMPLATE.read_text(encoding="utf-8")
-    blob = json.dumps(payload, ensure_ascii=False)
+    # HTML's script-data parser recognizes </script> even in JSON strings.
+    blob = json.dumps(payload, ensure_ascii=False).replace("<", "\\u003c").replace("&", "\\u0026")
     return template.replace("/*__GALLERY_DATA__*/null", blob)
+
+
+def _row_language(row: dict[str, Any]) -> str | None:
+    language = row.get("language")
+    if language in _LANG_SUFFIXES:
+        return str(language)
+    question_id = str(row.get("question_id") or "")
+    for suffix in _LANG_SUFFIXES:
+        if question_id.endswith(f"-{suffix}"):
+            return suffix
+    return None
+
+
+def _row_cluster_id(row: dict[str, Any]) -> str | None:
+    explicit = row.get("cluster_id") or row.get("raw_id")
+    if explicit:
+        return str(explicit)
+    question_id = str(row.get("question_id") or "")
+    return question_id.rsplit("-", 1)[0] if _row_language(row) else question_id or None
+
+
+def _raw_count(bank: dict[str, Any]) -> int:
+    keys = {
+        key
+        for row in bank.get("questions") or []
+        if isinstance(row, dict)
+        for key in [_row_cluster_id(row)]
+        if key
+    }
+    return len(keys)
+
+
+def _coding_count(bank: dict[str, Any]) -> int:
+    keys = {
+        key
+        for row in bank.get("questions") or []
+        if isinstance(row, dict) and row.get("domain") == "coding"
+        for key in [_row_cluster_id(row)]
+        if key
+    }
+    return len(keys)
+
+
+def _coding_variant_count(bank: dict[str, Any]) -> int:
+    return sum(
+        1
+        for row in bank.get("questions") or []
+        if isinstance(row, dict) and row.get("domain") == "coding" and _row_language(row)
+    )
+
+
+def _raw_matrix(bank: dict[str, Any]) -> dict[str, dict[str, int]]:
+    matrix: dict[str, dict[str, int]] = {}
+    seen: set[str] = set()
+    for row in bank.get("questions") or []:
+        if not isinstance(row, dict):
+            continue
+        raw = row.get("raw_id") or row.get("cluster_id") or row.get("question_id")
+        domain = row.get("domain")
+        difficulty = row.get("difficulty")
+        if not raw or not domain or not difficulty or str(raw) in seen:
+            continue
+        seen.add(str(raw))
+        matrix.setdefault(str(domain), {}).setdefault(str(difficulty), 0)
+        matrix[str(domain)][str(difficulty)] += 1
+    return matrix
 
 
 def _columns(src: dict[str, Any]) -> dict[str, Any]:
@@ -109,7 +190,9 @@ def _question_row(item: dict[str, Any], spec: Any, by_kind: dict[str, dict[str, 
         "majority": item.get("majority"),
         "score10": item.get("score10"),
         "difficulty": item.get("difficulty") or (spec.difficulty if spec else None),
-        "language": spec.language if spec else None,
+        "raw_id": item.get("raw_id") or (spec.raw_id if spec else None),
+        "cluster_id": item.get("cluster_id") or (spec.cluster_id if spec else None),
+        "language": spec.language if spec else item.get("language"),
         "samples": _samples_for(item, qid, by_kind),
     }
 

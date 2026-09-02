@@ -51,9 +51,9 @@ def test_gallery_html_switches_models(tmp_path) -> None:
                         temperature=0.0,
                         status="pass",
                         passed=True,
-                        detail="alias hit=0 POINTS 1/1",
-                        content="0",
-                        reasoning="冰糖会化。",
+                        detail="alias hit=711.90 POINTS 1/1",
+                        content="711.90",
+                        reasoning="封闭资料的分步计算。",
                         points=1,
                         points_total=1,
                         score10=10.0,
@@ -121,8 +121,8 @@ def test_gallery_html_switches_models(tmp_path) -> None:
     assert "支持" not in html
     assert "deepseek-v4-flash" in html
     assert "grok-4.5" in html
-    assert "热锅" in html or "完整冰糖" in html
-    assert "冰糖会化" in html
+    assert "商品单价" in html
+    assert "711.90" in html
     payload = build_gallery([run_a, run_b])
     assert payload["schema"] == "model-lens.gallery.v1"
     assert len(payload["models"]) == 2
@@ -130,11 +130,72 @@ def test_gallery_html_switches_models(tmp_path) -> None:
     assert q0["id"] == "knowledge-easy-01"
     assert q0["difficulty"] == "easy"
     assert q0["expected"] == ["见 pass_criteria"]
-    assert "0" not in q0["expected"]
-    assert q0["samples"][0]["answer"] == "0"
-    assert q0["samples"][0]["reasoning"] == "冰糖会化。"
+    assert "711.90" not in q0["expected"]
+    assert q0["samples"][0]["answer"] == "711.90"
+    assert q0["samples"][0]["reasoning"] == "封闭资料的分步计算。"
     assert q0["samples"][0]["score10"] == 10.0
     assert payload["models"][0]["domain_points"]["knowledge"]["score10"] == 10.0
     assert payload["models"][0]["domains"]["reasoning"]["passed"] == 2
     assert payload["models"][0]["domain_points"]["reasoning"]["score10"] == 5.0
-    assert (run_a / "gallery.json").is_file()
+def test_gallery_escapes_dynamic_model_metadata_and_script_terminators(tmp_path) -> None:
+    run_dir = tmp_path / "<run-&>"
+    malicious = "</script><img src=x onerror=alert(1)>&\"'"
+    (run_dir / "family.json").parent.mkdir(parents=True)
+    (run_dir / "family.json").write_text(
+        __import__("json").dumps(
+            {
+                "target": {"base_url": "https://example.test", "model": malicious},
+                "claimed": malicious,
+                "family": {"status": "ok", "family": "glm5", "hits": 1, "n_probes": 1},
+                "bank": {
+                    "questions": [
+                        {
+                            "question_id": "knowledge-easy-01",
+                            "domain": "knowledge",
+                            "difficulty": "easy",
+                            "pass0": True,
+                            "samples": [{"status": "pass", "passed": True, "content": malicious}],
+                        }
+                    ]
+                },
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    out = tmp_path / "gallery"
+    html = write_gallery([run_dir], out).read_text(encoding="utf-8")
+    embedded = html.split('<script id="gallery-data" type="application/json">', 1)[1].split("</script>", 1)[0]
+    assert "</script>" not in embedded
+    assert "<img" not in embedded
+    assert "<img src=x onerror" not in embedded
+    assert "\\u003cimg src=x onerror" in embedded
+    assert "\\u003c/script>" in html
+    assert "\\u0026" in html
+
+
+def test_gallery_legacy_language_suffix_counts_one_cluster(tmp_path) -> None:
+    run_dir = tmp_path / "legacy"
+    run_dir.mkdir()
+    (run_dir / "family.json").write_text(
+        __import__("json").dumps(
+            {
+                "target": {"model": "legacy"},
+                "claimed": "legacy",
+                "family": {"status": "ok", "family": "glm5", "hits": 1, "n_probes": 1},
+                "bank": {
+                    "questions": [
+                        {"question_id": "coding-hard-01-python", "domain": "coding", "difficulty": "hard"},
+                        {"question_id": "coding-hard-01-go", "domain": "coding", "difficulty": "hard"},
+                        {"question_id": "coding-hard-01-typescript", "domain": "coding", "difficulty": "hard"},
+                    ]
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    payload = build_gallery([run_dir])
+    model = payload["models"][0]
+    assert model["raw_question_count"] == 1
+    assert model["coding_cluster_count"] == 1
+    assert model["coding_variant_count"] == 3
