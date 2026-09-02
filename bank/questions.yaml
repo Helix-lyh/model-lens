@@ -1,385 +1,146 @@
-# 题库 20–60 题。编号：domain-difficulty-序号，例如 coding-medium-01。
-# 编码题加载时按 python/go/typescript 展开为 coding-medium-01-python 等。
-# 快速模式只跑 easy/medium；全量三档都跑。架构/知识只进附录；编码进 I 附录与 D。
-# 每题若干得分点，折合满分 10；只分域/分难度展示，不合成总分。
+# Active bank: 50 raw questions. Global difficulty is 5/5/20/20.
+# Coding raw questions expand to Python, Go and TypeScript variants; variants share one raw cluster.
+# High-difficulty questions require a deterministic structured artifact, not a free-form explanation.
 - id: architecture-easy-01
   domain: architecture
   difficulty: easy
-  pass_criteria: 缓存对象、键设计、防击穿至少命中 3 点
+  pass_criteria: 缓存对象、键、过期和至少一种击穿防护
   prompt: |
-    商品详情页 QPS 很高，数据库已被打满。要加一层缓存。
-    说明：缓存什么数据、键如何设计、如何降低缓存击穿/穿透风险。
+    商品详情页的读流量很高，数据库已经接近满载。用不超过 5 条短句回答：缓存什么、缓存键如何构造、TTL 如何设置，以及一种防止热点击穿的方法。不要讨论微服务拆分。
   grader:
     type: keyword
     min_hits: 4
-    must_exclude:
-    - - 综上所述
-    - - 总而言之
-    - - 作为一名
     must_include:
-    - - 缓存
-      - cache
-    - - 键
-      - key
-      - 商品id
-      - sku
-    - - 击穿
-      - 穿透
-      - 空值
-      - 布隆
-      - 互斥锁
-      - singleflight
-    - - 过期
-      - ttl
-      - 失效
-    - - 热点
-      - 预热
-- id: architecture-easy-02
-  domain: architecture
-  difficulty: easy
-  pass_criteria: session 与 JWT 适用差别
-  prompt: |
-    对比服务端 Session 与 JWT：各自适合什么场景？注销、密钥轮换、体积方面有何差别？
-  grader:
-    type: keyword
-    min_hits: 4
+    - [缓存, cache]
+    - [键, key, 商品id, sku]
+    - [ttl, 过期, 失效]
+    - [击穿, 互斥锁, singleflight, 预热]
     must_exclude:
-    - - 综上所述
-    - - 总而言之
-    - - 作为一名
-    must_include:
-    - - session
-      - 会话
-    - - jwt
-      - token
-    - - 注销
-      - 吊销
-      - 失效
-    - - 无状态
-      - 服务端
-      - 存储
-    - - 体积
-      - 密钥
-      - 轮换
-- id: architecture-easy-03
-  domain: architecture
-  difficulty: easy
-  pass_criteria: 队列用途与至少一次/幂等
-  prompt: |
-    下单成功后要发短信和积分。直接在下单接口里同步调用会超时。
-    为何引入消息队列？如何做到至少投递一次，同时避免重复加积分？
-  grader:
-    type: keyword
-    min_hits: 4
-    must_exclude:
-    - - 综上所述
-    - - 总而言之
-    - - 作为一名
-    must_include:
-    - - 队列
-      - 异步
-      - mq
-      - 解耦
-    - - 至少一次
-      - at-least-once
-      - 重试
-    - - 幂等
-      - 去重
-      - 重复消费
-    - - 消费者
-      - 投递
-      - 确认
-      - ack
-- id: architecture-easy-04
-  domain: architecture
-  difficulty: easy
-  pass_criteria: 主从延迟成因与至少两种缓解思路
-  prompt: |
-    MySQL 做了读写分离（一主多从）后，用户改完昵称立刻刷新页面，偶尔看到的还是旧昵称。
-    解释原因，并给出至少两种缓解思路。
-  grader:
-    type: keyword
-    min_hits: 4
-    must_exclude:
-    - - 综上所述
-    - - 总而言之
-    - - 作为一名
-    must_include:
-    - - 主从
-      - 从库
-      - 复制
-      - replica
-      - 副本
-    - - 延迟
-      - lag
-      - 异步
-    - - 读主
-      - 强制走主
-      - 强一致
-      - 写后读主
-    - - 会话
-      - 粘性
-      - session
-      - 写后读
-      - read-after-write
-    - - 缓存
-      - 位点
-      - gtid
-      - 本地回显
-      - 版本号
+    - [综上所述]
+    - [作为一名]
 - id: architecture-medium-01
   domain: architecture
   difficulty: medium
-  pass_criteria: 覆盖「何时不该拆」的至少 3 个工程要点
+  pass_criteria: 灰度比例、三项观测指标和明确回滚条件
   prompt: |
-    一个 8 人团队的内部工单系统目前是单体，日请求量不高。有人提议立刻拆成十几个微服务。
-    请用条目说明：什么情况下不该拆？拆早了会付出哪些成本？
+    一个推荐 API 要从 v1 发布 v2。请用不超过 8 条短句给出灰度方案：第一阶段流量比例、至少三个观测指标、持续窗口，以及一个可执行的回滚条件。不要只写“监控并及时回滚”。
   grader:
     type: keyword
-    min_hits: 4
-    must_exclude:
-    - - 综上所述
-    - - 总而言之
-    - - 作为一名
+    min_hits: 5
     must_include:
-    - - 不该拆
-      - 别拆
-      - 先别拆
-      - 过早拆
-      - 不要拆
-    - - 团队
-      - 沟通
-      - 协作成本
-      - 认知负担
-    - - 事务
-      - 一致性
-      - 分布式事务
-    - - 运维
-      - 部署
-      - 复杂度
-      - 可观测
-    - - 边界
-      - 领域
-      - 模块
-- id: architecture-medium-02
-  domain: architecture
-  difficulty: medium
-  pass_criteria: 网关限流/超时/重试取舍
-  prompt: |
-    API 网关上要配置限流、超时和重试。
-    说明这三项各自防什么，以及重试为什么可能把故障放大。
-  grader:
-    type: keyword
-    min_hits: 4
+    - [灰度, 金丝雀, canary, 放量, 切流, 分阶段]
+    - [5%, 5％, 10%, 10％, 1%, 1％, 白名单, 比例]
+    - [错误率, p99, 延迟]
+    - [超时, 5xx, 可用率, 点击率, 转化率, cpu]
+    - [回滚, rollback]
     must_exclude:
-    - - 综上所述
-    - - 总而言之
-    - - 作为一名
-    must_include:
-    - - 限流
-      - 配额
-      - rate
-    - - 超时
-      - timeout
-    - - 重试
-      - retry
-    - - 雪崩
-      - 放大
-      - 重试风暴
-      - 幂等
-- id: architecture-medium-03
-  domain: architecture
-  difficulty: medium
-  pass_criteria: 日志/指标/追踪分工
-  prompt: |
-    线上偶发「下单成功但库存没减」。日志、指标、分布式追踪各能帮你看到什么？不要写成同义词。
-  grader:
-    type: keyword
-    min_hits: 4
-    must_exclude:
-    - - 综上所述
-    - - 总而言之
-    - - 作为一名
-    must_include:
-    - - 日志
-      - log
-    - - 指标
-      - metric
-      - 监控
-    - - 追踪
-      - trace
-      - span
-    - - 请求
-      - 链路
-      - 调用链
-- id: architecture-medium-04
-  domain: architecture
-  difficulty: medium
-  pass_criteria: 灰度切流、观测指标、回滚条件三件套
-  prompt: |
-    推荐服务要上新版本，直接全量发布风险太大。
-    设计灰度（金丝雀）发布方案：流量怎么切、观察什么指标、什么条件触发回滚。
-  grader:
-    type: keyword
-    min_hits: 4
-    must_exclude:
-    - - 综上所述
-    - - 总而言之
-    - - 作为一名
-    must_include:
-    - - 灰度
-      - 金丝雀
-      - canary
-    - - 流量
-      - 权重
-      - 比例
-      - 白名单
-    - - 指标
-      - 错误率
-      - 延迟
-      - 监控
-      - p99
-    - - 回滚
-      - rollback
-      - 降级
-    - - 兼容
-      - 双写
-      - schema
-      - 向后兼容
+    - [综上所述]
+    - [作为一名]
 - id: architecture-hard-01
   domain: architecture
   difficulty: hard
-  pass_criteria: 索引与深分页问题
+  pass_criteria: 识别深分页、给出复合索引、游标边界和精确扫描量
   prompt: |
-    订单表按创建时间倒序翻页，有人用 OFFSET 200000。
-    这有什么问题？更稳妥的分页和索引思路是什么？
+    orders 表有 1,000,000 行，主键 id，字段 created_at。查询要求按 (created_at DESC, id DESC) 稳定排序，取第 200001–200020 条；上一页最后一条是 created_at=2026-04-01T09:00:00Z、id=780000。请只输出一个 JSON 对象，字段必须是：failure_code、index_columns、pagination、cursor_predicate、rows_scanned。枚举值分别必须来自：OFFSET_SCAN；索引列为数组；KEYSET；cursor_predicate 为 "(created_at,id)<(cursor_time,cursor_id)"；rows_scanned 必须是整数。
+    评分：五个字段各 1 分。rows_scanned 按该页 20 行计为 20；不要输出 SQL 或解释。
   grader:
-    type: keyword
-    min_hits: 4
-    must_exclude:
-    - - 综上所述
-    - - 总而言之
-    - - 作为一名
-    must_include:
-    - - 深分页
-      - offset
-      - 跳过
-    - - 索引
-      - index
-    - - 游标
-      - seek
-      - 关键集
-      - created_at
-    - - 扫描
-      - 慢
-      - 代价
+    type: structure
+    tests_file: bank/tests/a_hard_01.py
 - id: architecture-hard-02
   domain: architecture
   difficulty: hard
-  pass_criteria: 直传对象存储 vs 经应用服务器
+  pass_criteria: 2GB 上传的鉴权、直传、分片、扫描和发布状态完整
   prompt: |
-    用户要上传最大 2GB 的视频。比较：经应用服务器中转，与浏览器直传对象存储（预签名 URL）。
-    带宽、鉴权和病毒扫描各怎么安排？
+    设计一个最大 2GB 视频上传的最小状态摘要。只输出 JSON，字段必须为 auth、transport、parts、scan、publish。固定约束：浏览器直传对象存储；上传 URL 有效期 900 秒；分片大小 16 MiB；上传完成后只能由扫描服务把 QUARANTINED 改为 CLEAN；扫描失败为 REJECTED；未 CLEAN 的对象不可见。每个字段只填约定枚举或整数。
+    评分 6 点：五个状态/策略字段和 parts_size 各 1 点。
   grader:
-    type: keyword
-    min_hits: 4
-    must_exclude:
-    - - 综上所述
-    - - 总而言之
-    - - 作为一名
-    must_include:
-    - - 对象存储
-      - oss
-      - s3
-      - cos
-    - - 直传
-      - 预签名
-      - presign
-    - - 带宽
-      - 中转
-      - 应用服务器
-    - - 鉴权
-      - 权限
-      - 过期
-    - - 扫描
-      - 病毒
-      - 回调
+    type: structure
+    tests_file: bank/tests/a_hard_02.py
 - id: architecture-hard-03
   domain: architecture
   difficulty: hard
-  pass_criteria: Redis 互斥锁的过期、续期与防误删
+  pass_criteria: Redis 锁 token 校验、租约失效、fencing 和脑裂结果准确
   prompt: |
-    定时对账任务部署了 3 个实例，但同一时刻只允许一个实例执行。
-    用 Redis 实现互斥锁要注意什么？锁到期但任务还没跑完怎么办？误删别人的锁怎么防？
+    三个实例执行同一个对账任务。时间线：A 在 t=0 用 token A 获锁，租约 30 秒；A 卡住到 t=35；B 在 t=31 获得新租约并拿到 fencing=8；A 在 t=36 发送续期和写库请求，B 在 t=32 已发送写库请求。规则：租约过期后旧持有者不能续期；存储层只接受不小于当前 fencing token 的写入，并用 token 做原子比较。只输出 JSON，字段为 redis_owner、a_renew、a_write、b_write、brain_split、required_guard。redis_owner 取 A/B；a_renew 取 ACCEPT/REJECT；a_write 和 b_write 取 ACCEPT/REJECT_FENCING；brain_split 为布尔；required_guard 取 COMPARE_AND_SET_TOKEN/LEASE_ONLY。
+    六个字段各 1 分。
   grader:
-    type: keyword
-    min_hits: 4
-    must_exclude:
-    - - 综上所述
-    - - 总而言之
-    - - 作为一名
-    must_include:
-    - - setnx
-      - set nx
-      - 互斥
-      - 排他
-    - - 过期
-      - ttl
-      - 超时
-    - - 续期
-      - 看门狗
-      - watchdog
-      - 续约
-    - - 唯一
-      - 标识
-      - token
-      - lua
-      - 校验
-    - - fencing
-      - fence
-      - epoch
-      - fencing token
+    type: structure
+    tests_file: bank/tests/a_hard_03.py
 - id: architecture-hard-04
   domain: architecture
   difficulty: hard
-  pass_criteria: 支付回调防重复入账与漏单补偿
+  pass_criteria: 支付回调乱序、重复和漏单均映射到确定状态动作
   prompt: |
-    第三方支付的回调通知可能重复、乱序，甚至丢失。
-    设计回调处理流程：如何防止重复入账？收不到回调的漏单怎么补？
+    订单 O9 初始为 CREATED。输入事件按收到顺序为：SUCCESS(seq=4, amount=80)、SUCCESS(seq=4, amount=80)、REFUND(seq=6, amount=20)，而 seq=5 的 SUCCESS 没有收到。对账任务随后查询支付方，得到 PAID(amount=80)。只输出 JSON：events（长度 4 的动作数组）、final_state、ledger_amount、missing_seq、idempotent_key。动作只能从 APPLY_SUCCESS、IGNORE_DUPLICATE、APPLY_REFUND、RECONCILE_GAP 中选择；final_state 只能是 CREATED/PAID/PARTIALLY_REFUNDED/REFUNDED；idempotent_key 必须是 "payment_id+seq"；ledger_amount 是整数；missing_seq 是整数数组。
+    五个字段各 1 分，events 只有完全正确才得分。
   grader:
-    type: keyword
-    min_hits: 4
-    must_exclude:
-    - - 综上所述
-    - - 总而言之
-    - - 作为一名
-    must_include:
-    - - 幂等
-      - 去重
-      - 唯一索引
-      - 唯一约束
-      - 防重
-    - - 状态机
-      - 终态
-      - 已支付
-    - - 对账
-      - 补单
-      - 主动查询
-      - 定时查询
-      - 轮询
-    - - 事务
-      - 原子
-      - 一致
-    - - 版本号
-      - 时间戳
-      - 序号
+    type: structure
+    tests_file: bank/tests/a_hard_04.py
+- id: architecture-hard-05
+  domain: architecture
+  difficulty: hard
+  pass_criteria: outbox 事务和消费幂等的顺序、状态及重试策略完整
+  prompt: |
+    下单事务同时写 orders 和 outbox，消息发送可能失败，消费者可能重复收到同一 event_id。请只输出 JSON，字段为 atomic_write、publisher_retry、consumer_key、ack_order、dead_letter、replay。答案必须使用固定枚举：atomic_write=ONE_DB_TRANSACTION；publisher_retry=RETRY_UNSENT；consumer_key=event_id；ack_order=COMMIT_THEN_ACK；dead_letter=AFTER_MAX_RETRIES；replay=IDEMPOTENT。六个字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/a_hard_05.py
+- id: architecture-extreme-01
+  domain: architecture
+  difficulty: extreme
+  pass_criteria: 乱序事件状态机逐步动作、余额和异常清单全部正确
+  prompt: |
+    钱包 W 的初始余额为 100。按收到顺序处理事件：credit(seq=2, amount=40)、debit(seq=1, amount=30)、debit(seq=1, amount=30)、credit(seq=3, amount=10)、refund(seq=4, target_seq=2, amount=10)。规则：相同事件 seq 只接受第一次；接受事件按收到顺序执行，不按 seq 排序；debit 余额不足则 REJECT_FUNDS 并占用该 seq；refund 只对已接受的 debit 生效，否则 FLAG，且 FLAG 事件不计入 accepted_seq。只输出 JSON：actions（5 个枚举）、balance（整数）、accepted_seq（已接受的非 FLAG 事件 seq 升序数组）、flags（整数）。枚举为 APPLY、REJECT_DUP、REJECT_FUNDS、REFUND、FLAG。评分为 JSON exact-key schema、actions、balance、accepted_seq、flags 各 1 点。
+  grader:
+    type: structure
+    tests_file: bank/tests/a_extreme_01.py
+- id: architecture-extreme-02
+  domain: architecture
+  difficulty: extreme
+  pass_criteria: 发布回滚时间线含不可逆迁移和读写兼容窗口
+  prompt: |
+    服务 v1 使用字段 price_cents，v2 需要 amount_cents。发布步骤固定：先部署能读旧写双字段的 v1.5；再双写；观察 10 分钟；最后切读。第 6 分钟发现 v2 错误率升高，但已有 120 条记录只写了 amount_cents。只输出 JSON：read_mode、rollback_mode、data_action、compat_window、lost_records。枚举必须来自：read_mode=OLD_FIRST/NEW_FIRST；rollback_mode=ROLL_BACK_APP_ONLY/ROLL_BACK_DATA；data_action=BACKFILL_THEN_RETRY/DROP_NEW_ONLY。compat_window 和 lost_records 为整数；lost_records 只计无法回填的丢失条数。
+    五个字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/a_extreme_02.py
+- id: architecture-extreme-03
+  domain: architecture
+  difficulty: extreme
+  pass_criteria: fencing token 单调性和过期客户端写入均正确拒绝
+  prompt: |
+    存储层当前 fencing token=12。客户端 A 曾拿到 token=11，租约已过期；客户端 B 拿到 token=12 并已写入版本 4。A 的延迟写请求带 token=11，B 的第二次写带 token=12。只输出 JSON：a_result、b_result、stored_token、stored_version、lease_rule。a_result 和 b_result 必须依据存储层 token 检查推导；stored_token、stored_version 为最终整数；lease_rule 取 TOKEN_CHECK_AT_STORAGE/CLIENT_ONLY。
+    五个字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/a_extreme_03.py
+- id: architecture-extreme-04
+  domain: architecture
+  difficulty: extreme
+  pass_criteria: 双区域故障切换后按版本向量解决冲突并保留审计信息
+  prompt: |
+    区域 east 最后状态为 {value:"A", east:5, west:3}，区域 west 最后状态为 {value:"B", east:4, west:4}。规则：向量可比较时取更大者；不可比较时不得静默覆盖，进入人工合并；本题人工合并选择 value="A+B"，向量取逐分量最大值。只输出 JSON：relation、resolution、value、vector、audit。relation 取 DOMINATES/DOMINATED/CONCURRENT；resolution 取 TAKE_LATER/MANUAL_MERGE；value、vector 和 audit 必须按上述冲突规则推导。
+    五字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/a_extreme_04.py
+- id: architecture-extreme-05
+  domain: architecture
+  difficulty: extreme
+  pass_criteria: 共享预算、突发容量、拒绝策略和恢复顺序闭环
+  prompt: |
+    三个实例各有本地速率上限 100/s，但共享全局速率上限为 240/s；另有全局突发桶容量 60。每个整秒开始时先补充 240 个常规令牌（常规令牌不能跨秒累计），再补充 60 个突发令牌（突发令牌不能跨秒累计），本地上限仍须满足。第 1 秒三个实例各同时收到 100 个请求；第 2 秒只收到 east=20、west=20、central=20。请求先消耗本秒常规令牌，耗尽后才消耗突发令牌。不能因一致性哈希绕过共享预算；拒绝请求不返还已消耗令牌；恢复时优先重试带幂等键的请求。只输出 JSON：global_limit、burst_capacity、accepted_s1、accepted_s2、rejected_policy、recovery。前四个字段为整数；rejected_policy 取 DROP_NO_REFUND/REQUEUE；recovery 取 RETRY_IDEMPOTENT/FIFO_ALL。
+    评分为 JSON exact-key schema 和六个字段各 1 点。
+  grader:
+    type: structure
+    tests_file: bank/tests/a_extreme_05.py
+
 - id: coding-easy-01
   domain: coding
   difficulty: easy
-  pass_criteria: 连续相同整数压成 (值, 长度)，5 个用例
+  pass_criteria: 连续相同整数压成 (值, 长度)，5 个 canonical cases
   prompt: |
-    从左到右把连续相同的整数压成 (值, 长度)。例如 [1,1,1,2,2] → [(1,3),(2,2)]。
-    空列表返回空结果。不要合并不相邻的相同值。
+    从左到右把连续相同整数压成 (值, 长度)。空列表返回空结果；不合并不相邻的相同值。按签名实现。
   grader:
     type: code_tests
     languages:
@@ -388,208 +149,52 @@
         signature: "pack_runs(xs: list[int]) -> list[tuple[int,int]]"
       go:
         tests_file: bank/tests/go/pack_runs_test.go
-        signature: func PackRuns(xs []int) [][2]int
+        signature: "func PackRuns(xs []int) [][2]int"
       typescript:
         tests_file: bank/tests/ts/pack_runs.ts
         signature: "export function packRuns(xs: number[]): Array<[number, number]>"
-- id: coding-easy-02
-  domain: coding
-  difficulty: easy
-  pass_criteria: validate_user 5 个用例各 1 分
-  prompt: |
-    校验对象：name 为非空字符串，age 为 0..120 的整数。
-    缺字段或类型不对时往返回列表加入 "name" 或 "age"。通过则返回空列表。
-  grader:
-    type: code_tests
-    languages:
-      python:
-        tests_file: bank/tests/b05_validate_user.py
-        signature: "validate_user(obj: dict) -> list[str]"
-      go:
-        tests_file: bank/tests/go/validate_user_test.go
-        signature: func ValidateUser(obj map[string]any) []string
-      typescript:
-        tests_file: bank/tests/ts/validate_user.ts
-        signature: "export function validateUser(obj: Record<string, unknown>): string[]"
-- id: coding-easy-03
-  domain: coding
-  difficulty: easy
-  pass_criteria: 工牌戳 YY#MM.DD+N，5 个用例
-  prompt: |
-    解析工牌戳。格式必须是 YY#MM.DD+N（两位年、两位月、两位日、一位数字 N）。
-    年 00–99 映射到 2000–2099。月 1–12，日必须在该月真实存在（含闰年）。N 为 0–9。
-    成功返回年、月、日、N 四个整数；失败表示无效。
-  grader:
-    type: code_tests
-    languages:
-      python:
-        tests_file: bank/tests/b08_badge.py
-        signature: "parse_badge(s: str) -> (年, 月, 日, N) | None"
-      go:
-        tests_file: bank/tests/go/parse_badge_test.go
-        signature: func ParseBadge(s string) (year, month, day, n int, ok bool)
-      typescript:
-        tests_file: bank/tests/ts/parse_badge.ts
-        signature: "export function parseBadge(s: string): [number, number, number, number] | null"
-- id: coding-easy-04
-  domain: coding
-  difficulty: easy
-  pass_criteria: tag:score 汇总，非法项整条忽略，6 个用例
-  prompt: |
-    输入若干形如 "tag:score" 的字符串。按第一个冒号拆成 tag 和 score。
-    tag 必须非空。冒号后整段必须是可选单一负号后跟纯数字（禁止 +、空白、下划线）；
-    再出现冒号则整条忽略。把同名 tag 的 score 相加，返回 tag 到总分的映射。空输入返回空映射。
-  grader:
-    type: code_tests
-    languages:
-      python:
-        tests_file: bank/tests/b09_tag_scores.py
-        signature: "tag_scores(items: list[str]) -> dict[str, int]"
-      go:
-        tests_file: bank/tests/go/tag_scores_test.go
-        signature: func TagScores(items []string) map[string]int
-      typescript:
-        tests_file: bank/tests/ts/tag_scores.ts
-        signature: "export function tagScores(items: string[]): Record<string, number>"
 - id: coding-medium-01
   domain: coding
   difficulty: medium
-  pass_criteria: 货架三格状态机，6 个用例各 1 分
+  pass_criteria: 三格确定性事件状态机，6 个 canonical cases
   prompt: |
-    货架三格 A/B/C，初始都是 0。按顺序执行 ops，最后返回 A/B/C 三个整数。
-    操作（空格分隔）：
-    + X n   给格子 X 加上正整数 n
-    - X n   从 X 减去 n；若不够减，整条操作忽略
-    > X Y   把 X 的当前值全部加到 Y，X 清零
-    ? X     若 X>0：X 减 1，并把 1 加到「下一个」格子。顺序 A→B→C→A
+    货架 A/B/C 初始为 0。逐条执行操作：+ X n 加正整数；- X n 不足则忽略；> X Y 将 X 全部移至 Y；? X 若 X>0 则减一并转给下一个格子 A→B→C→A。返回最终对象。按签名实现。
   grader:
     type: code_tests
     languages:
       python:
         tests_file: bank/tests/b01_shelf.py
-        signature: "apply_ops(ops: list[str]) -> dict"
+        signature: "apply_ops(ops: list[str]) -> dict[str, int]"
       go:
         tests_file: bank/tests/go/apply_ops_test.go
-        signature: func ApplyOps(ops []string) map[string]int
+        signature: "func ApplyOps(ops []string) map[string]int"
       typescript:
         tests_file: bank/tests/ts/apply_ops.ts
         signature: "export function applyOps(ops: string[]): {A: number, B: number, C: number}"
-- id: coding-medium-02
-  domain: coding
-  difficulty: medium
-  pass_criteria: 逐字符规则统计，5 个用例各 1 分
-  prompt: |
-    从左到右扫一遍字符串：
-    1. 元音 aeiou（大小写都算）按小写字母计数，写入 vowels。
-    2. 连续相同字母（区分大小写）每压缩掉 1 个重复计 1 次 squeezes。例如 book 的 oo 计 1。
-    3. 连续数字合成一个整数，按出现顺序放入 nums。例如 a12b3 → [12, 3]。
-    返回 vowels、squeezes、nums。空串返回空 vowels、0、空 nums。
-  grader:
-    type: code_tests
-    languages:
-      python:
-        tests_file: bank/tests/b02_chars.py
-        signature: "cook_text(s: str) -> {vowels, squeezes, nums}"
-      go:
-        tests_file: bank/tests/go/cook_text_test.go
-        signature: "type CookResult struct { Vowels map[string]int; Squeezes int; Nums []int }; func CookText(s string) CookResult"
-      typescript:
-        tests_file: bank/tests/ts/cook_text.ts
-        signature: "export function cookText(s: string): { vowels: Record<string, number>; squeezes: number; nums: number[] }"
-- id: coding-medium-03
-  domain: coding
-  difficulty: medium
-  pass_criteria: SQL 约束 7 个得分点
-  prompt: |
-    返回查询某用户最近订单的 SQL 字符串。表 orders(id, user_id, created_at, amount)。
-    必须带 user_id 条件、按 created_at 倒序、LIMIT，不要 SELECT *。
-  grader:
-    type: code_tests
-    languages:
-      python:
-        tests_file: bank/tests/b07_orders_sql.py
-        signature: "orders_for_user_sql(user_id: int) -> str"
-      go:
-        tests_file: bank/tests/go/orders_sql_test.go
-        signature: func OrdersForUserSQL(userID int) string
-      typescript:
-        tests_file: bank/tests/ts/orders_sql.ts
-        signature: "export function ordersForUserSql(userId: number): string"
-- id: coding-medium-04
-  domain: coding
-  difficulty: medium
-  pass_criteria: 模板占位符替换与花括号转义，8 个用例
-  prompt: |
-    实现模板渲染，从左到右扫描：
-    1. "{{" 输出一个 "{"，"}}" 输出一个 "}"（转义优先于占位符）。
-    2. "{name}" 中 name 只含字母、数字、下划线且非空：vars 里有 name 就替换成对应字符串；
-       没有则整段原样保留（含花括号）。
-    3. 其余的 "{" 或 "}"（含 "{a b}" 这类非法占位符、未闭合的 "{"）原样输出。
-  grader:
-    type: code_tests
-    languages:
-      python:
-        tests_file: bank/tests/b10_render.py
-        signature: "render(template: str, vars: dict[str, str]) -> str"
-      go:
-        tests_file: bank/tests/go/render_test.go
-        signature: func Render(template string, vars map[string]string) string
-      typescript:
-        tests_file: bank/tests/ts/render.ts
-        signature: "export function render(template: string, vars: Record<string, string>): string"
 - id: coding-hard-01
   domain: coding
   difficulty: hard
-  pass_criteria: FreezeBag 冻结键不淘汰，4 个状态点
+  pass_criteria: 冻结键不能淘汰且 put 顺序确定，4 个 cases
   prompt: |
-    实现容量为 capacity 的 FreezeBag：
-    put(key, value) 写入；get(key) 未命中表示没有该键。
-    freeze(key) 之后该键不会被淘汰。容量满时淘汰「最久未 put 且未冻结」的键。
-    若剩下的键全部已冻结，新 put 的非冻结新键直接忽略（已有键仍可更新值）。
-    get 不改变淘汰顺序。
+    实现容量为 capacity 的 FreezeBag。put 更新或插入并记录最近 put；freeze 后键不可淘汰；满时淘汰最久未 put 且未冻结者；若没有可淘汰键则忽略新键；get 不改变顺序。按签名实现。
   grader:
     type: code_tests
     languages:
       python:
         tests_file: bank/tests/b03_freeze.py
-        signature: class FreezeBag(capacity); put/get/freeze；get 未命中返回 None
+        signature: "class FreezeBag(capacity: int); put(key: str, value: int); get(key: str) -> int | None; freeze(key: str)"
       go:
         tests_file: bank/tests/go/freeze_bag_test.go
-        signature: NewFreezeBag(capacity int) *FreezeBag；Put/Get/Freeze；Get 返回 (int, bool)
+        signature: "NewFreezeBag(capacity int) *FreezeBag; Put/Get/Freeze; Get returns (int, bool)"
       typescript:
         tests_file: bank/tests/ts/freeze_bag.ts
         signature: "export class FreezeBag { constructor(capacity: number); put(key: string, value: number): void; get(key: string): number | null; freeze(key: string): void }"
 - id: coding-hard-02
   domain: coding
   difficulty: hard
-  pass_criteria: SafeCounter 计数 1 分
+  pass_criteria: 左开右闭滑动窗口，拒绝请求不计入，6 个 cases
   prompt: |
-    实现计数器：increment 加一，value 返回当前值。
-    Python：必须线程安全，多线程同时 increment 不能丢计数。
-    Go：必须并发安全，多 goroutine 同时 Increment 不能丢计数。
-    TypeScript：单线程连续 increment 1600 次，value 必须为 1600（不测数据竞争）。
-  grader:
-    type: code_tests
-    languages:
-      python:
-        tests_file: bank/tests/b06_safe_counter.py
-        signature: class SafeCounter; increment(); value()
-      go:
-        tests_file: bank/tests/go/safe_counter_test.go
-        signature: NewSafeCounter() *SafeCounter；Increment(); Value() int
-      typescript:
-        tests_file: bank/tests/ts/safe_counter.ts
-        signature: "export class SafeCounter { increment(): void; value(): number }"
-        prompt_suffix: 本题 TypeScript 只在单线程连续调用，不要假装有数据竞争。
-- id: coding-hard-03
-  domain: coding
-  difficulty: hard
-  pass_criteria: 滑动窗口限流器，左开右闭、拒绝不计数，6 个用例
-  prompt: |
-    实现滑动窗口限流器，构造时给 limit 和 window（秒）。
-    allow(ts)：ts 是不减的整数秒。统计时间区间 (ts-window, ts] 内已被允许的请求数：
-    小于 limit 则本次允许、计入统计并返回真；否则返回假，且被拒绝的请求不计入统计。
-    注意区间左开右闭：恰好在 ts-window 时刻被允许的旧请求已经过期。
+    实现 SlidingLimiter(limit, window)。allow(ts) 只接收不递减整数秒；统计 (ts-window, ts] 内已经允许的请求，拒绝不计入。时间恰为边界时旧请求过期。按签名实现。
   grader:
     type: code_tests
     languages:
@@ -598,367 +203,393 @@
         signature: "class SlidingLimiter(limit: int, window: int); allow(ts: int) -> bool"
       go:
         tests_file: bank/tests/go/limiter_test.go
-        signature: NewSlidingLimiter(limit, window int) *SlidingLimiter；Allow(ts int) bool
+        signature: "NewSlidingLimiter(limit, window int) *SlidingLimiter; Allow(ts int) bool"
       typescript:
         tests_file: bank/tests/ts/limiter.ts
         signature: "export class SlidingLimiter { constructor(limit: number, window: number); allow(ts: number): boolean }"
-- id: coding-hard-04
+- id: coding-hard-03
   domain: coding
   difficulty: hard
-  pass_criteria: 字典序稳定拓扑排序与环判定，6 个用例
+  pass_criteria: 字典序稳定拓扑排序、重复边去重和环判定，6 个 cases
   prompt: |
-    给任务名列表 tasks（互不相同）和依赖对列表 deps，每项 (a, b) 表示 a 依赖 b，b 必须排在 a 前面。
-    返回满足全部依赖的执行顺序；多个任务同时可选时，取名字字典序最小的那个（结果唯一）。
-    deps 里的名字保证都在 tasks 中；同一依赖对可能重复出现，重复只按一条算。
-    存在循环依赖时按签名说明返回失败值。
+    tasks 互不相同，依赖 (a,b) 表示 b 必须先于 a。每次从当前可执行任务中取名字字典序最小者；重复边只算一次；有环返回失败值。按签名实现。
   grader:
     type: code_tests
     languages:
       python:
         tests_file: bank/tests/b12_plan_tasks.py
-        signature: "plan_tasks(tasks: list[str], deps: list[tuple[str, str]]) -> list[str] | None；有环返回 None"
+        signature: "plan_tasks(tasks: list[str], deps: list[tuple[str, str]]) -> list[str] | None"
       go:
         tests_file: bank/tests/go/plan_tasks_test.go
-        signature: func PlanTasks(tasks []string, deps [][2]string) ([]string, bool)；有环返回 (nil, false)
+        signature: "func PlanTasks(tasks []string, deps [][2]string) ([]string, bool)"
       typescript:
         tests_file: bank/tests/ts/plan_tasks.ts
-        signature: "export function planTasks(tasks: string[], deps: Array<[string, string]>): string[] | null；有环返回 null"
+        signature: "export function planTasks(tasks: string[], deps: Array<[string, string]>): string[] | null"
+- id: coding-hard-04
+  domain: coding
+  difficulty: hard
+  pass_criteria: 模板扫描、双花括号转义和非法占位符保留，8 个 cases
+  prompt: |
+    从左到右渲染模板。{{ 输出 {，}} 输出 }，转义优先；{name} 仅接受字母数字下划线且非空，变量存在才替换，否则原样保留；其他花括号原样保留。按签名实现。
+  grader:
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b10_render.py
+        signature: "render(template: str, vars: dict[str, str]) -> str"
+      go:
+        tests_file: bank/tests/go/render_test.go
+        signature: "func Render(template string, vars map[string]string) string"
+      typescript:
+        tests_file: bank/tests/ts/render.ts
+        signature: "export function render(template: string, vars: Record<string, string>): string"
+- id: coding-hard-05
+  domain: coding
+  difficulty: hard
+  pass_criteria: 严格 tag:score 解析、非法项忽略、重复 tag 求和，6 个 cases
+  prompt: |
+    输入形如 tag:score 的字符串，按第一个冒号拆分。tag 非空；score 是可选单一负号加纯数字，禁止加号、空白、下划线和第二个冒号；非法项整条忽略；同名 tag 求和。按签名实现。
+  grader:
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b09_tag_scores.py
+        signature: "tag_scores(items: list[str]) -> dict[str, int]"
+      go:
+        tests_file: bank/tests/go/tag_scores_test.go
+        signature: "func TagScores(items []string) map[string]int"
+      typescript:
+        tests_file: bank/tests/ts/tag_scores.ts
+        signature: "export function tagScores(items: string[]): Record<string, number>"
+- id: coding-extreme-01
+  domain: coding
+  difficulty: extreme
+  pass_criteria: 乱序、重复和冲正事件的确定性重放，7 个 cases
+  prompt: |
+    实现 replay_counter(log)。每条事件为 [event_id, kind, amount]，kind 为 credit/debit/refund。按输入顺序处理；同一 event_id 只接受第一次；credit 增加余额；debit 仅在余额足够时接受，否则拒绝但仍占用 event_id；refund 仅在存在此前接受且尚有未冲正额度的 debit 时接受，按 debit 接受顺序选择第一个剩余额度足够者，并增加余额，否则拒绝。返回 {balance, accepted, rejected}，accepted/rejected 为按处理顺序排列的 event_id。初始余额 0。不得排序输入。
+  grader:
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b13_replay_counter.py
+        signature: "replay_counter(log: list[tuple[str, str, int]]) -> dict"
+      go:
+        tests_file: bank/tests/go/replay_counter_test.go
+        signature: "func ReplayCounter(log [][3]interface{}) map[string]interface{}"
+      typescript:
+        tests_file: bank/tests/ts/replay_counter.ts
+        signature: "export function replayCounter(log: Array<[string, string, number]>): {balance: number; accepted: string[]; rejected: string[]}"
+- id: coding-extreme-02
+  domain: coding
+  difficulty: extreme
+  pass_criteria: 闭区间预算合并、不可重叠资源和失败原因，6 个 cases
+  prompt: |
+    实现 merge_budget(intervals, budget)。intervals 是闭区间 [l,r]，每段 l<=r；先按 l 再按 r 排序；两个区间重叠时合并，恰好满足 next_l=current_r+1 时也视为相邻并合并；合并后的总覆盖点数超过 budget 返回失败，否则返回规范化区间。budget 必须是非负整数，非法区间或非法 budget 都返回 invalid。返回 {ok, intervals, reason}，成功 reason 为 empty，失败 reason 为 invalid 或 budget_exceeded。
+  grader:
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b14_merge_budget.py
+        signature: "merge_budget(intervals: list[tuple[int, int]], budget: int) -> dict"
+      go:
+        tests_file: bank/tests/go/merge_budget_test.go
+        signature: "func MergeBudget(intervals [][2]int, budget int) map[string]interface{}"
+      typescript:
+        tests_file: bank/tests/ts/merge_budget.ts
+        signature: "export function mergeBudget(intervals: Array<[number, number]>, budget: number): {ok: boolean; intervals: Array<[number, number]>; reason: string}"
+- id: coding-extreme-03
+  domain: coding
+  difficulty: extreme
+  pass_criteria: 有容量、价值和稳定 tie-break 的 0/1 背包最优解，6 个 cases
+  prompt: |
+    实现 bounded_knapsack(items, capacity)。items 按输入顺序编号 0..n-1，每项 [weight,value]，每项最多选一次；总 weight 不超过 capacity，最大化 value；并列时选编号升序字典序更小的集合。返回 {value, weight, indices}。输入规模很小，必须求全局最优而非贪心。
+  grader:
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b15_knapsack.py
+        signature: "bounded_knapsack(items: list[tuple[int, int]], capacity: int) -> dict"
+      go:
+        tests_file: bank/tests/go/knapsack_test.go
+        signature: "func BoundedKnapsack(items [][2]int, capacity int) map[string]interface{}"
+      typescript:
+        tests_file: bank/tests/ts/knapsack.ts
+        signature: "export function boundedKnapsack(items: Array<[number, number]>, capacity: number): {value: number; weight: number; indices: number[]}"
+- id: coding-extreme-04
+  domain: coding
+  difficulty: extreme
+  pass_criteria: MVCC 快照读取、写集合冲突和提交版本确定，6 个 cases
+  prompt: |
+    实现 apply_transactions(initial, txns)。初始对象的每个键版本为 0；事务为 {id, begin, writes, commit}，在 begin 版本读取快照。按 commit 升序（再按输入顺序）处理；已提交事务的全局版本从 1 递增。事务的任一写入键若 latest_version > begin，则整体 ABORT，否则把 writes 应用到 state 并提交。提交版本等于下一递增版本；ABORT 不写入且不分配版本。返回最终 state 和 statuses，statuses 按输入事务 id 的插入顺序保留（值为 COMMIT/ABORT）。
+  grader:
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b16_mvcc.py
+        signature: "apply_transactions(initial: dict[str, int], txns: list[dict]) -> dict"
+      go:
+        tests_file: bank/tests/go/mvcc_test.go
+        signature: "func ApplyTransactions(initial map[string]int, txns []map[string]interface{}) map[string]interface{}"
+      typescript:
+        tests_file: bank/tests/ts/mvcc.ts
+        signature: "export function applyTransactions(initial: Record<string, number>, txns: Array<{id: string; begin: number; writes: Record<string, number>; commit: number}>): {state: Record<string, number>; statuses: Record<string, string>}"
+- id: coding-extreme-05
+  domain: coding
+  difficulty: extreme
+  pass_criteria: 订单事件状态机、非法转移和幂等重复事件，7 个 cases
+  prompt: |
+    实现 order_events(events)。订单初始为 CREATED。事件为 [event_id, kind]，kind 为 PAY、SHIP、CANCEL、DELIVER、REFUND；同 event_id 重复忽略且不改变结果。合法转移：CREATED->PAID(PAY)，CREATED->CANCELLED(CANCEL)，PAID->SHIPPED(SHIP)，SHIPPED->DELIVERED(DELIVER)，PAID/SHIPPED->REFUNDED(REFUND)。非法事件写入 rejected，状态不变。返回 {state, applied, rejected}，数组保留事件顺序。
+  grader:
+    type: code_tests
+    languages:
+      python:
+        tests_file: bank/tests/b17_order_events.py
+        signature: "order_events(events: list[tuple[str, str]]) -> dict"
+      go:
+        tests_file: bank/tests/go/order_events_test.go
+        signature: "func OrderEvents(events [][2]string) map[string]interface{}"
+      typescript:
+        tests_file: bank/tests/ts/order_events.ts
+        signature: "export function orderEvents(events: Array<[string, string]>): {state: string; applied: string[]; rejected: string[]}"
+
 - id: knowledge-easy-01
   domain: knowledge
   difficulty: easy
-  pass_criteria: 热锅里的整颗冰糖会化，完整颗数是 0
+  pass_criteria: 在给定封闭资料中完成含税总价计算
   prompt: |
-    炉子刚关火，铁锅还在冒热气。林往锅里放了 7 颗完整冰糖，去隔壁打了两分钟电话。
-    他回来时，锅里还能数到几颗完整冰糖？
-    只输出一个整数，不要单位、不要解释。
+    资料：商品单价 240 元，数量 3；优惠为小计满 600 减 60；运费 18 元；税率 5%，税只对“折后商品价+运费”计算并四舍五入到分。最终总价是多少？只输出两位小数的数字。
   grader:
     type: alias
     match: exact
-    answers:
-    - '0'
-- id: knowledge-easy-02
-  domain: knowledge
-  difficulty: easy
-  pass_criteria: 纸箱早已落地，在地面/一楼
-  prompt: |
-    快递员把密封纸箱从二楼窗口竖直放下（约 4 米）。箱子触地后他才下楼。
-    他走到一楼门口时，纸箱最可能在哪？
-    只输出「地面」或「一楼」，不要其他字。
-  grader:
-    type: alias
-    match: exact
-    answers:
-    - 地面
-    - 一楼
-    - 一层
-    - 1楼
-- id: knowledge-easy-03
-  domain: knowledge
-  difficulty: easy
-  pass_criteria: 已确认死亡的金鱼活着的概率是 0
-  prompt: |
-    一条已经确认死亡的金鱼被放进盖严的鱼缸。一小时后，它活着的概率是多少？
-    只输出 0 到 100 的整数（表示百分数），不要百分号、不要解释。
-  grader:
-    type: alias
-    match: exact
-    answers:
-    - '0'
-- id: knowledge-easy-04
-  domain: knowledge
-  difficulty: easy
-  pass_criteria: 一公斤棉花与一公斤铁一样重
-  prompt: |
-    一公斤棉花和一公斤铁，哪个更重？
-    只输出「一样重」「棉花」或「铁」三者之一，不要其他字。
-  grader:
-    type: alias
-    match: exact
-    answers:
-    - 一样重
+    answers: ['711.90']
 - id: knowledge-medium-01
   domain: knowledge
   difficulty: medium
-  pass_criteria: 侧轨是活人、正轨是遗体，不该扳
+  pass_criteria: 依据封闭表格和先后规则得到唯一风险等级
   prompt: |
-    无人矿车正冲向已经确认死亡的 4 具遗体。侧轨绑着 1 名清醒的活人。
-    扳道会使矿车改走侧轨。应不应当扳道？
-    只输出「扳」或「不扳」。
+    只输出一个词。资料：传感器 S1 的误差为 ±2%，S2 的误差为 ±5%；规则是取读数较高者，若两者差值小于 3% 则标记 REVIEW，否则标记 CLEAR。当前 S1=100、S2=102。最终标记是什么？
   grader:
     type: alias
     match: exact
-    answers:
-    - 不扳
-- id: knowledge-medium-02
-  domain: knowledge
-  difficulty: medium
-  pass_criteria: 5 行非常规文本协议，orchard 倒序且中间换成星号
-  prompt: |
-    按流程输出恰好 5 行纯文本。用一个 text 代码块包起来。不要解释。
-
-    流程：
-    1. 第 1 行必须完全等于 <<HEAD>>，左右无空格。
-    2. 取单词 orchard，把字母倒序，作为第 2 行（只能是倒序结果）。
-    3. 第 3 行是第 2 行的字符个数，只能是数字，不能带单位。
-    4. 复制第 2 行得到第 4 行，再把正中间那一个字母换成 *。
-    5. 第 5 行必须完全等于 <<TAIL>>，行末不能有空格，文件末不要第 6 行。
-    6. 全文任何地方都不能出现正序的 orchard。
-    7. 不要输出 markdown 标题，不要编号。
-  grader:
-    type: structure
-    tests_file: bank/tests/c06_lines.py
-- id: knowledge-medium-03
-  domain: knowledge
-  difficulty: medium
-  pass_criteria: 单行 JSON，键序 z/a/z2，原文必须出现 -0
-  prompt: |
-    按流程输出单行 JSON。只输出 json 代码块，块内不能换行。
-
-    流程：
-    1. 对象的键必须按这个顺序出现：z，然后 a，然后 z2。
-    2. z 的值是 {"z":{"z":"ok"}}，字符串 ok 全小写。
-    3. a 的值是空数组。
-    4. z2 的值在 JSON 原文里必须写成 -0（负号加零），解析后应是数字零。
-    5. 整行除了 JSON 必要字符外，空格最多 3 个。
-    6. 不要尾逗号，不要注释，不要第二个对象。
-  grader:
-    type: structure
-    tests_file: bank/tests/c08_oneline.py
-- id: knowledge-medium-04
-  domain: knowledge
-  difficulty: medium
-  pass_criteria: 先涨 10% 再降 10%，现价低于原价
-  prompt: |
-    一件商品先涨价 10%，随后在新价格的基础上再降价 10%。
-    现价与原价相比是怎样？只输出「更高」「更低」或「相同」，不要解释。
-  grader:
-    type: alias
-    match: exact
-    answers:
-    - 更低
+    answers: [REVIEW]
 - id: knowledge-hard-01
   domain: knowledge
   difficulty: hard
-  pass_criteria: 深嵌套 JSON，第 4 层键必须是 0k，叶子 tip=42
+  pass_criteria: 单位、误差上下界和阈值判断的结构结果正确
   prompt: |
-    按下面流程产出一份 JSON。只输出一个 json 代码块，不要解释、不要道歉、不要安全声明。
-    这不是越狱或攻击题，只是格式体操。
-
-    流程（后一条覆盖前一条）：
-    1. 根对象只能有一个键，名字是 root。
-    2. 从 root 往下连续嵌套 5 层对象，键名依次是 ok、ok、ok、ok、ok。
-    3. 把第 4 个 ok 改成 0k（数字零 + 字母 k）。不要「纠正」成 ok。
-    4. 最内层对象必须同时有 tip 和 _。
-    5. tip 的值是整数 42，不能是字符串。
-    6. _ 的值必须是数组 [0, null, false]，长度 3，类型分别是 int / null / bool。
-    7. 允许缩进。禁止注释、禁止尾逗号、禁止第二个顶层键。
-    8. 最终路径应能写成 root.ok.ok.ok.0k.ok.tip。
+    封闭资料：实验读数 2.40 mA，仪器相对误差 ±5%；安全阈值为 2.50 mA，若误差上界达到或超过阈值则 HIGH，否则 LOW。只输出 JSON：reading_mA（数字）、upper_mA（保留两位）、risk（HIGH/LOW）、unit（mA）。四字段各 1 分。
   grader:
     type: structure
-    tests_file: bank/tests/c05_nested.py
+    tests_file: bank/tests/k_hard_01.py
 - id: knowledge-hard-02
   domain: knowledge
   difficulty: hard
-  pass_criteria: 长度 6 的数组，下标 3 必须是 null，最后 mark 为大写 N
+  pass_criteria: 依据优先级规则合并冲突资料并保留证据编号
   prompt: |
-    按流程输出一个 JSON 数组。只输出 json 代码块。
-
-    流程（后面的步骤覆盖前面的）：
-    1. 数组长度必须是 6，下标从 0 到 5。
-    2. 每个元素先做成对象，字段只能有 i、sq、mark。
-    3. i 等于下标本身；sq 等于下标的平方。
-    4. mark 一律小写字母 n。
-    5. 下标为 3 的元素不要对象，改成 JSON null。这一条覆盖步骤 2–4。
-    6. 下标为 5 的对象里，mark 改成大写 N。这一条覆盖步骤 4。
-    7. 禁止额外字段，禁止把 null 写成字符串。
+    资料记录：R1(时间10:00, 来源 lab, 值 18, 可信度 0.8)，R2(时间10:05, 来源 field, 值 21, 可信度 0.6)，R3(时间09:50, 来源 lab, 值 19, 可信度 0.9)。规则：同一来源取最新；来源冲突取可信度最高的来源；输出选择和值及被舍弃记录。只输出 JSON：chosen_source、chosen_value、discarded。三字段各 1 分。
   grader:
     type: structure
-    tests_file: bank/tests/c07_array.py
+    tests_file: bank/tests/k_hard_02.py
 - id: knowledge-hard-03
   domain: knowledge
   difficulty: hard
-  pass_criteria: 6 行文本协议，signal 去元音、复制、倒序
+  pass_criteria: 可叠加折扣按指定顺序计算并区分税前税后
   prompt: |
-    按流程输出恰好 6 行纯文本，用一个 text 代码块包起来。不要解释。
-
-    流程：
-    1. 第 1 行必须完全等于 [[v2]]，左右无空格。
-    2. 取单词 signal，删掉其中所有元音字母，作为第 2 行。
-    3. 第 3 行 = 第 2 行、连字符 -、再复制一遍第 2 行（例如 ab 变成 ab-ab）。
-    4. 第 4 行是第 3 行的字符个数，只能是数字，不能带单位。
-    5. 第 5 行是第 2 行的倒序。
-    6. 第 6 行必须完全等于 [[end]]，行末不能有空格，之后不要有第 7 行。
-    7. 全文任何位置都不能出现正序的 signal。
-    8. 不要编号，不要 markdown 标题。
+    封闭规则：原价 1000；先减 15%，再减固定 80；优惠后商品价加 20 运费，再乘税率 8%，最终金额四舍五入到 2 位。只输出 JSON：after_discount、tax_base、tax、total，全部为两位小数。四字段各 1 分。
   grader:
     type: structure
-    tests_file: bank/tests/c09_lines6.py
+    tests_file: bank/tests/k_hard_03.py
 - id: knowledge-hard-04
   domain: knowledge
   difficulty: hard
-  pass_criteria: JSON 类型体操，data 四元组类型钉死，v 原文写 1e2
+  pass_criteria: 由记录的条件字段推导完整分类和缺失计数
   prompt: |
-    按流程输出一份 JSON。只输出一个 json 代码块，不要解释。
-
-    流程（后一条覆盖前一条）：
-    1. 顶层是对象，键顺序必须是 data 然后 meta，不得有第三个键。
-    2. data 是长度 4 的数组，元素依次为：字符串 "0"、数字 0、布尔 false、null。
-       类型不能写错，位置不能互换。
-    3. meta 是对象，键顺序必须是 v 然后 "k k"（键名是 k、空格、k 三个字符），不得有第三个键。
-    4. v 的值在 JSON 原文里必须写成 1e2（数字一、小写字母 e、数字二），解析后是数字 100。
-       不要「简化」成 100。
-    5. "k k" 的值是空对象。
-    6. 允许换行与缩进。禁止注释，禁止尾逗号。
+    规则：温度 >= 80 且湿度 >= 70 为 RED；温度 >= 80 且湿度 < 70 为 AMBER；其余为 GREEN。记录按 id 排序：a(81,69)、b(79,90)、c(80,70)、d(20,10)。只输出 JSON：labels（按 a,b,c,d 的四元素数组）、red_count、green_count。三字段各 1 分。
   grader:
     type: structure
-    tests_file: bank/tests/c10_meta.py
+    tests_file: bank/tests/k_hard_04.py
+- id: knowledge-hard-05
+  domain: knowledge
+  difficulty: hard
+  pass_criteria: 条件更新后重新应用封闭规则而非沿用旧结论
+  prompt: |
+    初始资料：库存 12，日需求 4，补货提前期 2 天，安全库存 3。规则：若库存 <= 日需求×提前期+安全库存则 RESTOCK，否则 HOLD。随后新资料把日需求改为 6，其他不变。只输出 JSON：old_threshold、new_threshold、old_action、new_action。四字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/k_hard_05.py
+- id: knowledge-extreme-01
+  domain: knowledge
+  difficulty: extreme
+  pass_criteria: 多阶段单位转换、舍入顺序和最终容量判断正确
+  prompt: |
+    资料：电池容量为 2.4 kWh；设备每天运行 7.5 小时，功率 280 W；逆变器效率 90%。先计算每日负载耗电（不含效率），再除以效率得到电池侧每日耗电；所有中间量保留全精度，输出时四舍五入到 3 位。输出字段 battery_kwh 表示资料中的电池容量，不是每日耗电；days_supported 定义为 battery_kwh 除以电池侧每日耗电。status 在 days_supported>=1 时为 ONE_DAY，否则 NEED_CHARGE。只输出 JSON：load_kwh、battery_kwh、days_supported、status。JSON exact-key schema 和四字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/k_extreme_01.py
+- id: knowledge-extreme-02
+  domain: knowledge
+  difficulty: extreme
+  pass_criteria: 修订资料导致结论非单调变化且同时报告前后依据
+  prompt: |
+    初始供应商资料：A 交期 4 天、缺陷率 1.5%；B 交期 3 天、缺陷率 2.0%。选择规则：交期 <=3 且缺陷率 <=2.0 才合格，合格者取缺陷率较低者；若没有合格者，名称为 NONE。修订资料：A 缺陷率改为 0.8%，B 交期改为 5 天。只输出 JSON：before、after、before_reason、after_reason。四字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/k_extreme_02.py
+- id: knowledge-extreme-03
+  domain: knowledge
+  difficulty: extreme
+  pass_criteria: 证据可靠度加权、阈值和缺失证据处理完整
+  prompt: |
+    三次检测对同一批次给出 PASS/FAIL：E1=FAIL，可靠度 0.9；E2=PASS，可靠度 0.6；E3=PASS，可靠度 0.4。规则：FAIL 权重相加与 PASS 权重相加；FAIL 严格大于 PASS 才判 FAIL；相等判 REVIEW；否则 PASS。只输出 JSON：fail_weight、pass_weight、decision、margin。四字段各 1 分，margin=pass_weight-fail_weight。
+  grader:
+    type: structure
+    tests_file: bank/tests/k_extreme_03.py
+- id: knowledge-extreme-04
+  domain: knowledge
+  difficulty: extreme
+  pass_criteria: 规则优先级、冲突和最小充分证据集合均正确
+  prompt: |
+    规则优先级固定为 R3 > R2 > R1。R1：若温度>70 则 ALERT；R2：若温度>70 且校准有效则 CLEAR；R3：若传感器状态 UNKNOWN 则 REVIEW。资料：温度 80、校准有效、传感器 UNKNOWN。只输出 JSON：winning_rule、decision、suppressed_rules、evidence_count。四字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/k_extreme_04.py
+- id: knowledge-extreme-05
+  domain: knowledge
+  difficulty: extreme
+  pass_criteria: 预算、税率修订和分层阈值经过两次决策得到一致结果
+  prompt: |
+    预算资料：可用预算 1000；项目基础成本 920；运输 60；税率 5%。规则：总成本 <= 1000 为 ACCEPT，否则若 <=1100 为 REVIEW，否则 REJECT。修订资料将税率改为 2%，但运输不变。只输出 JSON：before_total、before_decision、after_total、after_decision、delta，金额保留两位。五字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/k_extreme_05.py
+
 - id: reasoning-easy-01
   domain: reasoning
   difficulty: easy
-  pass_criteria: n(n+1) 数列下一项 42
+  pass_criteria: 识别平方数序列的下一项
   prompt: |
-    数列 2, 6, 12, 20, 30 的下一项是多少？
-    只输出一个整数，不要解释。
+    数列 1, 4, 9, 16, 25 的下一项是多少？只输出一个整数。
   grader:
     type: alias
     match: exact
-    answers:
-    - '42'
+    answers: ['36']
 - id: reasoning-easy-02
   domain: reasoning
   difficulty: easy
-  pass_criteria: 唯一自洽解是乙说真话
+  pass_criteria: 完成有限集合的容斥计算
   prompt: |
-    甲说：「乙在说谎。」乙说：「丙在说谎。」丙说：「甲和乙都在说谎。」
-    三人中恰好一人说真话。说真话的是谁？
-    只输出「甲」「乙」或「丙」一个字。
+    40 人中 23 人会 Python，18 人会 Go，5 人两者都不会。两者都会的有几人？只输出一个整数。
   grader:
     type: alias
     match: exact
-    answers:
-    - 乙
-- id: reasoning-easy-03
-  domain: reasoning
-  difficulty: easy
-  pass_criteria: 100 mod 7 = 2，周三后两天是周五
-  prompt: |
-    今天是星期三。100 天之后是星期几？
-    只输出「星期一」到「星期日」中的一个，不要解释。
-  grader:
-    type: alias
-    match: exact
-    answers:
-    - 星期五
-    - 周五
-- id: reasoning-easy-04
-  domain: reasoning
-  difficulty: easy
-  pass_criteria: 容斥 30+25-(50-10)=15
-  prompt: |
-    班里 50 人：30 人会 Python，25 人会 Go，10 人两样都不会。
-    既会 Python 又会 Go 的有几人？只输出一个整数。
-  grader:
-    type: alias
-    match: exact
-    answers:
-    - '15'
+    answers: ['6']
 - id: reasoning-medium-01
   domain: reasoning
   difficulty: medium
-  pass_criteria: 3+3 分组称重，最坏 2 次
+  pass_criteria: 根据约束唯一确定职业
   prompt: |
-    8 个外观相同的球，其中 1 个偏重，其余重量相同。用没有砝码的天平，
-    最坏情况下最少称几次能保证找出重球？只输出一个整数。
+    甲、乙、丙分别是医生、教师、工程师。甲不是医生，乙不是工程师，丙不是教师。若甲是教师则乙是医生；甲不是教师。乙的职业是什么？只输出职业名。
   grader:
     type: alias
     match: exact
-    answers:
-    - '2'
+    answers: [教师]
 - id: reasoning-medium-02
   domain: reasoning
   difficulty: medium
-  pass_criteria: 小孙排除工程师和医生得教师，医生只能是小钱
+  pass_criteria: 计算条件概率并输出百分数
   prompt: |
-    小赵、小钱、小孙的职业分别是医生、教师、工程师中的一个，互不相同。
-    已知：小赵不是医生；小孙既不是工程师也不是医生。
-    小钱的职业是什么？只输出「医生」「教师」或「工程师」。
+    袋中有 3 个红球、2 个蓝球，不放回抽取两个。已知至少抽到一个红球，两个都是红球的概率是多少？只输出最简分数。
   grader:
     type: alias
     match: exact
-    answers:
-    - 医生
-- id: reasoning-medium-03
-  domain: reasoning
-  difficulty: medium
-  pass_criteria: 肯定后件谬误，草地湿不必然下过雨
-  prompt: |
-    规则：如果下雨，草地一定会湿。现在观察到草地是湿的。
-    能否由此断定下过雨？只输出「能」或「不能」。
-  grader:
-    type: alias
-    match: exact
-    answers:
-    - 不能
-- id: reasoning-medium-04
-  domain: reasoning
-  difficulty: medium
-  pass_criteria: 10:15–10:30 三场重叠，需要 3 间
-  prompt: |
-    三场会议的时间是 9:00–10:30、10:00–11:00、10:15–12:00。
-    同一会议室同一时刻只能开一场会。最少需要几个会议室？
-    只输出一个整数。
-  grader:
-    type: alias
-    match: exact
-    answers:
-    - '3'
+    answers: ['1/3']
 - id: reasoning-hard-01
   domain: reasoning
   difficulty: hard
-  pass_criteria: A 必为说谎者，故 B 是诚实者
+  pass_criteria: 约束传播得到完整排班、空闲时段和可行性
   prompt: |
-    岛上的人要么永远说真话，要么永远说假话。
-    A 说：「我和 B 都是说谎者。」
-    B 是哪种人？只输出「诚实者」或「说谎者」。
+    四个任务 A、B、C、D 各占一个时段 1..4。A 必须早于 C；B 不能在 1；D 必须紧接在 B 后；C 不能在 4。只输出 JSON：order（四元素数组）、slot_A、slot_D、feasible。数组顺序必须是时段 1 到 4。四字段各 1 分。
   grader:
-    type: alias
-    match: exact
-    answers:
-    - 诚实者
+    type: structure
+    tests_file: bank/tests/r_hard_01.py
 - id: reasoning-hard-02
   domain: reasoning
   difficulty: hard
-  pass_criteria: 只有完全平方数编号被按奇数次，1..100 有 10 个
+  pass_criteria: 找到满足容量和依赖的最小资源分配
   prompt: |
-    100 盏编号 1 到 100 的灯全部关着。第 k 轮（k 从 1 到 100）把所有编号是 k 的倍数的灯的开关按一次。
-    100 轮结束后有几盏灯亮着？只输出一个整数。
+    任务 A(3)、B(4)、C(2)、D(5) 是所需工时；资源最多 2 个，每个资源每天 7 小时。A 必须和 B 同一资源，C 必须和 D 同一资源。为消除资源编号对称性，把包含字母序最小任务的资源编号为 1，另一个资源编号为 2。只输出 JSON：assignment（任务到资源的映射）、loads（资源 1/2 工时）、minimum_resources、feasible。JSON exact-key schema 和四字段各 1 分。
   grader:
-    type: alias
-    match: exact
-    answers:
-    - '10'
+    type: structure
+    tests_file: bank/tests/r_hard_02.py
 - id: reasoning-hard-03
   domain: reasoning
   difficulty: hard
-  pass_criteria: 逻辑网格唯一解 A=2层茶、B=3层咖啡、C=1层可乐
+  pass_criteria: 给出反例并直接验证命题左右两侧
   prompt: |
-    A、B、C 三人分别在 1、2、3 层办公（互不相同），分别喝咖啡、茶、可乐（互不相同）。
-    线索：A 不在 1 层；喝茶的人在 2 层；B 喝咖啡；C 在 1 层。
-    推理出每个人的楼层和饮品，只输出一个 json 代码块，不要解释：
-    顶层键顺序必须是 A、B、C；每人是一个对象，键顺序 floor 然后 drink；
-    floor 是数字，drink 是「咖啡」「茶」「可乐」之一。
+    命题：对所有整数 n，若 n^2 为偶数，则 n 能被 4 整除。这里 divisible_by_4 明确指 counterexample 本身是否能被 4 整除。请只输出 JSON：counterexample、square、divisible_by_4、verdict。counterexample 为最小正整数反例；square 和 divisible_by_4 为数字/布尔；verdict=FALSE。四字段各 1 分。
   grader:
     type: structure
-    tests_file: bank/tests/c11_logic_grid.py
+    tests_file: bank/tests/r_hard_03.py
 - id: reasoning-hard-04
   domain: reasoning
   difficulty: hard
-  pass_criteria: 4u=16 唯一解 844
+  pass_criteria: 图上的最短路、代价和并列规则正确
   prompt: |
-    一个三位数满足：三位数字之和是 16；百位数字是个位数字的 2 倍；十位数字等于百位数字减去个位数字。
-    这个三位数是多少？只输出这个三位数。
+    有向图边：A-B=4、A-C=2、C-B=1、B-D=5、C-D=9、C-E=4、E-D=1。求 A 到 D 的最短路径；若存在并列路径，取节点序列字典序较小者。只输出 JSON：path、cost、hops、unique。path 为节点数组，cost 为总边权，hops 为边数，unique 表示最短路径是否唯一。JSON exact-key schema 和四字段各 1 分。
   grader:
-    type: alias
-    match: exact
-    answers:
-    - '844'
+    type: structure
+    tests_file: bank/tests/r_hard_04.py
+- id: reasoning-hard-05
+  domain: reasoning
+  difficulty: hard
+  pass_criteria: 真假陈述约束的完整赋值和真话数量正确
+  prompt: |
+    三人各自永远诚实或永远说谎。诚实者的陈述为真，说谎者的陈述为假。甲说“乙和丙类型不同”；乙说“甲说真话”；丙说“乙说谎”。只输出 JSON：truth（甲乙丙三个布尔数组）、liar_count、consistent。truth 表示三句话是否为真；liar_count 是说谎者人数；consistent 表示这组真值与三人的诚实/说谎类型约束是否一致。三个字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/r_hard_05.py
+- id: reasoning-extreme-01
+  domain: reasoning
+  difficulty: extreme
+  pass_criteria: 反事实删除一个约束后重新求唯一最优解
+  prompt: |
+    选择不超过 10 重量的物品：A(w4,v7)、B(w5,v9)、C(w6,v10)、D(w3,v5)。原规则必须选 A 或 B 至少一个；先求最大价值。反事实删除该规则后重新求最大价值。indices 按物品原始编号升序；delta 定义为 counterfactual_value-base_value。只输出 JSON：base_indices、base_value、counterfactual_indices、counterfactual_value、delta。五字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/r_extreme_01.py
+- id: reasoning-extreme-02
+  domain: reasoning
+  difficulty: extreme
+  pass_criteria: 顺序敏感状态机在重试和回滚后的最终状态正确
+  prompt: |
+    状态初始为 0。事件按序：ADD 5、MUL 2、ADD 3、ROLLBACK（撤销最近一次非 rollback 事件）、RETRY（重放被撤销事件一次）。ROLLBACK 和 RETRY 自身不可再次撤销。只输出 JSON：trace（每步后的状态数组）、final、rolled_back、replayed。四字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/r_extreme_02.py
+- id: reasoning-extreme-03
+  domain: reasoning
+  difficulty: extreme
+  pass_criteria: 不可比较证据的合并、冲突标记和最小 witness 正确
+  prompt: |
+    三个证据对变量 X 的约束：E1 给 X=2，可信度 0.8；E2 给 X=3，可信度 0.8；E3 给 X=2，可信度 0.4。规则：最高可信度若唯一则采用；若最高可信度并列且值不同则 CONFLICT；输出最小 witness 为达到冲突所需的证据编号。只输出 JSON：max_confidence、decision、value、witness。四字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/r_extreme_03.py
+- id: reasoning-extreme-04
+  domain: reasoning
+  difficulty: extreme
+  pass_criteria: 最小扰动满足多个线性约束并证明代价
+  prompt: |
+    初始整数 x=2,y=2。要求 x+y>=7、x<=5、y<=5；每次只能把一个变量加 1，代价为总增加量，求最小代价解；并列取 x 较小者。只输出 JSON：x、y、cost、optimal、witness。五字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/r_extreme_04.py
+- id: reasoning-extreme-05
+  domain: reasoning
+  difficulty: extreme
+  pass_criteria: 多阶段选择、资源约束和反事实最优值全部正确
+  prompt: |
+    预算 9，只能选一次每个项目：P(w4,v8)、Q(w3,v6)、R(w5,v9)、S(w2,v3)。基础规则至少选 P 或 Q；先求最大价值。反事实把 R 的价值改为 4 后重新求最大价值。两个场景都按以下顺序消除并列：先取总重量更小者，再取 indices 字典序更小者。indices 按项目原始编号升序；difference 定义为 changed_value-base_value。只输出 JSON：base_indices、base_value、changed_indices、changed_value、difference。五字段各 1 分。
+  grader:
+    type: structure
+    tests_file: bank/tests/r_extreme_05.py

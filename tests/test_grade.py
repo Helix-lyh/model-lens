@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from src.bank import load_questions, repo_root
+from src.bank import _validate_fixture_path, load_questions, repo_root
 from src.grade import (
     _forbidden_import,
     extract_fenced_code,
@@ -87,25 +87,21 @@ def test_knowledge_trap_canonical_and_intuition() -> None:
     by_id = {q.id: q for q in load_questions() if q.domain == "knowledge"}
     assert set(by_id) == {
         "knowledge-easy-01",
-        "knowledge-easy-02",
-        "knowledge-easy-03",
-        "knowledge-easy-04",
         "knowledge-medium-01",
-        "knowledge-medium-02",
-        "knowledge-medium-03",
-        "knowledge-medium-04",
         "knowledge-hard-01",
         "knowledge-hard-02",
         "knowledge-hard-03",
         "knowledge-hard-04",
+        "knowledge-hard-05",
+        "knowledge-extreme-01",
+        "knowledge-extreme-02",
+        "knowledge-extreme-03",
+        "knowledge-extreme-04",
+        "knowledge-extreme-05",
     }
     expect = {
-        "knowledge-easy-01": ("0", "7"),
-        "knowledge-easy-02": ("地面", "空中"),
-        "knowledge-medium-01": ("不扳", "扳"),
-        "knowledge-easy-03": ("0", "50"),
-        "knowledge-easy-04": ("一样重", "铁"),
-        "knowledge-medium-04": ("更低", "相同"),
+        "knowledge-easy-01": ("711.90", "0"),
+        "knowledge-medium-01": ("REVIEW", "CLEAR"),
     }
     for qid, (good, bad) in expect.items():
         q = by_id[qid]
@@ -118,17 +114,19 @@ def test_structure_follow_pass_and_fail() -> None:
     assert extract_structure_payload("```json\n{}\n```") == "{}"
     by_id = {q.id: q for q in load_questions() if q.domain == "knowledge"}
     good = {
-        "knowledge-hard-01": '{"root":{"ok":{"ok":{"ok":{"0k":{"ok":{"tip":42,"_":[0,null,false]}}}}}}}',
-        "knowledge-medium-02": "<<HEAD>>\ndrahcro\n7\ndra*cro\n<<TAIL>>",
-        "knowledge-hard-02": '[{"i":0,"sq":0,"mark":"n"},{"i":1,"sq":1,"mark":"n"},{"i":2,"sq":4,"mark":"n"},null,{"i":4,"sq":16,"mark":"n"},{"i":5,"sq":25,"mark":"N"}]',
-        "knowledge-medium-03": '{"z":{"z":{"z":"ok"}},"a":[],"z2":-0}',
-        "knowledge-hard-03": "[[v2]]\nsgnl\nsgnl-sgnl\n9\nlngs\n[[end]]",
-        "knowledge-hard-04": '{"data":["0",0,false,null],"meta":{"v":1e2,"k k":{}}}',
+        "knowledge-hard-01": '{"reading_mA":2.4,"upper_mA":2.52,"risk":"HIGH","unit":"mA"}',
+        "knowledge-hard-02": '{"chosen_source":"lab","chosen_value":18,"discarded":["R2","R3"]}',
+        "knowledge-hard-03": '{"after_discount":770.0,"tax_base":790.0,"tax":63.2,"total":853.2}',
+        "knowledge-hard-04": '{"labels":["AMBER","GREEN","RED","GREEN"],"red_count":1,"green_count":2}',
+        "knowledge-hard-05": '{"old_threshold":11,"new_threshold":15,"old_action":"HOLD","new_action":"RESTOCK"}',
+        "knowledge-extreme-01": '{"load_kwh":2.1,"battery_kwh":2.4,"days_supported":1.029,"status":"ONE_DAY"}',
+        "knowledge-extreme-02": '{"before":"B","after":"NONE","before_reason":"B_MEETS_RULE","after_reason":"NO_QUALIFIED_SUPPLIER"}',
+        "knowledge-extreme-03": '{"fail_weight":0.9,"pass_weight":1.0,"decision":"PASS","margin":0.1}',
+        "knowledge-extreme-04": '{"winning_rule":"R3","decision":"REVIEW","suppressed_rules":["R2","R1"],"evidence_count":1}',
+        "knowledge-extreme-05": '{"before_total":1029.0,"before_decision":"REVIEW","after_total":999.6,"after_decision":"ACCEPT","delta":-29.4}',
     }
-    text_payloads = {"knowledge-medium-02", "knowledge-hard-03"}
     for qid, payload in good.items():
-        boxed = f"```text\n{payload}\n```" if qid in text_payloads else f"```json\n{payload}\n```"
-        grade = grade_response(by_id[qid], boxed, repo_root=repo_root())
+        grade = grade_response(by_id[qid], f"```json\n{payload}\n```", repo_root=repo_root())
         assert grade.passed is True, (qid, grade.detail)
         assert grade.score10 == 10.0
         bad = grade_response(by_id[qid], "```json\n{}\n```", repo_root=repo_root())
@@ -141,43 +139,50 @@ def test_reasoning_alias_and_structure() -> None:
     assert set(by_id) == {
         "reasoning-easy-01",
         "reasoning-easy-02",
-        "reasoning-easy-03",
-        "reasoning-easy-04",
         "reasoning-medium-01",
         "reasoning-medium-02",
-        "reasoning-medium-03",
-        "reasoning-medium-04",
         "reasoning-hard-01",
         "reasoning-hard-02",
         "reasoning-hard-03",
         "reasoning-hard-04",
+        "reasoning-hard-05",
+        "reasoning-extreme-01",
+        "reasoning-extreme-02",
+        "reasoning-extreme-03",
+        "reasoning-extreme-04",
+        "reasoning-extreme-05",
     }
     expect = {
-        "reasoning-easy-01": ("42", "30"),
-        "reasoning-easy-02": ("乙", "甲"),
-        "reasoning-easy-03": ("星期五", "星期三"),
-        "reasoning-easy-04": ("15", "10"),
-        "reasoning-medium-01": ("2", "3"),
-        "reasoning-medium-02": ("医生", "教师"),
-        "reasoning-medium-03": ("不能", "能"),
-        "reasoning-medium-04": ("3", "2"),
-        "reasoning-hard-01": ("诚实者", "说谎者"),
-        "reasoning-hard-02": ("10", "100"),
-        "reasoning-hard-04": ("844", "448"),
+        "reasoning-easy-01": ("36", "25"),
+        "reasoning-easy-02": ("6", "5"),
+        "reasoning-medium-01": ("教师", "医生"),
+        "reasoning-medium-02": ("1/3", "1/2"),
     }
     for qid, (good, bad) in expect.items():
         q = by_id[qid]
         assert grade_response(q, good, repo_root=repo_root()).passed is True
         assert grade_response(q, bad, repo_root=repo_root()).passed is False
         assert grade_response(q, f"答案是 {good}", repo_root=repo_root()).passed is False
-    grid = by_id["reasoning-hard-03"]
-    payload = '{"A": {"floor": 2, "drink": "茶"}, "B": {"floor": 3, "drink": "咖啡"}, "C": {"floor": 1, "drink": "可乐"}}'
-    ok = grade_response(grid, f"```json\n{payload}\n```", repo_root=repo_root())
-    assert ok.passed is True
-    assert ok.score10 == 10.0
-    bad = grade_response(grid, "```json\n{}\n```", repo_root=repo_root())
-    assert bad.passed is False
-    assert bad.points is not None and bad.points < bad.points_total
+
+    good = {
+        "reasoning-hard-01": '{"order":["A","C","B","D"],"slot_A":1,"slot_D":4,"feasible":true}',
+        "reasoning-hard-02": '{"assignment":{"A":1,"B":1,"C":2,"D":2},"loads":{"1":7,"2":7},"minimum_resources":2,"feasible":true}',
+        "reasoning-hard-03": '{"counterexample":2,"square":4,"divisible_by_4":false,"verdict":"FALSE"}',
+        "reasoning-hard-04": '{"path":["A","C","E","D"],"cost":7,"hops":3,"unique":true}',
+        "reasoning-hard-05": '{"truth":[true,true,false],"liar_count":1,"consistent":true}',
+        "reasoning-extreme-01": '{"base_indices":[0,2],"base_value":17,"counterfactual_indices":[0,2],"counterfactual_value":17,"delta":0}',
+        "reasoning-extreme-02": '{"trace":[5,10,13,10,13],"final":13,"rolled_back":"ADD_3","replayed":"ADD_3"}',
+        "reasoning-extreme-03": '{"max_confidence":0.8,"decision":"CONFLICT","value":null,"witness":["E1","E2"]}',
+        "reasoning-extreme-04": '{"x":2,"y":5,"cost":3,"optimal":true,"witness":"x+y=7"}',
+        "reasoning-extreme-05": '{"base_indices":[0,1,3],"base_value":17,"changed_indices":[0,1,3],"changed_value":17,"difference":0}',
+    }
+    for qid, payload in good.items():
+        grade = grade_response(by_id[qid], f"```json\n{payload}\n```", repo_root=repo_root())
+        assert grade.passed is True, (qid, grade.detail)
+        assert grade.score10 == 10.0
+        bad = grade_response(by_id[qid], "```json\n{}\n```", repo_root=repo_root())
+        assert bad.passed is False
+        assert bad.points is not None and bad.points < bad.points_total
 
 
 def test_alias_exact_and_latex() -> None:
@@ -265,6 +270,50 @@ def test_parse_points() -> None:
     assert parse_points("no points") is None
     assert parse_points("POINTS 9/9\nPOINTS 3/6\n") == (3, 6)
     assert parse_points("POINTS 5/5\nPASS\n") == (5, 5)
+    assert parse_points("POINTS 5/5\nPOINTS 6/5\n") is None
+    assert parse_points("POINTS 5/5\nPOINTS 0/0\n") is None
+    assert parse_points("POINTS -1/5\n") is None
+
+
+def test_structured_json_rejects_duplicate_nonfinite_and_bool_integer() -> None:
+    q = next(x for x in load_questions() if x.id == "architecture-hard-01")
+    valid = (
+        '{"failure_code":"OFFSET_SCAN","index_columns":["created_at","id"],'
+        '"pagination":"KEYSET","cursor_predicate":'
+        '"(created_at,id)<(cursor_time,cursor_id)","rows_scanned":20}'
+    )
+    assert grade_response(q, valid, repo_root=repo_root()).passed is True
+    invalid = [
+        (valid[:-1] + ',"rows_scanned":20}', 0),
+        (valid.replace('"rows_scanned":20', '"rows_scanned":NaN'), 0),
+        (valid.replace('"rows_scanned":20', '"rows_scanned":Infinity'), 0),
+        (valid.replace('"rows_scanned":20', '"rows_scanned":true'), 5),
+    ]
+    for payload, points in invalid:
+        grade = grade_response(q, payload, repo_root=repo_root())
+        assert grade.passed is False, payload
+        assert grade.points == points
+
+
+def test_fixture_paths_reject_absolute_parent_and_symlink(tmp_path: Path) -> None:
+    root = tmp_path
+    tests = root / "bank" / "tests"
+    tests.mkdir(parents=True)
+    fixture = tests / "fixture.py"
+    fixture.write_text("print('POINTS 1/1')\n", encoding="utf-8")
+    assert _validate_fixture_path("bank/tests/fixture.py", root=root) == str(fixture)
+    for rel in (str(fixture), "bank/tests/../tests/fixture.py", "bank/other.py"):
+        with pytest.raises(ValueError):
+            _validate_fixture_path(rel, root=root)
+    outside = root / "outside.py"
+    outside.write_text("print('POINTS 1/1')\n", encoding="utf-8")
+    link = tests / "linked.py"
+    try:
+        link.symlink_to(outside)
+    except OSError:
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(ValueError, match="symlink"):
+        _validate_fixture_path("bank/tests/linked.py", root=root)
 
 
 def test_sandbox_shelf_pass() -> None:

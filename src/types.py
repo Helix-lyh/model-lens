@@ -110,7 +110,7 @@ class Vocab(Protocol):
 
 GradeStatus = Literal["pass", "fail", "missing", "error"]
 DomainName = Literal["architecture", "coding", "knowledge", "reasoning"]
-Difficulty = Literal["easy", "medium", "hard"]
+Difficulty = Literal["easy", "medium", "hard", "extreme"]
 
 
 @dataclass(frozen=True)
@@ -122,6 +122,8 @@ class Question:
     grader: dict[str, Any]
     pass_criteria: str
     language: str | None = None
+    raw_id: str | None = None
+    cluster_id: str | None = None
 
 
 @dataclass
@@ -146,6 +148,9 @@ class QuestionResult:
     pass0: bool | None = None
     majority: bool | None = None
     score10: float | None = None
+    raw_id: str | None = None
+    cluster_id: str | None = None
+    language: str | None = None
 
 
 @dataclass
@@ -159,6 +164,19 @@ class BankResult:
     knowledge_all_wrong: bool = False
     knowledge_alarm: str | None = None
     n_questions: int = 0
+    schema_version: str = "model-lens.bank.v2"
+    raw_question_count: int = 0
+    expanded_question_count: int = 0
+    raw_domain_counts: dict[str, int] = field(default_factory=dict)
+    raw_difficulty_counts: dict[str, int] = field(default_factory=dict)
+    expanded_domain_counts: dict[str, int] = field(default_factory=dict)
+    expanded_difficulty_counts: dict[str, int] = field(default_factory=dict)
+    coding_cluster_count: int = 0
+    coding_variant_count: int = 0
+    coding_available: dict[str, int | float | None] = field(default_factory=dict)
+    coding_strict: dict[str, int | float | None] = field(default_factory=dict)
+    raw_matrix: dict[str, dict[str, int]] = field(default_factory=dict)
+    coding_cluster_diagnostics: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 @dataclass
