@@ -293,6 +293,164 @@ func PlanTasks(tasks []string, deps [][2]string) ([]string, bool) {
     return out, true
 }
 """,
+    "bank/tests/go/replay_counter_test.go": """
+package solution
+
+type replayDebit struct { amount, refunded int }
+func ReplayCounter(log [][3]interface{}) map[string]interface{} {
+    balance := 0
+    seen := map[string]bool{}
+    accepted := []string{}
+    rejected := []string{}
+    debits := []replayDebit{}
+    for _, event := range log {
+        id, _ := event[0].(string)
+        kind, _ := event[1].(string)
+        amount, _ := event[2].(int)
+        if seen[id] {
+            rejected = append(rejected, id)
+            continue
+        }
+        seen[id] = true
+        switch kind {
+        case "credit":
+            balance += amount
+            accepted = append(accepted, id)
+        case "debit":
+            if amount <= balance {
+                balance -= amount
+                debits = append(debits, replayDebit{amount: amount})
+                accepted = append(accepted, id)
+            } else {
+                rejected = append(rejected, id)
+            }
+        case "refund":
+            refunded := false
+            for i := range debits {
+                if debits[i].amount-debits[i].refunded >= amount {
+                    debits[i].refunded += amount
+                    balance += amount
+                    accepted = append(accepted, id)
+                    refunded = true
+                    break
+                }
+            }
+            if !refunded { rejected = append(rejected, id) }
+        default:
+            rejected = append(rejected, id)
+        }
+    }
+    return map[string]interface{}{"balance": balance, "accepted": accepted, "rejected": rejected}
+}
+""",
+    "bank/tests/go/merge_budget_test.go": """
+package solution
+
+import "sort"
+func MergeBudget(intervals [][2]int, budget int) map[string]interface{} {
+    if budget < 0 { return map[string]interface{}{"ok": false, "intervals": [][2]int{}, "reason": "invalid"} }
+    work := append([][2]int{}, intervals...)
+    for _, pair := range work {
+        if pair[0] > pair[1] { return map[string]interface{}{"ok": false, "intervals": [][2]int{}, "reason": "invalid"} }
+    }
+    sort.Slice(work, func(i, j int) bool {
+        if work[i][0] != work[j][0] { return work[i][0] < work[j][0] }
+        return work[i][1] < work[j][1]
+    })
+    merged := [][2]int{}
+    for _, pair := range work {
+        if len(merged) > 0 && pair[0] <= merged[len(merged)-1][1]+1 {
+            if pair[1] > merged[len(merged)-1][1] { merged[len(merged)-1][1] = pair[1] }
+        } else { merged = append(merged, pair) }
+    }
+    total := 0
+    for _, pair := range merged { total += pair[1]-pair[0]+1 }
+    if total > budget { return map[string]interface{}{"ok": false, "intervals": [][2]int{}, "reason": "budget_exceeded"} }
+    return map[string]interface{}{"ok": true, "intervals": merged, "reason": "empty"}
+}
+""",
+    "bank/tests/go/knapsack_test.go": """
+package solution
+
+func lexLess(a, b []int) bool {
+    for i := 0; i < len(a) && i < len(b); i++ {
+        if a[i] != b[i] { return a[i] < b[i] }
+    }
+    return len(a) < len(b)
+}
+func betterKnapsack(value, weight int, indices []int, bestValue, bestWeight int, bestIndices []int) bool {
+    if value != bestValue { return value > bestValue }
+    if weight != bestWeight { return weight < bestWeight }
+    return lexLess(indices, bestIndices)
+}
+func BoundedKnapsack(items [][2]int, capacity int) map[string]interface{} {
+    bestValue, bestWeight := 0, 0
+    bestIndices := []int{}
+    if capacity < 0 { return map[string]interface{}{"value": 0, "weight": 0, "indices": bestIndices} }
+    for mask := 0; mask < (1 << len(items)); mask++ {
+        value, weight := 0, 0
+        indices := []int{}
+        for i, item := range items {
+            if mask&(1<<i) != 0 { weight += item[0]; value += item[1]; indices = append(indices, i) }
+        }
+        if weight <= capacity && betterKnapsack(value, weight, indices, bestValue, bestWeight, bestIndices) {
+            bestValue, bestWeight, bestIndices = value, weight, indices
+        }
+    }
+    return map[string]interface{}{"value": bestValue, "weight": bestWeight, "indices": bestIndices}
+}
+""",
+    "bank/tests/go/mvcc_test.go": """
+package solution
+
+import "sort"
+func ApplyTransactions(initial map[string]int, txns []map[string]interface{}) map[string]interface{} {
+    state := map[string]int{}
+    versions := map[string]int{}
+    for key, value := range initial { state[key] = value; versions[key] = 0 }
+    statuses := map[string]string{}
+    for _, txn := range txns { id, _ := txn["id"].(string); statuses[id] = "" }
+    ordered := append([]map[string]interface{}{}, txns...)
+    sort.SliceStable(ordered, func(i, j int) bool { return ordered[i]["commit"].(int) < ordered[j]["commit"].(int) })
+    nextVersion := 0
+    for _, txn := range ordered {
+        id := txn["id"].(string)
+        begin := txn["begin"].(int)
+        writes := txn["writes"].(map[string]interface{})
+        conflict := false
+        for key := range writes { if versions[key] > begin { conflict = true; break } }
+        if conflict { statuses[id] = "ABORT"; continue }
+        nextVersion++
+        statuses[id] = "COMMIT"
+        for key, value := range writes { state[key] = value.(int); versions[key] = nextVersion }
+    }
+    return map[string]interface{}{"state": state, "statuses": statuses}
+}
+""",
+    "bank/tests/go/order_events_test.go": """
+package solution
+
+func OrderEvents(events [][2]string) map[string]interface{} {
+    state := "CREATED"
+    applied, rejected := []string{}, []string{}
+    seen := map[string]bool{}
+    transitions := map[[2]string]string{
+        {"CREATED", "PAY"}: "PAID", {"PAID", "SHIP"}: "SHIPPED",
+        {"SHIPPED", "DELIVER"}: "DELIVERED", {"PAID", "REFUND"}: "REFUNDED",
+        {"SHIPPED", "REFUND"}: "REFUNDED", {"DELIVERED", "REFUND"}: "REFUNDED",
+        {"CREATED", "CANCEL"}: "CANCELLED", {"PAID", "CANCEL"}: "CANCELLED",
+        {"SHIPPED", "CANCEL"}: "CANCELLED",
+    }
+    for _, event := range events {
+        id, kind := event[0], event[1]
+        if seen[id] { continue }
+        seen[id] = true
+        next, ok := transitions[[2]string{state, kind}]
+        if !ok { rejected = append(rejected, id) } else { state = next; applied = append(applied, id) }
+    }
+    return map[string]interface{}{"state": state, "applied": applied, "rejected": rejected}
+}
+""",
 }
 
 TS = {
@@ -482,6 +640,139 @@ export function planTasks(tasks: string[], deps: Array<[string, string]>): strin
     if (changed) ready.sort();
   }
   return out.length === tasks.length ? out : null;
+}
+""",
+    "bank/tests/ts/replay_counter.ts": """
+type ReplayResult = { balance: number; accepted: string[]; rejected: string[] };
+type Debit = { amount: number; refunded: number };
+export function replayCounter(log: Array<[string, string, number]>): ReplayResult {
+  let balance = 0;
+  const seen = new Set<string>();
+  const accepted: string[] = [];
+  const rejected: string[] = [];
+  const debits: Debit[] = [];
+  for (const [id, kind, amount] of log) {
+    if (seen.has(id)) { rejected.push(id); continue; }
+    seen.add(id);
+    if (kind === "credit") {
+      balance += amount;
+      accepted.push(id);
+    } else if (kind === "debit") {
+      if (amount <= balance) {
+        balance -= amount;
+        debits.push({ amount, refunded: 0 });
+        accepted.push(id);
+      } else {
+        rejected.push(id);
+      }
+    } else if (kind === "refund") {
+      const debit = debits.find((row) => row.amount - row.refunded >= amount);
+      if (debit) {
+        debit.refunded += amount;
+        balance += amount;
+        accepted.push(id);
+      } else {
+        rejected.push(id);
+      }
+    } else {
+      rejected.push(id);
+    }
+  }
+  return { balance, accepted, rejected };
+}
+""",
+    "bank/tests/ts/merge_budget.ts": """
+type MergeResult = { ok: boolean; intervals: Array<[number, number]>; reason: string };
+export function mergeBudget(intervals: Array<[number, number]>, budget: number): MergeResult {
+  if (!Number.isInteger(budget) || budget < 0) return { ok: false, intervals: [], reason: "invalid" };
+  if (intervals.some(([left, right]) => !Number.isInteger(left) || !Number.isInteger(right) || left > right)) {
+    return { ok: false, intervals: [], reason: "invalid" };
+  }
+  const ordered = intervals.map(([left, right]) => [left, right] as [number, number]);
+  ordered.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const merged: Array<[number, number]> = [];
+  for (const [left, right] of ordered) {
+    const last = merged[merged.length - 1];
+    if (last && left <= last[1] + 1) last[1] = Math.max(last[1], right);
+    else merged.push([left, right]);
+  }
+  const used = merged.reduce((sum, [left, right]) => sum + right - left + 1, 0);
+  if (used > budget) return { ok: false, intervals: [], reason: "budget_exceeded" };
+  return { ok: true, intervals: merged, reason: "empty" };
+}
+""",
+    "bank/tests/ts/knapsack.ts": """
+type Item = [number, number];
+type KnapsackResult = { value: number; weight: number; indices: number[] };
+function lexLess(a: number[], b: number[]): boolean {
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    if (a[i] !== b[i]) return a[i] < b[i];
+  }
+  return a.length < b.length;
+}
+export function boundedKnapsack(items: Item[], capacity: number): KnapsackResult {
+  let best: KnapsackResult = { value: 0, weight: 0, indices: [] };
+  if (!Number.isInteger(capacity) || capacity < 0) return best;
+  for (let mask = 0; mask < 2 ** items.length; mask++) {
+    let value = 0;
+    let weight = 0;
+    const indices: number[] = [];
+    for (let i = 0; i < items.length; i++) {
+      if (mask & 2 ** i) { weight += items[i][0]; value += items[i][1]; indices.push(i); }
+    }
+    if (weight > capacity) continue;
+    if (value > best.value ||
+        (value === best.value && weight < best.weight) ||
+        (value === best.value && weight === best.weight && lexLess(indices, best.indices))) {
+      best = { value, weight, indices };
+    }
+  }
+  return best;
+}
+""",
+    "bank/tests/ts/mvcc.ts": """
+type Transaction = { id: string; begin: number; writes: Record<string, number>; commit: number };
+type MVCCResult = { state: Record<string, number>; statuses: Record<string, string> };
+export function applyTransactions(initial: Record<string, number>, txns: Transaction[]): MVCCResult {
+  const state = { ...initial };
+  const versions: Record<string, number> = {};
+  for (const key of Object.keys(state)) versions[key] = 0;
+  const statuses: Record<string, string> = {};
+  for (const txn of txns) statuses[txn.id] = "";
+  let committedVersion = 0;
+  for (const txn of [...txns].sort((a, b) => a.commit - b.commit)) {
+    const conflict = Object.keys(txn.writes).some((key) => (versions[key] ?? 0) > txn.begin);
+    if (conflict) { statuses[txn.id] = "ABORT"; continue; }
+    committedVersion++;
+    statuses[txn.id] = "COMMIT";
+    for (const [key, value] of Object.entries(txn.writes)) {
+      state[key] = value;
+      versions[key] = committedVersion;
+    }
+  }
+  return { state, statuses };
+}
+""",
+    "bank/tests/ts/order_events.ts": """
+type OrderResult = { state: string; applied: string[]; rejected: string[] };
+export function orderEvents(events: Array<[string, string]>): OrderResult {
+  let state = "CREATED";
+  const applied: string[] = [];
+  const rejected: string[] = [];
+  const seen = new Set<string>();
+  const transitions: Record<string, string> = {
+    "CREATED:PAY": "PAID", "PAID:SHIP": "SHIPPED", "SHIPPED:DELIVER": "DELIVERED",
+    "PAID:REFUND": "REFUNDED", "SHIPPED:REFUND": "REFUNDED", "DELIVERED:REFUND": "REFUNDED",
+    "CREATED:CANCEL": "CANCELLED", "PAID:CANCEL": "CANCELLED", "SHIPPED:CANCEL": "CANCELLED",
+  };
+  for (const [id, kind] of events) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const next = transitions[`${state}:${kind}`];
+    if (next === undefined) rejected.push(id);
+    else { state = next; applied.push(id); }
+  }
+  return { state, applied, rejected };
 }
 """,
 }
