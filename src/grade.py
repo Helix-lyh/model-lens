@@ -11,6 +11,7 @@ import unicodedata
 from pathlib import Path
 from typing import Any
 
+from src.fixtures import resolve_fixture_path
 from src.toolchain import discover, ensure_cache_dirs
 from src.types import GradeStatus, Question, SampleGrade
 
@@ -37,23 +38,31 @@ _LOOKS_LIKE = {
 _PUNCT = dict.fromkeys(map(ord, ".,;:!?()[]{}'\"`·。，、：；！？（）【】「」"), None)
 _LATEX_OP = re.compile(r"\\(?:times|cdot|times\{\}|mathrm\{x\})", re.IGNORECASE)
 _MUL = str.maketrans({"×": "x", "✕": "x", "⋅": "x", "*": "x"})
-_POINTS_RE = re.compile(r"POINTS\s+(\d+)\s*/\s*(\d+)")
+_POINTS_LINE_RE = re.compile(r"^POINTS\s+([+-]?\d+)\s*/\s*([+-]?\d+)\s*$")
 
 
 def parse_points(text: str) -> tuple[int, int] | None:
-    found = list(_POINTS_RE.finditer(text or ""))
-    if not found:
+    """只认 stdout 最后一条 POINTS 行；非法最终 marker 不回退到更早结果。"""
+    markers = [line.strip() for line in (text or "").splitlines() if line.strip().startswith("POINTS")]
+    if not markers:
         return None
-    earned, total = found[-1].groups()
-    return int(earned), int(total)
+    found = _POINTS_LINE_RE.fullmatch(markers[-1])
+    if found is None:
+        return None
+    earned, total = (int(value) for value in found.groups())
+    if total <= 0 or earned < 0 or earned > total:
+        return None
+    return earned, total
 
 
 def _apply_points(grade: SampleGrade, pts: tuple[int, int] | None) -> SampleGrade:
     if pts is None and grade.passed is False:
         pts = (0, 1)
-    if pts is not None and pts[1] > 0:
-        grade.points, grade.points_total = pts
-        grade.score10 = round(10.0 * pts[0] / pts[1], 2)
+    if pts is not None:
+        earned, total = pts
+        if total > 0 and 0 <= earned <= total:
+            grade.points, grade.points_total = earned, total
+            grade.score10 = round(10.0 * earned / total, 2)
     return grade
 
 SANDBOX_BLOCK = """\
@@ -247,13 +256,14 @@ def _grade_structure(question: Question, text: str, *, repo_root: Path) -> Sampl
             detail="grader.tests_file missing",
             content=text,
         )
-    tests_path = repo_root / str(rel)
-    if not tests_path.is_file():
+    try:
+        tests_path = resolve_fixture_path(repo_root, rel, question_id=question.id)
+    except ValueError as exc:
         return SampleGrade(
             temperature=0.0,
             status="error",
             passed=None,
-            detail=f"tests file not found: {rel}",
+            detail=str(exc),
             content=text,
         )
     status, detail = run_sandbox("", tests_path, payload=payload)
@@ -302,16 +312,16 @@ def _resolve_tests_file(question: Question, text: str, repo_root: Path) -> Sampl
             detail="grader.tests_file missing",
             content=text,
         )
-    tests_path = repo_root / str(rel)
-    if not tests_path.is_file():
+    try:
+        return resolve_fixture_path(repo_root, rel, question_id=question.id)
+    except ValueError as exc:
         return SampleGrade(
             temperature=0.0,
             status="error",
             passed=None,
-            detail=f"tests file not found: {rel}",
+            detail=str(exc),
             content=text,
         )
-    return tests_path
 
 
 def _toolchain_gap(lang: str, text: str) -> SampleGrade | None:
@@ -418,6 +428,9 @@ def run_sandbox(
         (root / "solution.py").write_text((code or "# payload-only") + "\n", encoding="utf-8")
         if payload is not None:
             (root / "payload.txt").write_text(payload, encoding="utf-8")
+        helper = tests_path.parent / "_structured.py"
+        if helper.is_file():
+            (root / "_structured.py").write_text(helper.read_text(encoding="utf-8"), encoding="utf-8")
         (root / "test_q.py").write_text(tests_path.read_text(encoding="utf-8"), encoding="utf-8")
         (root / "boot.py").write_text(
             "import sitecustomize\nimport runpy\nrunpy.run_path('test_q.py', run_name='__main__')\n",
@@ -542,18 +555,20 @@ def run_ts_sandbox(code: str, tests_path: Path, *, timeout_s: float = 45.0) -> t
 
 def _sandbox_result(proc: subprocess.CompletedProcess[str]) -> tuple[GradeStatus, str]:
     stdout = proc.stdout or ""
-    blob = f"{stdout}\n{proc.stderr or ''}"
+    stderr = proc.stderr or ""
+    # A process that exited abnormally can never pass, even if it printed a marker.
+    if proc.returncode != 0:
+        diagnostic = stdout.strip() or stderr.strip()
+        return "fail", diagnostic[-400:] or f"exit {proc.returncode}"
     pts = parse_points(stdout)
     if pts is not None:
         earned, total = pts
-        if earned == total and total > 0:
+        if earned == total:
             return "pass", f"POINTS {earned}/{total}"
-        extra = blob.strip()[-300:]
-        return "fail", f"POINTS {earned}/{total}\n{extra}".strip()
-    extra = blob.strip()[-400:]
-    if proc.returncode != 0:
-        return "fail", extra or f"exit {proc.returncode}"
-    return "fail", extra or "no POINTS in sandbox output"
+        diagnostic = stdout.strip()
+        return "fail", f"POINTS {earned}/{total}\n{diagnostic[-300:]}".strip()
+    diagnostic = stdout.strip() or stderr.strip()
+    return "fail", diagnostic[-400:] or "no POINTS in sandbox output"
 
 
 def _sandbox_env(tmp: Path) -> dict[str, str]:
