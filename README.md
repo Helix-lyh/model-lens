@@ -2,7 +2,7 @@
 
 用自建 `httpx` 客户端判断匿名网关 / 官方站模型属于哪一个词表家族，并可选地对照参考源做型号判真与能力降智粗筛。
 
-个人兴趣工具。非取证、非生产门禁。MIT 许可，见 [`LICENSE`](LICENSE)。
+个人兴趣工具。非取证、非生产门禁。MIT 许可，见 [`LICENSE`](LICENSE)。源码：https://github.com/Helix-lyh/model-lens
 
 **不是：** TideSight 子项目；不是 0–100 排行榜；不是「是否支持某模型」的认证。不引入 `openai` / `anthropic` SDK、`transformers`。
 
@@ -71,7 +71,7 @@ python -m src.cli shell  --target examples/targets.yaml --peers glm-5.3-flash
 
 `shell` 只跑附录（wrapper 常数、同网关 SKU 卡、错误信封），不改家族 / 判真 / 降智。`--peers` 省略时，若 `claimed_model` 和 target 不同，就拿声称型号当对照。
 
-对照页：`out/gallery/gallery.html`（基层数据同目录 `gallery.json`）。只有带题库结果的 run 会写 `gallery.json`；纯 `family` / `shell` 不写。跑次目录 `out/` 不进 git。
+对照页：`out/gallery/gallery.html`（基层数据同目录 `gallery.json`）。只有带题库结果的 run 会写 `gallery.json`；纯 `family` / `shell` 不写。跑次目录 `out/` 不进 git，打包分享用 `git archive`，不要 zip 整个工作区（会带上 `out/`）。
 
 配置示例：`examples/targets.yaml`（中转）、`examples/targets.official.yaml`（官方渠道）、`examples/targets.cloud.yaml`（Bedrock / Vertex）。`reference` 可省略。
 
