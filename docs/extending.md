@@ -49,7 +49,14 @@ yaml 里的 `prompt` 只写题意，不要写「只输出 Python」。加载器�
 | `code_tests` | 必须带 `languages`；按语言抽代码；Python 沙箱 / Go `go test` / TS `tsc`+`node`，按 `POINTS n/m` 计分 |
 | `structure` | 抽 json/text 块写入 payload，跑 `tests_file` 逐条计点 |
 
-每题折合满分 10：`score10 = 10 × n / m`。报告写分域、分难度平均折合，**不要**再合成总分。
+结构题收束（优先于放宽 grader）：
+
+1. 题面锁返回格式：字段名、JSON 类型、数组下标从几起。枚举必须带干扰项，不要写成 `verdict=FALSE` 这种唯一值。
+2. 不要在参考答案里堆同义词。枚举不全就改题面，不要改成「accepted 也算对」。
+3. 一个开放叙述拆成多个检查点，或收成封闭枚举（如 `witness` 取 `BIND_SUM / BIND_XMAX / BIND_YMAX`）。
+4. 优先出答案收束的题，少出自由文本。编码签名写全类型（Go 的 key 类型也要写）。
+
+每题折合满分 10：`score10 = 10 × n / m`。报告写分域、分难度平均折合，**不要**再合成总分。不用 LLM-as-judge。
 
 4. 题面加盐由运行器自动加（`【审计标记 …】`），不要自己写进 yaml。
 5. 检查：`python -c "from src.bank import load_questions; load_questions()"` 以及 `pytest tests/test_bank.py tests/test_grade.py`。

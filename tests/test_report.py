@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from src.report import render_run, write_run_report
 from src.types import (
     BankResult,
@@ -196,6 +198,9 @@ def test_report_bank_domain_rates(tmp_path):
                 pass0=True,
                 majority=None,
                 score10=10.0,
+                construct="code_sandbox",
+                question_hash="qh-coding-01",
+                fixture_hash="fh-coding-01",
             ),
             QuestionResult(
                 question_id="coding-medium-02-python",
@@ -255,11 +260,91 @@ def test_report_bank_domain_rates(tmp_path):
     assert "coding-medium-01-python" in md
     assert (run_dir / "bank.json").is_file()
     assert "支持" not in md
+    assert "bank_version=bank-v2.1" in md
+    assert "scorer_version=scorer-v2" in md
+    assert "sampling_protocol=single-v1" in md
+    assert "全量（四档，4 次采样）" not in md
+    assert "construct" in md
+    assert "code_sandbox" in md
+    assert "question_hash" in md
+    assert "qh-coding-01" in md
+    assert "fixture_hash" in md
+    assert "fh-coding-01" in md
+    assert "missing=1" in md
+    report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    assert report["provenance"]["bank_version"] == "bank-v2.1"
+    assert report["provenance"]["scorer_version"] == "scorer-v2"
+    assert report["provenance"]["sampling_protocol"] == "single-v1"
+    assert report["bank"]["bank_version"] == "bank-v2.1"
+    assert report["bank"]["scorer_version"] == "scorer-v2"
+    assert report["bank"]["sampling_protocol"] == "single-v1"
+    q0 = report["bank"]["questions"][0]
+    assert q0["construct"] == "code_sandbox"
+    assert q0["question_hash"] == "qh-coding-01"
+    assert q0["fixture_hash"] == "fh-coding-01"
+    assert report["bank"]["domain_pass0"]["coding"]["missing"] == 1
+
+
+def test_report_full_single_v1_not_labeled_as_four_sample(tmp_path):
+    run_dir = tmp_path / "run-full"
+    targets = Targets(
+        claimed_model="x",
+        target=Endpoint(base_url="https://t", api_key_env="TARGET_KEY", model="x"),
+    )
+    bank = BankResult(
+        quick=False,
+        salt="run-full",
+        questions=[
+            QuestionResult(
+                question_id="knowledge-easy-01",
+                domain="knowledge",
+                difficulty="easy",
+                samples=[SampleGrade(temperature=0.0, status="pass", passed=True, detail="POINTS 1/1")],
+                pass0=True,
+                construct="rfc_fact",
+                question_hash="qh-k",
+                fixture_hash=None,
+            )
+        ],
+        n_questions=1,
+        raw_question_count=1,
+        expanded_question_count=1,
+        sampling_protocol="single-v1",
+    )
+    write_run_report(run_dir, targets=targets, family=_ok_family(), bank=bank)
+    md = (run_dir / "report.md").read_text(encoding="utf-8")
+    assert "全量（四档）" in md
+    assert "每题 1 次（sampling_protocol=single-v1）" in md
+    assert "全量（四档，4 次采样）" not in md
+    assert "旧 4 次采样是另一口径，不可混比" in md
+    report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    assert report["bank"]["sampling_protocol"] == "single-v1"
+
+
+def test_report_legacy_bank_does_not_imply_single_v1(tmp_path):
+    run_dir = tmp_path / "run-legacy"
+    run_dir.mkdir()
+    (run_dir / "family.json").write_text(
+        json.dumps(
+            {
+                "target": {"base_url": "https://t", "model": "x", "api_key_env": "TARGET_KEY"},
+                "claimed": "x",
+                "bank": {"quick": False, "questions": []},
+            }
+        ),
+        encoding="utf-8",
+    )
+    render_run(run_dir)
+    md = (run_dir / "report.md").read_text(encoding="utf-8")
+    assert "sampling_protocol=—" in md
+    assert "sampling_protocol=single-v1" not in md
+    assert "采样协议未标注" in md
+    report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    assert report["provenance"]["sampling_protocol"] is None
+    assert report["bank"].get("sampling_protocol") is None
 
 
 def test_report_includes_traffic_from_jsonl(tmp_path):
-    import json
-
     run_dir = tmp_path / "run-traffic"
     targets = Targets(
         claimed_model="x",
@@ -294,3 +379,92 @@ def test_report_includes_traffic_from_jsonl(tmp_path):
     assert "0.25" in md
     assert '"traffic"' in family
     assert "sk-" not in md + family
+
+
+def test_report_shell_appendix_no_family_column_change(tmp_path):
+    from src.envelopes import EnvelopeProbe, EnvelopeResult
+    from src.sku import CatalogAbResult, SkuCard, SkuPeerCompare, SkuSignal
+    from src.wrapper import WrapperResult
+
+    run_dir = tmp_path / "run-shell"
+    targets = Targets(
+        claimed_model="glm-5.3-flash",
+        target=Endpoint(
+            base_url="https://example.test/v1",
+            api_key_env="TARGET_KEY",
+            model="omen-alpha",
+        ),
+    )
+    write_run_report(
+        run_dir,
+        targets=targets,
+        family=None,
+        wrapper=WrapperResult(
+            status="constant",
+            catalog_id="glm5",
+            value=36,
+            spread=0,
+        ),
+        sku=CatalogAbResult(
+            status="shell_diff",
+            target=SkuCard(
+                model_id="omen-alpha",
+                hi_prompt_tokens=37,
+                emoji_delta=16,
+                special_image_delta=1,
+                effort_none=SkuSignal(
+                    name="effort_none",
+                    prompt_tokens=37,
+                    delta=None,
+                    http=200,
+                    kind="accepted",
+                    detail=None,
+                ),
+                signals=[],
+                error=None,
+            ),
+            peers=[
+                SkuPeerCompare(
+                    peer_id="glm-5.3-flash",
+                    wrapper_offset=24,
+                    emoji_delta_peer=16,
+                    special_image_delta_peer=7,
+                    effort_none_kind="zhipu_numeric",
+                    same_emoji=True,
+                    same_effort_kind=False,
+                    note="壳差 24，不能证明是同一条权重",
+                )
+            ],
+            cards=[],
+            note="相对具名对照多出固定壳",
+        ),
+        envelopes=EnvelopeResult(
+            status="ok",
+            family="rust_serde",
+            probes=[
+                EnvelopeProbe(
+                    name="temperature_wrong_type",
+                    http=400,
+                    kind="serde",
+                    detail="expected f32",
+                    prompt_tokens=None,
+                )
+            ],
+            note="",
+        ),
+    )
+    md = (run_dir / "report.md").read_text(encoding="utf-8")
+    family_json = (run_dir / "family.json").read_text(encoding="utf-8")
+    report_json = (run_dir / "report.json").read_text(encoding="utf-8")
+    blob = md + family_json + report_json
+    assert "（本 run 未跑 F）" in md
+    assert "- 判真：skipped" in md
+    assert "壳 / 适配器" in md
+    assert "wrapper：constant glm5 +36" in md
+    assert "sku：shell_diff hi=37" in md
+    assert "offset=+24" in md
+    assert "envelopes：rust_serde" in md
+    assert "支持" not in blob
+    assert "总分" not in blob
+    assert '"wrapper"' in family_json
+    assert '"sku"' in report_json

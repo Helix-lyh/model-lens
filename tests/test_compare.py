@@ -238,6 +238,16 @@ def test_degrade_cross_family_skipped() -> None:
     assert "换货" in d.note or "换家族" in d.note
 
 
+def test_degrade_single_sample_uses_pass0_as_stab() -> None:
+    ident = IdentityResult("同族未分型", "glm5", "glm5", "high", "x")
+    target = _coding_bank([False] * 8)
+    ref = _coding_bank([True] * 8)
+    d = decide_degrade(ident, _family(), _targets(), target, ref, quick=False)
+    assert d.status == "疑似衰减"
+    assert d.stab_target == 0.0
+    assert d.stab_ref == 1.0
+
+
 def test_degrade_suspected() -> None:
     ident = IdentityResult("同族未分型", "glm5", "glm5", "high", "x")
     target = _coding_bank([False] * 8, [False] * 8)

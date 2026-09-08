@@ -1,109 +1,103 @@
-# 题库参考答案与评分机制（48 条原始题，展开后 72 道）
+# 题库参考答案与评分机制（54 条原始题，展开后 78 道）
 
 维护者文档。题面在 `bank/questions.yaml`，本文只放答案，**不要**把答案写回题面。
+bank-v2.1 改写了 24 道非编码题，设计说明与参考 JSON 见 `docs/bank-v2-design.md`。
 编码题的 Go/TS 参考实现见 `cursor_workspace/build_scripts/verify_lang_sandboxes.py`，
 Python 参考实现与结构题期望输出见 `cursor_workspace/build_scripts/verify_bank_answers.py`；
 两个脚本都会把参考答案跑进真实沙箱，必须全部满分。
 
 ## 评分机制
 
-- 题库共 48 条原始题（12 架构 + 12 知识 + 12 推理 + 12 编码）；题量上限 20–60 按展开前计。
-  编码题按 python/go/typescript 展开，展开后共 72 道。
+- 题库共 54 条原始题（12 架构 + 12 知识 + 18 推理 + 12 编码）；题量上限 20–60 按展开前计。
+  编码题按 python/go/typescript 展开，展开后共 78 道。
 - 每题若干得分点，折合满分 10：`score10 = 10 × n / m`。只按域、按难度聚合展示，不合成总分。
-- 快速模式只跑 easy/medium（展开后 48 道），每题 1 次 t=0；全量 72 道，每题 4 次采样（t=0、0.7×3），
-  pass0 取 t=0 那次，majority 需至少 3 次可判且 ≥3 次通过。
-- 完成 token 超过难度上限（easy 8 万 / medium 10 万 / hard 12.8 万）记 think penalty，score10 减半。
+- 快速模式只跑 easy/medium（展开后 14 道实例），每题 1 次 t=0；全量 78 道，每题 1 次 t=0。
+  pass0 取该次；单次采样下 majority 为 None。高 token 用量不改变机械评分。
 - 四类 grader：
   - `keyword`：每命中一组 `must_include` 得 1 分；命中数 ≥ `min_hits` 且没碰 `must_exclude` 才 pass。
+    现行仅 `architecture-easy-01`、`architecture-medium-01`。
   - `alias`：规范化（NFKC、去标点、casefold、去空白）后与 `answers` 精确/包含匹配，1 分。
+    现行仅 `reasoning-easy-01/02`、`reasoning-medium-01/02`。
   - `code_tests`：按语言抽围栏代码，进沙箱编译加跑测；只认 stdout 里最后一个 `POINTS n/m`，
     满点才 pass；编译失败、禁运 import、超时、缺 POINTS 都是 0。缺工具链记 missing 不记 0。
   - `structure`：抽 json/text 块写入 `payload.txt`，跑 `tests_file` 逐条计点。
+    指令题 `grader.strict_response=true` 时原样传递响应，不得剥围栏或首尾空白。
+  题面锁类型和带干扰项的枚举；不用 LLM-as-judge。
 - 知识域 t=0 全错触发 `knowledge_alarm`（疑似空响应或完全不对题）。
+- 结构题权威期望以 `cursor_workspace/build_scripts/verify_bank_answers.py` 的 `STRUCTURE` 与对应
+  `bank/tests/v2_*.py`（或未改写的 `a_*.py` / `r_*.py`）fixture 为准。改题面、fixture 或等价规则必须升版本。
+  现行未改写收束：`r_extreme_04.witness` 为 `BIND_SUM`。
+- **已作废，禁止用来改现行 fixture：** `c05_nested.py`、`c06_lines.py`、`c07_array.py`、`c08_oneline.py`、
+  `c09_lines6.py`、`c10_meta.py`、`c11_logic_grid.py`，以及旧 `a_hard_01..04` / `a_extreme_01` /
+  `a_extreme_03` / `k_hard_*` / `k_extreme_*` / `r_hard_01..04` / `r_extreme_01` / `r_extreme_05`
+  的 JSON（如 OFFSET_SCAN、711.90、reading_mA、深分页 keyword）。这些 `tests_file` 已换成 `v2_*`。
 
-## 一、架构域（12 题，keyword，min_hits=4，每组 1 分）
+## 一、架构域（12 题）
 
-参考答案是「应命中的要点」，每行对应一个计分组。
+现行不是「12 题 keyword」。easy/medium 为 keyword；hard-01..04 为指令遵循 structure（`strict_response`）；其余 hard/extreme 为普通 structure。
 
-### architecture-easy-01 高 QPS 商品详情缓存（5 组）
-1. 缓存商品详情快照/热点数据（缓存、cache）
-2. 键按商品 id / sku 设计，如 `item:{sku}`（键、sku）
-3. 穿透用空值缓存或布隆过滤器；击穿用互斥锁 / singleflight（击穿、穿透、布隆、互斥锁）
-4. TTL 加随机抖动，避免同时失效（过期、ttl）
-5. 热点预热，提前加载（热点、预热）
+### architecture-easy-01 高 QPS 商品详情缓存（keyword，4 组，min_hits=4）
+1. 缓存商品详情（缓存、cache）
+2. 键按商品 id / sku（键、key、sku）
+3. TTL / 过期（ttl、过期、失效）
+4. 击穿防护：互斥锁 / singleflight / 预热（击穿、互斥锁、singleflight、预热）
 
-### architecture-easy-02 Session vs JWT（5 组）
-1. Session 适合传统 Web、需要即时注销的场景（session、会话）
-2. JWT 适合跨服务/移动端无状态鉴权（jwt、token）
-3. 注销：Session 删服务端记录即可；JWT 需黑名单或短有效期+refresh（注销、吊销）
-4. Session 有服务端存储；JWT 无状态、服务端不存（无状态、存储）
-5. JWT 体积大、随请求携带；密钥轮换要支持多 key 验签（体积、密钥、轮换）
+### architecture-medium-01 推荐 API 灰度（keyword，5 组，min_hits=5）
+1. 灰度 / 金丝雀 / 切流
+2. 明确比例或白名单（5%、10%、1%、白名单）
+3. 错误率 / p99 / 延迟
+4. 超时 / 5xx / 可用率 / 点击率 / 转化率 / cpu
+5. 可执行回滚条件
 
-### architecture-easy-03 下单后发短信/积分（4 组）
-1. 引入消息队列异步解耦，下单接口只写消息（队列、异步、解耦）
-2. 至少一次投递靠重试 + 持久化（至少一次、重试）
-3. 重复消费靠幂等/去重（业务唯一键）（幂等、去重）
-4. 消费者处理完再 ack，失败重投（消费者、ack、确认）
+### architecture-hard-01..04 离线部署审批协议（`v2_architecture_hard_*.py`，指令题）
+单行紧凑 JSON，键顺序按分支。权威期望见 `STRUCTURE` / v2 fixture / `docs/bank-v2-design.md`。
 
-### architecture-medium-01 单体不要急着拆微服务（5 组）
-1. 团队小、请求量低、边界不清时不该拆（不该拆、过早拆）
-2. 拆了徒增团队沟通与认知负担（团队、沟通、认知负担）
-3. 跨服务事务和数据一致性变难（事务、一致性、分布式事务）
-4. 运维、部署、可观测复杂度飙升（运维、部署、复杂度）
-5. 先在单体里按领域划模块、理清边界（边界、领域、模块）
+```json
+{"status":"OK","kept":["c","a"],"trace":["TAKE","DENY","TAKE","DUP"],"remaining":0}
+{"status":"OK","kept":["z","x"],"trace":["TAKE","LIMIT","TAKE","DUP"],"remaining":1}
+{"status":"OK","kept":["q"],"trace":["DENY","TAKE","DUP","LIMIT"],"remaining":4}
+{"status":"IMPOSSIBLE","conflict":["R0","R9"]}
+```
 
-### architecture-medium-02 网关限流/超时/重试（4 组）
-1. 限流防流量超载打垮后端（限流、配额）
-2. 超时防慢依赖拖死调用方线程（超时、timeout）
-3. 重试补偿偶发失败（重试、retry）
-4. 重试会放大故障成重试风暴/雪崩，须配退避、预算和幂等（雪崩、重试风暴、放大）
+旧 keyword（深分页 / 视频上传 / Redis 锁 / 支付回调）以及 OFFSET_SCAN JSON **不是**现行 hard-01..04。
 
-### architecture-medium-03 日志/指标/追踪分工（4 组）
-1. 日志：单次请求的详细现场，能看到那笔订单扣库存的分支与报错（日志、log）
-2. 指标：聚合趋势与报警，如「扣库存失败率突增」（指标、metric、监控）
-3. 追踪：一次请求跨服务的 span 链，定位断在哪一跳（追踪、trace、span）
-4. 三者用请求 id / 调用链串起来互相跳转（请求、链路、调用链）
+### architecture-hard-05 outbox（`a_hard_05.py`）
 
-### architecture-hard-01 OFFSET 200000 深分页（4 组）
-1. 深分页要扫过并丢弃前 20 万行，代价随页数线性涨（深分页、offset）
-2. 建 (created_at, id) 复合索引（索引、index）
-3. 用游标/seek 分页：`WHERE (created_at, id) < (?, ?) ORDER BY ... LIMIT n`（游标、seek、created_at）
-4. OFFSET 扫描慢且伤缓冲池（扫描、慢、代价）
+```json
+{"atomic_write":"ONE_DB_TRANSACTION","publisher_retry":"RETRY_UNSENT","consumer_key":"event_id","ack_order":"COMMIT_THEN_ACK","dead_letter":"AFTER_MAX_RETRIES","replay":"IDEMPOTENT"}
+```
 
-### architecture-hard-02 2GB 视频上传（5 组）
-1. 直传对象存储（OSS/S3/COS）（对象存储）
-2. 浏览器拿预签名 URL 直传（直传、预签名）
-3. 经应用服务器中转会吃双份带宽、占连接（带宽、中转）
-4. 预签名 URL 限定桶/键/大小并短时过期，即鉴权（鉴权、过期）
-5. 上传完成回调后异步病毒扫描，过检才可见（扫描、病毒、回调）
+### architecture-extreme-01 钱包冲正（`v2_architecture_extreme_01.py`）
 
-### architecture-easy-04 读写分离后读到旧昵称（5 组）
-1. 一主多从，读打到从库（主从、从库、复制）
-2. 复制是异步的，存在延迟（延迟、lag、异步）
-3. 缓解一：写后短窗口内强制读主（读主、强制走主、强一致）
-4. 缓解二：会话粘性，同一用户写后读走同一路径（会话、粘性、写后读）
-5. 缓解三：客户端本地回显/缓存新值，或按 GTID 位点等待从库追上（缓存、gtid、位点）
+```json
+{"actions":["APPLY","FUNDS","DUP","APPLY","APPLY","REFUND_LIMIT","APPLY"],"balance":7,"refundable_a":9,"seen":["a","b","c","d","e","f"]}
+```
 
-### architecture-medium-04 推荐服务灰度发布（5 组）
-1. 金丝雀：先放小比例实例/用户（灰度、金丝雀、canary）
-2. 切流按权重逐步放大（1%→5%→25%→100%），可先白名单（流量、权重、比例）
-3. 观察错误率、p99 延迟、业务指标，与基线对比（指标、错误率、p99）
-4. 指标越阈值自动回滚到旧版本（回滚、rollback）
-5. 新旧版本共存期间接口与 schema 必须兼容，必要时双写（兼容、双写、schema）
+### architecture-extreme-02 发布回滚（`a_extreme_02.py`）
 
-### architecture-hard-03 Redis 互斥锁（5 组）
-1. `SET key val NX PX ttl` 原子拿锁实现互斥（setnx、互斥）
-2. 必须带过期时间，防实例宕机死锁（过期、ttl）
-3. 任务没跑完锁要到期：看门狗定期续期（续期、看门狗）
-4. value 放唯一标识，释放用 Lua 先校验再删，防误删别人的锁（唯一、标识、lua、校验）
-5. 锁过期后旧持有者还在跑：下游用 fencing token / epoch 兜底（fencing、fence、epoch）
+```json
+{"read_mode":"OLD_FIRST","rollback_mode":"ROLL_BACK_APP_ONLY","data_action":"BACKFILL_THEN_RETRY","compat_window":10,"lost_records":0}
+```
 
-### architecture-hard-04 支付回调防重与补单（5 组）
-1. 回调按第三方流水号做幂等：唯一索引/去重表，重复直接返回成功（幂等、去重、唯一索引）
-2. 订单状态机只允许合法迁移，已到终态（已支付）的回调不再入账（状态机、终态、已支付）
-3. 漏单靠定时对账 + 主动查询第三方订单状态补单（对账、补单、主动查询）
-4. 入账与改状态在一个事务里，保证原子（事务、原子、一致）
-5. 乱序用版本号/第三方时间戳判断，旧通知不覆盖新状态（版本号、时间戳、序号）
+### architecture-extreme-03 fencing/CAS（`v2_architecture_extreme_03.py`）
+
+```json
+{"actions":["ACCEPT","STALE","CONFLICT","ACCEPT","ACCEPT"],"token":10,"version":6,"value":50}
+```
+
+### architecture-extreme-04 版本向量（`a_extreme_04.py`）
+
+```json
+{"relation":"CONCURRENT","resolution":"MANUAL_MERGE","value":"A+B","vector":{"east":5,"west":4},"audit":"RETAIN_BOTH"}
+```
+
+### architecture-extreme-05 共享预算（`a_extreme_05.py`）
+
+```json
+{"global_limit":240,"burst_capacity":60,"accepted_s1":300,"accepted_s2":60,"rejected_policy":"DROP_NO_REFUND","recovery":"RETRY_IDEMPOTENT"}
+```
+
+非现行题号（easy-02..04、medium-02..04、旧 keyword hard）已从 `questions.yaml` 移除，不要按旧答案改 fixture。
 
 ## 二、编码域（12 题 ×3 语言，code_tests，POINTS 满点才 pass）
 
@@ -368,90 +362,108 @@ def plan_tasks(tasks, deps):
     return out if len(out) == len(tasks) else None
 ```
 
-## 三、知识域（12 题）
+## 三、知识域（12 题，全部 structure / bank-v2.1 RFC）
 
-### 直觉陷阱（alias，match: exact，1 点）
+权威期望见 `STRUCTURE` 与 `bank/tests/v2_knowledge_*.py`，说明见 `docs/bank-v2-design.md`。
+现行 `knowledge-hard-01` **不是** `c05_nested.py`。旧 alias 直觉陷阱、`c05_nested` / `c06_lines` / `c07_array` / `c08_oneline` / `c09_lines6` / `c10_meta` 已作废。
 
-| 题号 | 题意 | 标准答案 |
+| 题号 | fixture | 参考 JSON |
 |---|---|---|
-| knowledge-easy-01 | 热锅里放 7 颗冰糖，两分钟后完整颗数 | `0` |
-| knowledge-easy-02 | 纸箱触地后人才下楼，箱子在哪 | `地面`（也收 `一楼`/`一层`/`1楼`） |
-| knowledge-easy-03 | 已确认死亡的金鱼活着的概率（百分数） | `0` |
-| knowledge-easy-04 | 一公斤棉花 vs 一公斤铁哪个重 | `一样重` |
-| knowledge-medium-01 | 正轨 4 具遗体、侧轨 1 名活人，扳不扳 | `不扳` |
-| knowledge-medium-04 | 先涨 10% 再降 10%，与原价比 | `更低`（0.99 倍） |
+| knowledge-easy-01 | `v2_knowledge_easy_01.py` | `{"address":"2001:db8::1:0:0:1"}` |
+| knowledge-medium-01 | `v2_knowledge_medium_01.py` | `{"service":"UNAVAILABLE","alias_allowed":false}` |
+| knowledge-hard-01 | `v2_knowledge_hard_01.py` | `{"relations":["NEWER","OLDER","UNDEFINED","EQUAL"],"add_250_10":4}` |
+| knowledge-hard-02 | `v2_knowledge_hard_02.py` | `{"ttl":240,"nxdomain_key":["QNAME","QCLASS"],"nodata_key":["QNAME","QTYPE","QCLASS"]}` |
+| knowledge-hard-03 | `v2_knowledge_hard_03.py` | `{"type":"TYPE65400","rdata":"\\# 3 00ff10","compress_names":false}` |
+| knowledge-hard-04 | `v2_knowledge_hard_04.py` | `{"base64url":"_w==","base32":"74======","pad_bits_zero":true}` |
+| knowledge-hard-05 | `v2_knowledge_hard_05.py` | `{"addresses":["2001:db8:0:1:2:3:4:5","2001::2:0:0:3:4","::"]}` |
+| knowledge-extreme-01 | `v2_knowledge_extreme_01.py` | `{"after_first":4,"after_second":32771,"third_defined":false,"second_relation":"NEWER"}` |
+| knowledge-extreme-02 | `v2_knowledge_extreme_02.py` | `{"x_hit":true,"y_hit":false,"x_remaining":30,"y_a_remaining":40}` |
+| knowledge-extreme-03 | `v2_knowledge_extreme_03.py` | `{"first":["b","c"],"next":["a"],"weight_scope":"SAME_PRIORITY","target_alias":"FORBIDDEN"}` |
+| knowledge-extreme-04 | `v2_knowledge_extreme_04.py` | `{"encodings":["MY======","MZXQ====","MZXW6==="],"alphabet_last":"7","bits_per_symbol":5}` |
+| knowledge-extreme-05 | `v2_knowledge_extreme_05.py` | `{"lengths":[0,4],"hex_digits":[0,8],"empty_valid":true,"type_731":"TYPE731"}` |
 
-### 结构遵循（structure，逐条计点）
-
-**knowledge-medium-02**（`c06_lines.py`，7 点）期望 text 块：
-
-```text
-<<HEAD>>
-drahcro
-7
-dra*cro
-<<TAIL>>
-```
-
-**knowledge-medium-03**（`c08_oneline.py`，7 点）期望单行 JSON（原文必须出现 `-0`，空格 ≤3）：
-
-```json
-{"z":{"z":{"z":"ok"}},"a":[],"z2":-0}
-```
-
-**knowledge-hard-01**（`c05_nested.py`，8 点）期望 JSON（第 4 层键是 `0k`）：
-
-```json
-{"root":{"ok":{"ok":{"ok":{"0k":{"ok":{"tip":42,"_":[0,null,false]}}}}}}}
-```
-
-**knowledge-hard-02**（`c07_array.py`，8 点）期望 JSON 数组（下标 3 是 null，末位 mark 大写）：
-
-```json
-[{"i":0,"sq":0,"mark":"n"},{"i":1,"sq":1,"mark":"n"},{"i":2,"sq":4,"mark":"n"},null,{"i":4,"sq":16,"mark":"n"},{"i":5,"sq":25,"mark":"N"}]
-```
-
-**knowledge-hard-03**（`c09_lines6.py`，8 点）期望 text 块（signal 去元音 `sgnl`）：
-
-```text
-[[v2]]
-sgnl
-sgnl-sgnl
-9
-lngs
-[[end]]
-```
-
-**knowledge-hard-04**（`c10_meta.py`，8 点）期望 JSON（`v` 原文必须写 `1e2`）：
-
-```json
-{"data":["0",0,false,null],"meta":{"v":1e2,"k k":{}}}
-```
-
-## 四、推理域（12 题）
+## 四、推理域（18 题）
 
 ### 单答案推理（alias，match: exact，1 点）
 
-| 题号 | 题意 | 标准答案 | 解析 |
-|---|---|---|---|
-| reasoning-easy-01 | 数列 2,6,12,20,30 下一项 | `42` | 通项 n(n+1)，6×7=42 |
-| reasoning-easy-02 | 甲乙丙谁说真话 | `乙` | 设甲真则丙也真，矛盾；甲谎→乙真→丙谎，自洽且唯一 |
-| reasoning-easy-03 | 周三之后 100 天 | `星期五`（也收 `周五`） | 100 mod 7 = 2，周三 + 2 = 周五 |
-| reasoning-easy-04 | 50 人容斥 | `15` | 至少会一样 50−10=40；30+25−40=15 |
-| reasoning-medium-01 | 8 球找重球最少称几次 | `2` | 3+3 上秤：平则剩 2 个再称 1 次；不平则重的 3 个里 1+1 再称 1 次 |
-| reasoning-medium-02 | 小钱的职业 | `医生` | 小孙排除工程师和医生→教师；小赵不是医生→医生只能是小钱 |
-| reasoning-medium-03 | 草地湿能否断定下雨 | `不能` | 肯定后件谬误：洒水车等也能让草地湿 |
-| reasoning-medium-04 | 三场会议最少几间会议室 | `3` | 10:15–10:30 三场同时进行，峰值重叠数 3 |
-| reasoning-hard-01 | A 说「我和 B 都是说谎者」，B 是什么 | `诚实者` | A 若诚实则自己是说谎者，矛盾→A 说谎→「都是说谎者」为假→B 诚实 |
-| reasoning-hard-02 | 100 盏灯按倍数轮流按开关 | `10` | 第 i 盏被按 d(i) 次，奇数次仅完全平方数：1,4,…,100 共 10 个 |
-| reasoning-hard-04 | 数字谜三位数 | `844` | 设个位 u：百位 2u，十位 2u−u=u，和 4u=16→u=4→844 |
+| 题号 | 题意 | 标准答案 |
+|---|---|---|
+| reasoning-easy-01 | 1,4,9,16,25 下一项 | `36` |
+| reasoning-easy-02 | 40 人容斥，两者都会几人 | `6` |
+| reasoning-medium-01 | 甲乙丙职业约束，乙的职业 | `教师` |
+| reasoning-medium-02 | 至少一红条件下两红概率 | `1/3` |
 
-### 结构化推理（structure，逐条计点）
+旧 alias 表（2,6,12,20,30→42、甲乙丙谁说真话、hard-01 说谎者等）对应的题号已改写，不要用来改 fixture。
 
-**reasoning-hard-03**（`c11_logic_grid.py`，8 点）逻辑网格。
-推导：C 在 1 层且喝茶的在 2 层→C 不喝茶；B 喝咖啡→C 喝可乐→A 喝茶→A 在 2 层→B 在 3 层。
-期望 JSON：
+### 指令遵循（`v2_reasoning_hard_01..04.py`，`strict_response`）
 
 ```json
-{"A": {"floor": 2, "drink": "茶"}, "B": {"floor": 3, "drink": "咖啡"}, "C": {"floor": 1, "drink": "可乐"}}
+{"status":"OK","kept":["o","m"],"trace":["TAKE","LIMIT","TAKE","DUP"],"remaining":0}
+{"status":"OK","kept":["w","u"],"trace":["TAKE","DENY","TAKE","DUP"],"remaining":0}
+{"status":"IMPOSSIBLE","conflict":["R0","R9"]}
+{"status":"OK","kept":["x","z"],"trace":["TAKE","TAKE","LIMIT","DUP"],"remaining":1}
+```
+
+旧 `c11_logic_grid.py` / `r_hard_01..04` JSON **不是**现行 hard-01..04。
+
+### 未改写 structure
+
+**reasoning-hard-05**（`r_hard_05.py`）
+
+```json
+{"truth":[true,true,false],"liar_count":1,"consistent":true}
+```
+
+**reasoning-hard-06**（`r_hard_06.py`）4 色水杯配对。最坏最少交换 8；7 不够。
+
+```json
+{"swaps":8,"seven_enough":false}
+```
+
+**reasoning-hard-07**（`r_hard_07.py`）手套。右手任意两色最多 8 只，9 只右必齐三色，再加 1 左保证同色一对。
+
+```json
+{"n":10,"left":1,"right":9}
+```
+
+**reasoning-hard-08**（`r_hard_08.py`）光滑/粗糙球。12 只粗糙：R+G 最多 7，必有粗糙蓝；R+B 最多 11，必有粗糙绿。
+
+```json
+{"n":12,"smooth":0,"rough":12}
+```
+
+**reasoning-hard-09**（`r_hard_09.py`）线性探测。H(2022)=1、H(12)=1→2、H(25)=4；删 25 留墓碑。失败 ASL=1.8。
+
+```json
+{"h2022":1,"h12":2,"h25":4,"asl_fail":1.8}
+```
+
+**reasoning-extreme-01**（`v2_reasoning_extreme_01.py`）依赖/互斥背包。旧 `r_extreme_01.py` 的 `counterfactual_*` JSON 已作废。
+
+```json
+{"base_indices":[1,3,4],"base_value":18,"changed_indices":[0,2],"changed_value":19,"delta":1}
+```
+
+**reasoning-extreme-02**（`r_extreme_02.py`）
+
+```json
+{"trace":[5,10,13,10,13],"final":13,"rolled_back":"ADD_3","replayed":"ADD_3"}
+```
+
+**reasoning-extreme-03**（`r_extreme_03.py`）
+
+```json
+{"max_confidence":0.8,"decision":"CONFLICT","value":null,"witness":["E1","E2"]}
+```
+
+**reasoning-extreme-04**（`r_extreme_04.py`）`witness` 为 `BIND_SUM`。
+
+```json
+{"x":2,"y":5,"cost":3,"optimal":true,"witness":"BIND_SUM"}
+```
+
+**reasoning-extreme-05**（`v2_reasoning_extreme_05.py`）最短路径计数。旧 `difference` 字段 JSON 已作废。
+
+```json
+{"path":["A","B","D"],"cost":5,"count":5,"changed_path":["A","B","E","D"],"changed_cost":5,"changed_count":3}
 ```

@@ -21,7 +21,10 @@ python -m src.cli bank   --target examples/targets.yaml --quick --stream-metrics
 python -m src.cli audit  --target examples/targets.yaml --quick
 python -m src.cli audit  --target examples/targets.yaml
 python -m src.cli gallery --run out/run-a --run out/run-b --out out/gallery
+python -m src.cli shell  --target examples/targets.yaml --peers glm-5.3-flash
 ```
+
+`shell` 只跑附录（wrapper 常数、同网关 SKU 卡、错误信封），不改家族 / 判真 / 降智。`--peers` 省略时，若 `claimed_model` 和 target 不同，就拿声称型号当对照。
 
 对照页：`out/gallery/gallery.html`（基层数据同目录 `gallery.json`）。每场 run 也会写 `gallery.json`。
 

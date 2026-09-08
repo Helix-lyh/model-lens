@@ -12,7 +12,7 @@ from src.config import load_targets
 from src.compare import decide_degrade, decide_identity
 from src.catalog import lookup_claimed_family
 from src.family import format_family_line
-from src.types import BankResult, DegradeResult, FamilyResult, IdentityResult, Targets
+from src.types import BankResult, DegradeResult, Endpoint, FamilyResult, IdentityResult, Targets
 
 
 def _project_root() -> Path:
@@ -83,6 +83,9 @@ def _write_report(
     bank_ref: BankResult | None = None,
     identity: IdentityResult | None = None,
     degrade: DegradeResult | None = None,
+    wrapper=None,
+    sku=None,
+    envelopes=None,
 ) -> None:
     from src.report import write_run_report
 
@@ -94,7 +97,57 @@ def _write_report(
         bank_ref=bank_ref,
         identity=identity,
         degrade=degrade,
+        wrapper=wrapper,
+        sku=sku,
+        envelopes=envelopes,
     )
+
+
+def resolve_shell_peers(targets: Targets, peers_arg: str | None) -> list[str]:
+    """对照 id：--peers 优先；否则用 claimed_model（和 target 不同才收）。"""
+    target_id = targets.target.model
+    if peers_arg:
+        return [p.strip() for p in peers_arg.split(",") if p.strip() and p.strip() != target_id]
+    claimed = (targets.claimed_model or "").strip()
+    if claimed and claimed != target_id:
+        return [claimed]
+    return []
+
+
+def _peer_client(endpoint: Endpoint, model: str, run_dir: Path, *, timeout_s: float) -> ChatClient:
+    from dataclasses import replace
+
+    return _client(replace(endpoint, model=model), run_dir, timeout_s=timeout_s)
+
+
+def _run_shell_layers(
+    client: ChatClient,
+    targets: Targets,
+    run_dir: Path,
+    *,
+    peers: list[str],
+    timeout_s: float,
+):
+    from src.catalog import load_catalog
+    from src.envelopes import format_envelopes_line, run_envelopes
+    from src.sku import format_sku_line, run_catalog_ab
+    from src.wrapper import format_wrapper_line, run_wrapper
+
+    catalog = load_catalog(_project_root())
+    wrapper = run_wrapper(client, catalog)
+    print(format_wrapper_line(wrapper))
+
+    clients = {targets.target.model: client}
+    for peer_id in peers:
+        clients[peer_id] = _peer_client(
+            targets.target, peer_id, run_dir, timeout_s=timeout_s
+        )
+    sku = run_catalog_ab(clients, target_id=targets.target.model)
+    print(format_sku_line(sku))
+
+    envelopes = run_envelopes(client)
+    print(format_envelopes_line(envelopes))
+    return wrapper, sku, envelopes
 
 
 def _cmd_family(args: argparse.Namespace) -> int:
@@ -204,6 +257,29 @@ def _cmd_gallery(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_shell(args: argparse.Namespace) -> int:
+    targets = load_targets(args.target)
+    run_dir = _new_run_dir(Path(args.out))
+    client = _client(targets.target, run_dir, timeout_s=args.timeout)
+    wrapper, sku, envelopes = _run_shell_layers(
+        client,
+        targets,
+        run_dir,
+        peers=resolve_shell_peers(targets, args.peers),
+        timeout_s=args.timeout,
+    )
+    _write_report(
+        run_dir,
+        targets,
+        family=None,
+        wrapper=wrapper,
+        sku=sku,
+        envelopes=envelopes,
+    )
+    print(run_dir)
+    return 0
+
+
 def _print_bank(bank: BankResult, *, label: str = "target") -> None:
     parts = [
         f"bank[{label}]",
@@ -224,7 +300,7 @@ def _print_bank(bank: BankResult, *, label: str = "target") -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="model-lens",
-        description="词表家族 / 题库 / 判真 / 降智粗筛",
+        description="词表家族 / 题库 / 判真 / 降智粗筛；shell 只跑附录（壳 / SKU / 信封）",
     )
     sub = parser.add_subparsers(dest="cmd", required=True)
 
@@ -297,6 +373,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_concurrency(p_audit)
     p_audit.set_defaults(func=_cmd_audit)
+
+    p_shell = sub.add_parser("shell", help="附录：wrapper / 同网关 SKU / 错误信封；不进 F/I/D")
+    p_shell.add_argument("--target", required=True)
+    p_shell.add_argument("--out", default="out")
+    p_shell.add_argument(
+        "--peers",
+        default=None,
+        help="同网关对照 id，逗号分隔；省略则用 claimed_model（与 target 不同时）",
+    )
+    p_shell.add_argument(
+        "--timeout",
+        type=float,
+        default=FAMILY_TIMEOUT_S,
+        help=f"单次请求超时秒，默认 {FAMILY_TIMEOUT_S:.0f}",
+    )
+    p_shell.set_defaults(func=_cmd_shell)
 
     return parser
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from src.gallery import build_gallery, write_gallery
 from src.reasoning import extract_reasoning
 from src.report import write_run_report
@@ -61,6 +63,9 @@ def test_gallery_html_switches_models(tmp_path) -> None:
                 ],
                 pass0=True,
                 score10=10.0,
+                construct="rfc_fact",
+                question_hash="qh-gallery",
+                fixture_hash="fh-gallery",
             )
         ],
         domain_pass0={
@@ -121,7 +126,7 @@ def test_gallery_html_switches_models(tmp_path) -> None:
     assert "支持" not in html
     assert "deepseek-v4-flash" in html
     assert "grok-4.5" in html
-    assert "商品单价" in html
+    assert "RFC 5952" in html
     assert "711.90" in html
     payload = build_gallery([run_a, run_b])
     assert payload["schema"] == "model-lens.gallery.v1"
@@ -137,6 +142,14 @@ def test_gallery_html_switches_models(tmp_path) -> None:
     assert payload["models"][0]["domain_points"]["knowledge"]["score10"] == 10.0
     assert payload["models"][0]["domains"]["reasoning"]["passed"] == 2
     assert payload["models"][0]["domain_points"]["reasoning"]["score10"] == 5.0
+    assert payload["models"][0]["bank_version"] == "bank-v2.1"
+    assert payload["models"][0]["scorer_version"] == "scorer-v2"
+    assert payload["models"][0]["sampling_protocol"] == "single-v1"
+    assert q0["construct"] == "rfc_fact"
+    assert q0["question_hash"] == "qh-gallery"
+    assert q0["fixture_hash"] == "fh-gallery"
+    assert '"sampling_protocol": "single-v1"' in data
+    assert "rfc_fact" in data
 def test_gallery_escapes_dynamic_model_metadata_and_script_terminators(tmp_path) -> None:
     run_dir = tmp_path / "<run-&>"
     malicious = "</script><img src=x onerror=alert(1)>&\"'"
@@ -199,3 +212,41 @@ def test_gallery_legacy_language_suffix_counts_one_cluster(tmp_path) -> None:
     assert model["raw_question_count"] == 1
     assert model["coding_cluster_count"] == 1
     assert model["coding_variant_count"] == 3
+
+
+def test_gallery_reads_bank_json_version_fields(tmp_path) -> None:
+    run_dir = tmp_path / "bank-only"
+    run_dir.mkdir()
+    (run_dir / "bank.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "model-lens.bank.v2",
+                "bank_version": "bank-v2.1",
+                "scorer_version": "scorer-v2",
+                "sampling_protocol": "single-v1",
+                "questions": [
+                    {
+                        "question_id": "knowledge-easy-01",
+                        "domain": "knowledge",
+                        "difficulty": "easy",
+                        "construct": "rfc_fact",
+                        "question_hash": "aaa",
+                        "fixture_hash": "bbb",
+                        "pass0": True,
+                        "samples": [{"status": "pass", "passed": True, "temperature": 0.0}],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    payload = build_gallery([run_dir])
+    model = payload["models"][0]
+    assert model["schema_version"] == "model-lens.bank.v2"
+    assert model["bank_version"] == "bank-v2.1"
+    assert model["scorer_version"] == "scorer-v2"
+    assert model["sampling_protocol"] == "single-v1"
+    q0 = model["questions"][0]
+    assert q0["construct"] == "rfc_fact"
+    assert q0["question_hash"] == "aaa"
+    assert q0["fixture_hash"] == "bbb"

@@ -16,5 +16,7 @@ func TestOrderEvents(t *testing.T) {
  n+=hitOrder([][2]string{{"s","SHIP"},{"p","PAY"},{"r","REFUND"}},map[string]interface{}{"state":"REFUNDED","applied":[]string{"p","r"},"rejected":[]string{"s"}})
  n+=hitOrder([][2]string{{"p","PAY"},{"r","REFUND"},{"s","SHIP"}},map[string]interface{}{"state":"REFUNDED","applied":[]string{"p","r"},"rejected":[]string{"s"}})
  n+=hitOrder([][2]string{{"p","PAY"},{"s","SHIP"},{"r","REFUND"},{"d","DELIVER"}},map[string]interface{}{"state":"REFUNDED","applied":[]string{"p","s","r"},"rejected":[]string{"d"}})
- fmt.Printf("POINTS %d/7\n",n)
+ n+=hitOrder([][2]string{{"p","PAY"},{"c","CANCEL"}},map[string]interface{}{"state":"PAID","applied":[]string{"p"},"rejected":[]string{"c"}})
+ n+=hitOrder([][2]string{{"p","PAY"},{"s","SHIP"},{"d","DELIVER"},{"r","REFUND"}},map[string]interface{}{"state":"DELIVERED","applied":[]string{"p","s","d"},"rejected":[]string{"r"}})
+ fmt.Printf("POINTS %d/9\n",n)
 }

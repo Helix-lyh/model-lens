@@ -380,7 +380,6 @@ func lexLess(a, b []int) bool {
 }
 func betterKnapsack(value, weight int, indices []int, bestValue, bestWeight int, bestIndices []int) bool {
     if value != bestValue { return value > bestValue }
-    if weight != bestWeight { return weight < bestWeight }
     return lexLess(indices, bestIndices)
 }
 func BoundedKnapsack(items [][2]int, capacity int) map[string]interface{} {
@@ -437,9 +436,8 @@ func OrderEvents(events [][2]string) map[string]interface{} {
     transitions := map[[2]string]string{
         {"CREATED", "PAY"}: "PAID", {"PAID", "SHIP"}: "SHIPPED",
         {"SHIPPED", "DELIVER"}: "DELIVERED", {"PAID", "REFUND"}: "REFUNDED",
-        {"SHIPPED", "REFUND"}: "REFUNDED", {"DELIVERED", "REFUND"}: "REFUNDED",
-        {"CREATED", "CANCEL"}: "CANCELLED", {"PAID", "CANCEL"}: "CANCELLED",
-        {"SHIPPED", "CANCEL"}: "CANCELLED",
+        {"SHIPPED", "REFUND"}: "REFUNDED",
+        {"CREATED", "CANCEL"}: "CANCELLED",
     }
     for _, event := range events {
         id, kind := event[0], event[1]
@@ -722,8 +720,7 @@ export function boundedKnapsack(items: Item[], capacity: number): KnapsackResult
     }
     if (weight > capacity) continue;
     if (value > best.value ||
-        (value === best.value && weight < best.weight) ||
-        (value === best.value && weight === best.weight && lexLess(indices, best.indices))) {
+        (value === best.value && lexLess(indices, best.indices))) {
       best = { value, weight, indices };
     }
   }
@@ -762,8 +759,8 @@ export function orderEvents(events: Array<[string, string]>): OrderResult {
   const seen = new Set<string>();
   const transitions: Record<string, string> = {
     "CREATED:PAY": "PAID", "PAID:SHIP": "SHIPPED", "SHIPPED:DELIVER": "DELIVERED",
-    "PAID:REFUND": "REFUNDED", "SHIPPED:REFUND": "REFUNDED", "DELIVERED:REFUND": "REFUNDED",
-    "CREATED:CANCEL": "CANCELLED", "PAID:CANCEL": "CANCELLED", "SHIPPED:CANCEL": "CANCELLED",
+    "PAID:REFUND": "REFUNDED", "SHIPPED:REFUND": "REFUNDED",
+    "CREATED:CANCEL": "CANCELLED",
   };
   for (const [id, kind] of events) {
     if (seen.has(id)) continue;

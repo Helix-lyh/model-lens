@@ -36,10 +36,19 @@ def write_run_report(
     bank_ref: BankResult | None = None,
     identity: IdentityResult | None = None,
     degrade: DegradeResult | None = None,
+    wrapper: Any = None,
+    sku: Any = None,
+    envelopes: Any = None,
 ) -> None:
     run_dir = Path(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
     payload = _run_payload(targets, family, extra, bank, bank_ref, identity, degrade)
+    if wrapper is not None:
+        payload["wrapper"] = asdict(wrapper) if is_dataclass(wrapper) else wrapper
+    if sku is not None:
+        payload["sku"] = asdict(sku) if is_dataclass(sku) else sku
+    if envelopes is not None:
+        payload["envelopes"] = asdict(envelopes) if is_dataclass(envelopes) else envelopes
     traffic = summarize_jsonl(run_dir / "requests.jsonl")
     if traffic:
         payload["traffic"] = traffic
@@ -106,11 +115,13 @@ def _run_payload(
 
 def _report_struct(title: str, payload: dict[str, Any]) -> dict[str, Any]:
     fam = payload.get("family") or {}
+    bank = payload.get("bank")
     return {
         "title": title,
         "target": payload.get("target"),
         "claimed": payload.get("claimed"),
         "reference": payload.get("reference"),
+        "provenance": _bank_provenance(bank),
         "columns": {
             "family": _family_column(fam),
             "identity": payload.get("identity")
@@ -118,10 +129,13 @@ def _report_struct(title: str, payload: dict[str, Any]) -> dict[str, Any]:
             "degrade": payload.get("degrade") or {"status": "skipped"},
         },
         "traffic": payload.get("traffic"),
-        "bank": payload.get("bank"),
+        "bank": bank,
         "appendix": {
             "family_probes": fam.get("probes") or [],
             "family_scores": fam.get("scores") or [],
+            "wrapper": payload.get("wrapper"),
+            "sku": payload.get("sku"),
+            "envelopes": payload.get("envelopes"),
             "bank": payload.get("bank"),
             "bank_ref": payload.get("bank_ref"),
             "coding_agree": (payload.get("identity") or {}).get("coding_agree")
@@ -170,6 +184,7 @@ def _render_md(title: str, payload: dict[str, Any]) -> str:
             "## 附录",
             "",
             *_render_probe_table(fam),
+            *_render_shell_appendix(payload),
             *_render_bank_table(payload.get("bank"), "target"),
             *_render_bank_table(payload.get("bank_ref"), "reference"),
             *_render_coding_agree(identity.get("coding_agree") if isinstance(identity, dict) else None),
@@ -177,8 +192,88 @@ def _render_md(title: str, payload: dict[str, Any]) -> str:
     )
 
 
+def _render_shell_appendix(payload: dict[str, Any]) -> list[str]:
+    wrapper = payload.get("wrapper")
+    sku = payload.get("sku")
+    envelopes = payload.get("envelopes")
+    if not any(isinstance(x, dict) for x in (wrapper, sku, envelopes)):
+        return []
+    lines = [
+        "### 壳 / 适配器（不进 F/I/D）",
+        "",
+        "- 对照词表只当本地计数器。不能证明是同一条权重。",
+        "",
+    ]
+    if isinstance(wrapper, dict):
+        lines.append(f"- wrapper：{_fmt_wrapper(wrapper)}")
+    if isinstance(sku, dict):
+        lines.append(f"- sku：{_fmt_sku(sku)}")
+        for peer in sku.get("peers") or []:
+            if not isinstance(peer, dict):
+                continue
+            offset = peer.get("wrapper_offset")
+            signed = f"{offset:+d}" if type(offset) is int else "—"
+            lines.append(
+                f"  - vs {peer.get('peer_id')}: offset={signed} "
+                f"effort={peer.get('effort_none_kind') or '—'}；{peer.get('note') or ''}"
+            )
+    if isinstance(envelopes, dict):
+        lines.append(f"- envelopes：{_fmt_envelopes(envelopes)}")
+        for probe in envelopes.get("probes") or []:
+            if not isinstance(probe, dict):
+                continue
+            lines.append(
+                f"  - {probe.get('name')}: http={_cell(probe.get('http'))} "
+                f"kind={probe.get('kind') or '—'}"
+            )
+    lines.append("")
+    return lines
+
+
+def _fmt_wrapper(wrapper: dict[str, Any]) -> str:
+    status = wrapper.get("status") or "—"
+    cid = wrapper.get("catalog_id")
+    value = wrapper.get("value")
+    spread = wrapper.get("spread")
+    parts = [str(status)]
+    if cid:
+        parts.append(str(cid))
+    if type(value) is int:
+        parts.append(f"{value:+d}")
+    if spread is not None:
+        parts.append(f"spread={spread}")
+    if wrapper.get("untrusted_reason"):
+        parts.append(f"（{wrapper['untrusted_reason']}）")
+    return " ".join(parts)
+
+
+def _fmt_sku(sku: dict[str, Any]) -> str:
+    status = sku.get("status") or "—"
+    target = sku.get("target") if isinstance(sku.get("target"), dict) else {}
+    hi = target.get("hi_prompt_tokens")
+    note = sku.get("note") or ""
+    parts = [str(status)]
+    if hi is not None:
+        parts.append(f"hi={hi}")
+    if note:
+        parts.append(note)
+    return " ".join(parts)
+
+
+def _fmt_envelopes(envelopes: dict[str, Any]) -> str:
+    status = envelopes.get("status") or "—"
+    family = envelopes.get("family")
+    note = envelopes.get("note") or ""
+    parts = [str(family or status)]
+    if note:
+        parts.append(note)
+    return " ".join(parts)
+
+
 def _render_probe_table(fam: dict[str, Any]) -> list[str]:
     probes = fam.get("probes") or []
+    if not probes:
+        return []
     catalog_ids = _catalog_ids(probes)
     header = ["probe", "delta_api", *catalog_ids, "dropped"]
     lines = [
@@ -200,12 +295,24 @@ def _render_probe_table(fam: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _bank_provenance(bank: Any) -> dict[str, Any] | None:
+    if not isinstance(bank, dict):
+        return None
+    return {
+        "schema_version": bank.get("schema_version"),
+        "bank_version": bank.get("bank_version"),
+        "scorer_version": bank.get("scorer_version"),
+        "sampling_protocol": bank.get("sampling_protocol"),
+    }
+
+
 def _render_bank_bars(bank: Any, bank_ref: Any) -> list[str]:
     if not isinstance(bank, dict):
         return []
     lines = [
-        f"- 模式：{'快速（easy/medium，T=0）' if bank.get('quick') else '全量（四档，4 次采样）'}，原始题 {bank.get('raw_question_count') or _raw_count(bank)} 道，展开题 {bank.get('expanded_question_count') or bank.get('n_questions') or len(bank.get('questions') or [])} 道",
-        f"- 编码题：raw cluster {bank.get('coding_cluster_count') or '—'}，语言变体 {bank.get('coding_variant_count') or '—'}；主统计按 raw cluster 等权，可用语言缺测不按失败计",
+        f"- 版本：{_fmt_bank_versions(bank)}",
+        f"- 模式：{_fmt_bank_mode(bank)}，原始题 {bank.get('raw_question_count') or _raw_count(bank)} 道，展开题 {bank.get('expanded_question_count') or bank.get('n_questions') or len(bank.get('questions') or [])} 道",
+        f"- 编码题：raw cluster {bank.get('coding_cluster_count') or '—'}，语言变体 {bank.get('coding_variant_count') or '—'}；主统计按 raw cluster 等权（一题一票，不因三语展开加权）；三语言 missing 不进分母、不记 0 分",
         f"- 编码题可用语言口径：{_fmt_coding_stats(bank.get('coding_available'))}；三语齐全口径：{_fmt_coding_stats(bank.get('coding_strict'))}",
         f"- raw 难度矩阵：{_fmt_raw_matrix(bank)}",
         f"- 分域通过率（temperature=0，missing 不进分母）：{_fmt_domain_rates(bank)}",
@@ -213,15 +320,36 @@ def _render_bank_bars(bank: Any, bank_ref: Any) -> list[str]:
         f"- 分难度折合10：{_fmt_difficulty_score10(bank)}",
     ]
     if isinstance(bank_ref, dict):
+        lines.append(f"- 参考源版本：{_fmt_bank_versions(bank_ref)}")
         lines.append(f"- 参考源分域通过率：{_fmt_domain_rates(bank_ref)}")
         lines.append(f"- 参考源分域折合10：{_fmt_domain_score10(bank_ref)}")
         lines.append(f"- 参考源分难度折合10：{_fmt_difficulty_score10(bank_ref)}")
     alarm = bank.get("knowledge_alarm")
     if alarm:
         lines.append(f"- 知识冒烟：{alarm}")
-    lines.append("- 编码抽不出代码记 missing，不中断整场")
+    lines.append("- 编码抽不出代码或本机缺工具链记 missing，不中断整场，不进 D 分母")
     lines.append("")
     return lines
+
+
+def _fmt_bank_versions(bank: dict[str, Any]) -> str:
+    protocol = bank.get("sampling_protocol") or "—"
+    note = "single-v1=每题 1 次；旧 4 次采样是另一口径，不可混比"
+    return (
+        f"bank_version={bank.get('bank_version') or '—'}；"
+        f"scorer_version={bank.get('scorer_version') or '—'}；"
+        f"sampling_protocol={protocol}（{note}）"
+    )
+
+
+def _fmt_bank_mode(bank: dict[str, Any]) -> str:
+    scope = "快速（easy/medium，T=0）" if bank.get("quick") else "全量（四档）"
+    protocol = bank.get("sampling_protocol")
+    if protocol == "single-v1":
+        return f"{scope}，每题 1 次（sampling_protocol=single-v1）"
+    if protocol:
+        return f"{scope}，sampling_protocol={protocol}"
+    return f"{scope}，采样协议未标注"
 
 
 def _raw_count(bank: dict[str, Any]) -> int:
@@ -249,9 +377,13 @@ def _fmt_coding_stats(stats: Any) -> str:
     if not isinstance(stats, dict):
         return "—"
     rate = stats.get("rate")
-    return f"{stats.get('passed', 0)}/{stats.get('judged', 0)}" + (
-        f" ({rate})" if rate is not None else ""
-    )
+    missing = stats.get("missing")
+    text = f"{stats.get('passed', 0)}/{stats.get('judged', 0)}"
+    if rate is not None:
+        text += f" ({rate})"
+    if missing is not None:
+        text += f" missing={missing}"
+    return text
 
 
 def _fmt_domain_rates(bank: dict[str, Any]) -> str:
@@ -259,7 +391,9 @@ def _fmt_domain_rates(bank: dict[str, Any]) -> str:
     parts = []
     for domain in DOMAINS:
         row = rates.get(domain) or {}
-        parts.append(f"{domain} {row.get('passed', 0)}/{row.get('judged', 0)}")
+        parts.append(
+            f"{domain} {row.get('passed', 0)}/{row.get('judged', 0)} missing={row.get('missing', 0)}"
+        )
     return "；".join(parts)
 
 
@@ -298,10 +432,12 @@ def _render_bank_table(bank: Any, label: str) -> list[str]:
     lines = [
         f"### C 每题对错（{label}）",
         "",
-        "| id | domain | 难度 | pass0 | score10 | points | majority | samples |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| id | domain | 难度 | construct | pass0 | missing | score10 | points | majority | samples | question_hash | fixture_hash |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for q in bank.get("questions") or []:
+        if not isinstance(q, dict):
+            continue
         samples = q.get("samples") or []
         flags = ",".join(str(s.get("status")) for s in samples)
         first = samples[0] if samples else {}
@@ -315,17 +451,31 @@ def _render_bank_table(bank: Any, label: str) -> list[str]:
                     str(q.get("question_id") or ""),
                     str(q.get("domain") or ""),
                     _cell(q.get("difficulty")),
+                    _cell(q.get("construct")),
                     _cell(q.get("pass0")),
+                    _missing_cell(q),
                     _cell(q.get("score10")),
                     point_cell,
                     _cell(q.get("majority")),
                     flags,
+                    _cell(q.get("question_hash")),
+                    _cell(q.get("fixture_hash")),
                 ]
             )
             + " |"
         )
     lines.append("")
     return lines
+
+
+def _missing_cell(q: dict[str, Any]) -> str:
+    samples = q.get("samples") or []
+    n = sum(1 for s in samples if isinstance(s, dict) and s.get("status") == "missing")
+    if n:
+        return str(n)
+    if q.get("pass0") is None:
+        return "1"
+    return "0"
 
 
 def _render_coding_agree(block: Any) -> list[str]:

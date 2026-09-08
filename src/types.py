@@ -124,6 +124,7 @@ class Question:
     language: str | None = None
     raw_id: str | None = None
     cluster_id: str | None = None
+    construct: str | None = None
 
 
 @dataclass
@@ -151,6 +152,9 @@ class QuestionResult:
     raw_id: str | None = None
     cluster_id: str | None = None
     language: str | None = None
+    construct: str | None = None
+    question_hash: str | None = None
+    fixture_hash: str | None = None
 
 
 @dataclass
@@ -165,6 +169,9 @@ class BankResult:
     knowledge_alarm: str | None = None
     n_questions: int = 0
     schema_version: str = "model-lens.bank.v2"
+    bank_version: str = "bank-v2.1"
+    scorer_version: str = "scorer-v2"
+    sampling_protocol: str = "single-v1"
     raw_question_count: int = 0
     expanded_question_count: int = 0
     raw_domain_counts: dict[str, int] = field(default_factory=dict)

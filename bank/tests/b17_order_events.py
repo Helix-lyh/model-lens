@@ -18,4 +18,6 @@ n += hit([("p", "PAY"), ("p", "PAY")], {"state": "PAID", "applied": ["p"], "reje
 n += hit([("s", "SHIP"), ("p", "PAY"), ("r", "REFUND")], {"state": "REFUNDED", "applied": ["p", "r"], "rejected": ["s"]}, "invalid-first")
 n += hit([("p", "PAY"), ("r", "REFUND"), ("s", "SHIP")], {"state": "REFUNDED", "applied": ["p", "r"], "rejected": ["s"]}, "refund")
 n += hit([("p", "PAY"), ("s", "SHIP"), ("r", "REFUND"), ("d", "DELIVER")], {"state": "REFUNDED", "applied": ["p", "s", "r"], "rejected": ["d"]}, "ship-refund")
-print(f"POINTS {n}/7")
+n += hit([("p", "PAY"), ("c", "CANCEL")], {"state": "PAID", "applied": ["p"], "rejected": ["c"]}, "paid-cancel")
+n += hit([("p", "PAY"), ("s", "SHIP"), ("d", "DELIVER"), ("r", "REFUND")], {"state": "DELIVERED", "applied": ["p", "s", "d"], "rejected": ["r"]}, "delivered-refund")
+print(f"POINTS {n}/9")

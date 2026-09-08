@@ -7,6 +7,6 @@ emit([
     ("renew", lambda d: d.get("a_renew") == "REJECT"),
     ("a-write", lambda d: d.get("a_write") == "REJECT_FENCING"),
     ("b-write", lambda d: d.get("b_write") == "ACCEPT"),
-    ("split", lambda d: strict_bool(d.get("brain_split")) and d["brain_split"] is True),
+    ("split", lambda d: strict_bool(d.get("brain_split")) and d["brain_split"] is False),
     ("guard", lambda d: d.get("required_guard") == "COMPARE_AND_SET_TOKEN"),
 ])

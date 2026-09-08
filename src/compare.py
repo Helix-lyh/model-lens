@@ -154,7 +154,7 @@ def decide_degrade(
     if p0_t is None or p0_r is None:
         return _degrade("skipped", "编码题有效样本不足", p0_t, p0_r, st_t, st_r, s10_t, s10_r)
     if st_t is None or st_r is None:
-        return _degrade("skipped", "无 4 次采样，算不了 stab", p0_t, p0_r, st_t, st_r, s10_t, s10_r)
+        return _degrade("skipped", "编码题缺少 pass0，算不了 stab", p0_t, p0_r, st_t, st_r, s10_t, s10_r)
 
     d0 = p0_r - p0_t
     ds = st_r - st_t
@@ -343,6 +343,9 @@ def _coding_pass0(bank: BankResult) -> float | None:
 
 def _coding_stab(bank: BankResult) -> float | None:
     judged = [value for value in _coding_clusters(bank, field="majority").values() if value is not None]
+    if not judged:
+        # single-v1 没有 majority；用 raw cluster 的 pass0 当稳定口径，避免 D 柱被静默 skipped。
+        judged = [value for value in _coding_clusters(bank, field="pass0").values() if value is not None]
     if not judged:
         return None
     return sum(1 for value in judged if value) / len(judged)

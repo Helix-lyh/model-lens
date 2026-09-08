@@ -238,14 +238,20 @@ def extract_structure_payload(text: str) -> str | None:
 
 
 def _grade_structure(question: Question, text: str, *, repo_root: Path) -> SampleGrade:
-    payload = extract_structure_payload(text)
-    if payload is None:
-        return SampleGrade(
-            temperature=0.0,
-            status="missing",
-            passed=None,
-            detail="no structured payload",
-            content=text,
+    # Strict protocol questions must be judged against the response bytes as returned:
+    # do not silently remove Markdown fences, surrounding whitespace, or explanations.
+    payload = text if question.grader.get("strict_response") else extract_structure_payload(text)
+    if payload is None or (question.grader.get("strict_response") and not str(payload).strip()):
+        # HTTP 200 空正文是答错，不是缺测。missing 只留给传输失败 / 无工具链。
+        return _apply_points(
+            SampleGrade(
+                temperature=0.0,
+                status="fail",
+                passed=False,
+                detail="no structured payload POINTS 0/1",
+                content=text,
+            ),
+            (0, 1),
         )
     rel = question.grader.get("tests_file")
     if not rel:

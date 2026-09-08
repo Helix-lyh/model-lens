@@ -224,9 +224,7 @@ def bounded_knapsack(items, capacity):
         value = sum(items[i][1] for i in chosen)
         if weight > capacity:
             continue
-        candidate = (value, -weight, [-i for i in chosen])
-        current = (best[0], -best[1], [-i for i in best[2]])
-        if candidate > current:
+        if value > best[0] or (value == best[0] and chosen < best[2]):
             best = (value, weight, chosen)
     return {"value": best[0], "weight": best[1], "indices": best[2]}
 """,
@@ -235,6 +233,7 @@ def apply_transactions(initial, txns):
     state = dict(initial)
     statuses = {}
     versions = {key: 0 for key in state}
+    next_version = 1
     for txn in sorted(txns, key=lambda x: x["commit"]):
         if any(versions.get(key, 0) > txn["begin"] for key in txn["writes"]):
             statuses[txn["id"]] = "ABORT"
@@ -242,7 +241,8 @@ def apply_transactions(initial, txns):
         statuses[txn["id"]] = "COMMIT"
         for key, value in txn["writes"].items():
             state[key] = value
-            versions[key] = txn["commit"]
+            versions[key] = next_version
+        next_version += 1
     return {"state": state, "statuses": statuses}
 """,
     "bank/tests/b17_order_events.py": """
@@ -255,10 +255,7 @@ def order_events(events):
         ("SHIPPED", "DELIVER"): "DELIVERED",
         ("PAID", "REFUND"): "REFUNDED",
         ("SHIPPED", "REFUND"): "REFUNDED",
-        ("DELIVERED", "REFUND"): "REFUNDED",
         ("CREATED", "CANCEL"): "CANCELLED",
-        ("PAID", "CANCEL"): "CANCELLED",
-        ("SHIPPED", "CANCEL"): "CANCELLED",
     }
     for event_id, event in events:
         if event_id in seen:
@@ -274,48 +271,28 @@ def order_events(events):
 """,
 }
 
+# Keys match current questions.yaml tests_file. v2 payloads equal fixture EXPECTED.
 STRUCTURE = {
-    "bank/tests/c09_lines6.py": "[[v2]]\nsgnl\nsgnl-sgnl\n9\nlngs\n[[end]]",
-    "bank/tests/c10_meta.py": '{"data": ["0", 0, false, null], "meta": {"v": 1e2, "k k": {}}}',
-    "bank/tests/c11_logic_grid.py": (
-        '{"A": {"floor": 2, "drink": "茶"}, "B": {"floor": 3, "drink": "咖啡"},'
-        ' "C": {"floor": 1, "drink": "可乐"}}'
-    ),
-    "bank/tests/a_hard_01.py": (
-        '{"failure_code":"OFFSET_SCAN","index_columns":["created_at","id"],'
-        '"pagination":"KEYSET","cursor_predicate":"(created_at,id)<(cursor_time,cursor_id)",'
-        '"rows_scanned":20}'
-    ),
-    "bank/tests/a_hard_02.py": (
-        '{"auth":"SIGNED_URL_900S","transport":"DIRECT_OBJECT_STORAGE",'
-        '"parts":{"size_mib":16},"scan":"QUARANTINED_TO_CLEAN_OR_REJECTED",'
-        '"publish":"CLEAN_ONLY"}'
-    ),
-    "bank/tests/a_hard_03.py": (
-        '{"redis_owner":"B","a_renew":"REJECT","a_write":"REJECT_FENCING",'
-        '"b_write":"ACCEPT","brain_split":true,"required_guard":"COMPARE_AND_SET_TOKEN"}'
-    ),
-    "bank/tests/a_hard_04.py": (
-        '{"events":["APPLY_SUCCESS","IGNORE_DUPLICATE","APPLY_REFUND","RECONCILE_GAP"],'
-        '"final_state":"PARTIALLY_REFUNDED","ledger_amount":60,"missing_seq":[5],'
-        '"idempotent_key":"payment_id+seq"}'
-    ),
+    "bank/tests/v2_architecture_hard_01.py": '{"status":"OK","kept":["c","a"],"trace":["TAKE","DENY","TAKE","DUP"],"remaining":0}',
+    "bank/tests/v2_architecture_hard_02.py": '{"status":"OK","kept":["z","x"],"trace":["TAKE","LIMIT","TAKE","DUP"],"remaining":1}',
+    "bank/tests/v2_architecture_hard_03.py": '{"status":"OK","kept":["q"],"trace":["DENY","TAKE","DUP","LIMIT"],"remaining":4}',
+    "bank/tests/v2_architecture_hard_04.py": '{"status":"IMPOSSIBLE","conflict":["R0","R9"]}',
     "bank/tests/a_hard_05.py": (
         '{"atomic_write":"ONE_DB_TRANSACTION","publisher_retry":"RETRY_UNSENT",'
         '"consumer_key":"event_id","ack_order":"COMMIT_THEN_ACK",'
         '"dead_letter":"AFTER_MAX_RETRIES","replay":"IDEMPOTENT"}'
     ),
-    "bank/tests/a_extreme_01.py": (
-        '{"actions":["APPLY","APPLY","REJECT_DUP","APPLY","FLAG"],'
-        '"balance":120,"accepted_seq":[1,2,3],"flags":1}'
+    "bank/tests/v2_architecture_extreme_01.py": (
+        '{"actions":["APPLY","FUNDS","DUP","APPLY","APPLY","REFUND_LIMIT","APPLY"],'
+        '"balance":7,"refundable_a":9,"seen":["a","b","c","d","e","f"]}'
     ),
     "bank/tests/a_extreme_02.py": (
         '{"read_mode":"OLD_FIRST","rollback_mode":"ROLL_BACK_APP_ONLY",'
         '"data_action":"BACKFILL_THEN_RETRY","compat_window":10,"lost_records":0}'
     ),
-    "bank/tests/a_extreme_03.py": (
-        '{"a_result":"REJECT_STALE","b_result":"ACCEPT","stored_token":12,'
-        '"stored_version":5,"lease_rule":"TOKEN_CHECK_AT_STORAGE"}'
+    "bank/tests/v2_architecture_extreme_03.py": (
+        '{"actions":["ACCEPT","STALE","CONFLICT","ACCEPT","ACCEPT"],'
+        '"token":10,"version":6,"value":50}'
     ),
     "bank/tests/a_extreme_04.py": (
         '{"relation":"CONCURRENT","resolution":"MANUAL_MERGE","value":"A+B",'
@@ -325,61 +302,30 @@ STRUCTURE = {
         '{"global_limit":240,"burst_capacity":60,"accepted_s1":300,"accepted_s2":60,'
         '"rejected_policy":"DROP_NO_REFUND","recovery":"RETRY_IDEMPOTENT"}'
     ),
-    "bank/tests/k_hard_01.py": (
-        '{"reading_mA":2.4,"upper_mA":2.52,"risk":"HIGH","unit":"mA"}'
-    ),
-    "bank/tests/k_hard_02.py": (
-        '{"chosen_source":"lab","chosen_value":18,"discarded":["R2","R3"]}'
-    ),
-    "bank/tests/k_hard_03.py": (
-        '{"after_discount":770.0,"tax_base":790.0,"tax":63.2,"total":853.2}'
-    ),
-    "bank/tests/k_hard_04.py": (
-        '{"labels":["AMBER","GREEN","RED","GREEN"],"red_count":1,"green_count":2}'
-    ),
-    "bank/tests/k_hard_05.py": (
-        '{"old_threshold":11,"new_threshold":15,"old_action":"HOLD",'
-        '"new_action":"RESTOCK"}'
-    ),
-    "bank/tests/k_extreme_01.py": (
-        '{"load_kwh":2.1,"battery_kwh":2.4,"days_supported":1.029,'
-        '"status":"ONE_DAY"}'
-    ),
-    "bank/tests/k_extreme_02.py": (
-        '{"before":"B","after":"NONE","before_reason":"B_MEETS_RULE",'
-        '"after_reason":"NO_QUALIFIED_SUPPLIER"}'
-    ),
-    "bank/tests/k_extreme_03.py": (
-        '{"fail_weight":0.9,"pass_weight":1.0,"decision":"PASS","margin":0.1}'
-    ),
-    "bank/tests/k_extreme_04.py": (
-        '{"winning_rule":"R3","decision":"REVIEW",'
-        '"suppressed_rules":["R2","R1"],"evidence_count":1}'
-    ),
-    "bank/tests/k_extreme_05.py": (
-        '{"before_total":1029.0,"before_decision":"REVIEW","after_total":999.6,'
-        '"after_decision":"ACCEPT","delta":-29.4}'
-    ),
-    "bank/tests/r_hard_01.py": (
-        '{"order":["A","C","B","D"],"slot_A":1,"slot_D":4,"feasible":true}'
-    ),
-    "bank/tests/r_hard_02.py": (
-        '{"assignment":{"A":1,"B":1,"C":2,"D":2},'
-        '"loads":{"1":7,"2":7},"minimum_resources":2,"feasible":true}'
-    ),
-    "bank/tests/r_hard_03.py": (
-        '{"counterexample":2,"square":4,"divisible_by_4":false,"verdict":"FALSE"}'
-    ),
-    "bank/tests/r_hard_04.py": (
-        '{"path":["A","C","E","D"],"cost":7,"hops":3,"unique":true}'
-    ),
+    "bank/tests/v2_knowledge_easy_01.py": '{"address":"2001:db8::1:0:0:1"}',
+    "bank/tests/v2_knowledge_medium_01.py": '{"service":"UNAVAILABLE","alias_allowed":false}',
+    "bank/tests/v2_knowledge_hard_01.py": '{"relations":["NEWER","OLDER","UNDEFINED","EQUAL"],"add_250_10":4}',
+    "bank/tests/v2_knowledge_hard_02.py": '{"ttl":240,"nxdomain_key":["QNAME","QCLASS"],"nodata_key":["QNAME","QTYPE","QCLASS"]}',
+    "bank/tests/v2_knowledge_hard_03.py": '{"type":"TYPE65400","rdata":"\\\\# 3 00ff10","compress_names":false}',
+    "bank/tests/v2_knowledge_hard_04.py": '{"base64url":"_w==","base32":"74======","pad_bits_zero":true}',
+    "bank/tests/v2_knowledge_hard_05.py": '{"addresses":["2001:db8:0:1:2:3:4:5","2001::2:0:0:3:4","::"]}',
+    "bank/tests/v2_knowledge_extreme_01.py": '{"after_first":4,"after_second":32771,"third_defined":false,"second_relation":"NEWER"}',
+    "bank/tests/v2_knowledge_extreme_02.py": '{"x_hit":true,"y_hit":false,"x_remaining":30,"y_a_remaining":40}',
+    "bank/tests/v2_knowledge_extreme_03.py": '{"first":["b","c"],"next":["a"],"weight_scope":"SAME_PRIORITY","target_alias":"FORBIDDEN"}',
+    "bank/tests/v2_knowledge_extreme_04.py": '{"encodings":["MY======","MZXQ====","MZXW6==="],"alphabet_last":"7","bits_per_symbol":5}',
+    "bank/tests/v2_knowledge_extreme_05.py": '{"lengths":[0,4],"hex_digits":[0,8],"empty_valid":true,"type_731":"TYPE731"}',
+    "bank/tests/v2_reasoning_hard_01.py": '{"status":"OK","kept":["o","m"],"trace":["TAKE","LIMIT","TAKE","DUP"],"remaining":0}',
+    "bank/tests/v2_reasoning_hard_02.py": '{"status":"OK","kept":["w","u"],"trace":["TAKE","DENY","TAKE","DUP"],"remaining":0}',
+    "bank/tests/v2_reasoning_hard_03.py": '{"status":"IMPOSSIBLE","conflict":["R0","R9"]}',
+    "bank/tests/v2_reasoning_hard_04.py": '{"status":"OK","kept":["x","z"],"trace":["TAKE","TAKE","LIMIT","DUP"],"remaining":1}',
     "bank/tests/r_hard_05.py": (
         '{"truth":[true,true,false],"liar_count":1,"consistent":true}'
     ),
-    "bank/tests/r_extreme_01.py": (
-        '{"base_indices":[0,2],"base_value":17,"counterfactual_indices":[0,2],'
-        '"counterfactual_value":17,"delta":0}'
-    ),
+    "bank/tests/r_hard_06.py": '{"swaps":8,"seven_enough":false}',
+    "bank/tests/r_hard_07.py": '{"n":10,"left":1,"right":9}',
+    "bank/tests/r_hard_08.py": '{"n":12,"smooth":0,"rough":12}',
+    "bank/tests/r_hard_09.py": '{"h2022":1,"h12":2,"h25":4,"asl_fail":1.8}',
+    "bank/tests/v2_reasoning_extreme_01.py": '{"base_indices":[1,3,4],"base_value":18,"changed_indices":[0,2],"changed_value":19,"delta":1}',
     "bank/tests/r_extreme_02.py": (
         '{"trace":[5,10,13,10,13],"final":13,"rolled_back":"ADD_3",'
         '"replayed":"ADD_3"}'
@@ -389,11 +335,11 @@ STRUCTURE = {
         '"witness":["E1","E2"]}'
     ),
     "bank/tests/r_extreme_04.py": (
-        '{"x":2,"y":5,"cost":3,"optimal":true,"witness":"x+y=7"}'
+        '{"x":2,"y":5,"cost":3,"optimal":true,"witness":"BIND_SUM"}'
     ),
-    "bank/tests/r_extreme_05.py": (
-        '{"base_indices":[0,1,3],"base_value":17,"changed_indices":[0,1,3],'
-        '"changed_value":17,"difference":0}'
+    "bank/tests/v2_reasoning_extreme_05.py": (
+        '{"path":["A","B","D"],"cost":5,"count":5,'
+        '"changed_path":["A","B","E","D"],"changed_cost":5,"changed_count":3}'
     ),
 }
 

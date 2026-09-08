@@ -46,7 +46,7 @@ def build_gallery(run_dirs: list[Path], *, root: Path | None = None) -> dict[str
 
 def build_model(run_dir: Path, questions: dict[str, Any]) -> dict[str, Any]:
     src = _read_json(run_dir / "report.json") or _read_json(run_dir / "family.json") or {}
-    bank = src.get("bank") or {}
+    bank = src.get("bank") or _read_json(run_dir / "bank.json") or {}
     by_kind = _index_jsonl(run_dir / "requests.jsonl")
     claimed = src.get("claimed")
     target = src.get("target") or {}
@@ -69,6 +69,9 @@ def build_model(run_dir: Path, questions: dict[str, Any]) -> dict[str, Any]:
         "difficulty_points": bank.get("difficulty_points") or {},
         "quick": bool(bank.get("quick")),
         "schema_version": bank.get("schema_version") or "model-lens.bank.v1",
+        "bank_version": bank.get("bank_version"),
+        "scorer_version": bank.get("scorer_version"),
+        "sampling_protocol": bank.get("sampling_protocol"),
         "raw_question_count": bank.get("raw_question_count") or _raw_count(bank),
         "expanded_question_count": bank.get("expanded_question_count") or bank.get("n_questions") or len(bank.get("questions") or []),
         "raw_domain_counts": bank.get("raw_domain_counts") or {},
@@ -193,6 +196,9 @@ def _question_row(item: dict[str, Any], spec: Any, by_kind: dict[str, dict[str, 
         "raw_id": item.get("raw_id") or (spec.raw_id if spec else None),
         "cluster_id": item.get("cluster_id") or (spec.cluster_id if spec else None),
         "language": spec.language if spec else item.get("language"),
+        "construct": item.get("construct") or (spec.construct if spec else None),
+        "question_hash": item.get("question_hash"),
+        "fixture_hash": item.get("fixture_hash"),
         "samples": _samples_for(item, qid, by_kind),
     }
 

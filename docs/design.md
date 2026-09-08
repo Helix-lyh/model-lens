@@ -146,8 +146,8 @@ Phase 1 必收（互不塌缩、均已核实可公开获取）：
 编号：`{architecture|coding|knowledge|reasoning}-{easy|medium|hard}-{两位序号}`，例如 `coding-medium-01`。  
 编码题加载时按语言展开为 `coding-medium-01-python` / `-go` / `-typescript`。  
 `--quick` 快速：只跑 easy/medium，每题 `temperature=0` 一次。  
-默认全量：三档都跑，每题 `0` 一次再 `0.7` × 3。  
-当前 48 条原始题（12 架构 + 12 知识 + 12 推理 + 12 编码），展开后 72 道；快速 48 道 × 1 次；全量 72 × 4 + F。
+默认全量：四档都跑，每题 `temperature=0` 一次。  
+当前 54 条原始题（12 架构 + 12 知识 + 18 推理 + 12 编码），展开后 78 道；快速 easy/medium 14 道展开实例 × 1 次；全量 78 × 1 + F。
 
 ### 3.2 出题
 
@@ -157,11 +157,13 @@ Phase 1 必收（互不塌缩、均已核实可公开获取）：
 
 域方向：架构仍是工程判断；编码仍是可跑单测。知识易档短答 exact；中/难档含长流程指令遵循（非常规嵌套 / 故意「错键」 / 后条覆盖前条），用 `structure` 多条硬规则核对。推理易/中档短答 exact；难档可含逻辑网格 `structure`。禁止安全拒答类题干，禁止抄公开基准原文。推理不进 I 向量、不进 D 决策、不触发知识冒烟。
 
+结构题先收束再计点：题面锁死字段类型（JSON 数字 / 布尔 / 字符串 / 整数数组）和带干扰项的枚举，不要把唯一正确答案写进题面。自由文本改成封闭枚举，或拆成多个检查点。不要靠同义答案表穷举，不要 LLM-as-judge。
+
 ### 3.3 评分
 
 不用 LLM-as-judge。编码同一题面分别用 Python / Go / TypeScript 抽代码、编译、跑测。不做 Java / C# / C++，不做 3 轮自动修。
 
-每题若干得分点。沙箱 **stdout** 必须出现 `POINTS n/m`（只认 stdout 里最后一次匹配；stderr / 编译日志不算。keyword/alias 自己写入后传入）。没有 POINTS 记 fail，不得因 exit 0 记 pass。`score10 = 10 × n / m`。满点才算该题 `pass`；部分对仍记折合分。架构题可写 `must_exclude`：套话命中则不得 pass。easy/medium/hard 的 completion_tokens 超过 80K/100K/128K 时，该次折合分与 points 同步减半（pass 不因此翻盘）。分域、分难度各自展示通过率与折合 10。**禁止**再合成 0–100 总分。
+每题若干得分点。沙箱 **stdout** 必须出现 `POINTS n/m`（只认 stdout 里最后一次匹配；stderr / 编译日志不算。keyword/alias 自己写入后传入）。没有 POINTS 记 fail，不得因 exit 0 记 pass。`score10 = 10 × n / m`。满点才算该题 `pass`；部分对仍记折合分。架构题可写 `must_exclude`：套话命中则不得 pass。高 token 用量不改变机械评分。分域、分难度各自展示通过率与折合 10。**禁止**再合成 0–100 总分。
 
 | 域 | grader | 进 Module I 向量 | 进 Module D 决策 |
 |---|---|---|---|
@@ -360,3 +362,46 @@ README 写清：准确率预期、8-bit 与同家族弱档、token 不可信、�
 8. 无参考源只出家族。  
 9. 不引入 `transformers`，不引入 `openai` SDK。不并入 TideSight。  
 10. 不把协议探测、本地估算 usage、MiMo 独立家族写进主路径。
+
+---
+
+## 附录：壳 / 适配器探针（不进 F/I/D）
+
+学 [stealthprint](https://github.com/majiayu000/stealthprint) 的拆法：词表认家族，壳和适配器另记。**不照搬**他们的本地对照、`max_tokens=1`、视觉/视频主栏。
+
+本附录**不改**三栏。家族 / 判真 / 降智仍按上文。禁止 0–100 总分，禁止输出「支持」。对照词表只是本地计数器，不是家族结论。字段细则见 [sku-wrapper](sku-wrapper.md)。
+
+词表差分只锁到家族。同一张表上，Flash、隐身壳、换入口可以长得一样。stealthprint 用 wrapper 常数、同网关具名对照、错误信封把壳拆出来。我们收这三层当报告附录；视觉、视频、上下文埋针仍是非目标（§0 已冻）。
+
+学：
+
+1. wrapper 跨长度恒定，才认模板开销。
+2. 同网关 catalog A/B：对具名兄弟打同一张廉价卡。
+3. 畸形参数认服务栈（serde / 智谱数字码 / 双信封）。认服务，不认权重。
+
+不搬：
+
+1. 本地禁止 `encode(x)` 对 `delta(BASE+x)`。F 仍用 `n_hat = encode(BASE+x) − encode(BASE)`。
+2. 禁止 `max_tokens=1`。本附录请求同样不传，或走官方 Maximum Output。
+3. 图、视频不进主栏。SKU 卡里的 `<|begin_of_image|>` 只当特殊字面量做 token 差分，不发图。
+4. 不引入 `transformers` / `openai` SDK。
+
+### wrapper（`src/wrapper.py`）
+
+对同一段 `text`：
+
+```
+wrapper(text) = prompt_tokens(user=text) − encode_len(text)
+```
+
+跨几档长度，这个差几乎不变，才认「外面套了固定模板」。变了就标 drift，不要猜家族。对照词表只用来算 `encode_len`，排名不进 F。
+
+### sku / catalog A/B（`src/sku.py`）
+
+同网关、具名对照。不做 `GET /models` 当结论。SKU 卡字段：`hi_prompt_tokens`、`emoji_delta`（`T(base+emoji) − T(base)`）、`special_image_delta`（`T(hi + <|begin_of_image|>) − T(hi)`）、`reasoning_effort=none`。不做图、不做视频。对不上只写「SKU 卡不一致」，不改 I。
+
+### envelopes（`src/envelopes.py`）
+
+塞畸形参数，看报错长什么样：serde 文案、智谱数字码、双信封。认的是服务栈，不是权重。网关改写错误文案时只落盘，不引用（同 §2.5）。
+
+§2.5 的协议探测继续只写 jsonl。本附录是同一类信号的结构化读法，仍不进 F/I/D。

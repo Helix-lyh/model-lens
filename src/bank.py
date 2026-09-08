@@ -1,8 +1,9 @@
-"""Module C：50 条 raw 题，按领域-难度编号；快速/全量选题不同。"""
+"""Module C：54 条 raw 题，按领域-难度编号；快速/全量选题不同。"""
 
 from __future__ import annotations
 
 import re
+import hashlib
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Literal
@@ -26,17 +27,16 @@ _LANG_HEAD = {
 }
 BANK_MIN = 20
 BANK_MAX = 60
-BANK_RAW_COUNT = 50
-BANK_EXPANDED_COUNT = 74
+BANK_RAW_COUNT = 54
+BANK_EXPANDED_COUNT = 78
 BANK_QUICK_COUNT = 14
 DEFAULT_CONCURRENCY = 4
 QUICK_DIFFICULTIES: tuple[Difficulty, ...] = ("easy", "medium")
-THINK_LIMIT = {"easy": 80_000, "medium": 100_000, "hard": 128_000, "extreme": 160_000}
 RAW_MATRIX: dict[str, dict[str, int]] = {
     "architecture": {"easy": 1, "medium": 1, "hard": 5, "extreme": 5},
     "coding": {"easy": 1, "medium": 1, "hard": 5, "extreme": 5},
     "knowledge": {"easy": 1, "medium": 1, "hard": 5, "extreme": 5},
-    "reasoning": {"easy": 2, "medium": 2, "hard": 5, "extreme": 5},
+    "reasoning": {"easy": 2, "medium": 2, "hard": 9, "extreme": 5},
 }
 _ALLOWED_GRADERS = frozenset({"alias", "keyword", "structure", "code_tests"})
 BankMode = Literal["quick", "full"]
@@ -109,6 +109,7 @@ def _as_question(item: object, *, root: Path | None = None) -> Question:
         pass_criteria=pass_criteria,
         raw_id=qid,
         cluster_id=qid,
+        construct=_construct(item.get("metadata"), item.get("construct")),
     )
     _validate_grader(q, root=root or repo_root())
     return q
@@ -155,6 +156,7 @@ def _coding_variant(q: Question, lang: str, spec: dict[str, Any]) -> Question:
         language=lang,
         raw_id=q.raw_id or q.id,
         cluster_id=q.cluster_id or q.id,
+        construct=q.construct,
     )
 
 
@@ -243,7 +245,8 @@ def run_bank(
 ) -> BankResult:
     root = repo or repo_root()
     picked = select_questions(questions, "quick" if quick else "full")
-    temps = [0.0] if quick else [0.0, 0.7, 0.7, 0.7]
+    temps = [0.0]
+    provenance = {q.id: _question_provenance(q, root) for q in picked}
     jobs = [(question, i, temp) for question in picked for i, temp in enumerate(temps)]
     graded = _run_jobs(
         jobs,
@@ -255,7 +258,7 @@ def run_bank(
         concurrency=concurrency,
     )
     results = [
-        _summarize_question(question, [graded[(question.id, i)] for i in range(len(temps))])
+        _summarize_question(question, [graded[(question.id, i)] for i in range(len(temps))], provenance=provenance[question.id])
         for question in picked
     ]
     return _summarize_bank(results, salt=salt, quick=quick)
@@ -325,25 +328,29 @@ def _grade_one(
     grade = grade_response(question, rec.content if isinstance(rec.content, str) else None, repo_root=root)
     attach_temperature(grade, temp)
     grade.reasoning = rec.reasoning
-    _apply_think_penalty(grade, question, rec)
     return grade
 
 
-def _apply_think_penalty(grade: SampleGrade, question: Question, rec: Any) -> SampleGrade:
-    tokens = rec.completion_tokens
-    if tokens is None or grade.score10 is None:
-        return grade
-    cap = THINK_LIMIT.get(question.difficulty, 100_000)
-    if tokens <= cap:
-        return grade
-    grade.score10 = round(grade.score10 * 0.5, 2)
-    if grade.points_total is not None:
-        grade.points_total = grade.points_total * 2
-    grade.detail = f"{grade.detail} think_penalty tokens={tokens}>{cap}"
-    return grade
+def _question_provenance(question: Question, root: Path) -> dict[str, str | None]:
+    return {"question_hash": hashlib.sha256(question.prompt.encode()).hexdigest(), "fixture_hash": _fixture_hash(question.grader, root)}
 
 
-def _summarize_question(question: Question, samples: list[SampleGrade]) -> QuestionResult:
+def _fixture_hash(grader: dict[str, Any], root: Path) -> str | None:
+    rel = grader.get("tests_file")
+    if not rel: return None
+    path = resolve_fixture_path(root, rel)
+    data = path.read_bytes()
+    helper = path.parent / "_structured.py"
+    if helper.is_file(): data += helper.read_bytes()
+    return hashlib.sha256(data).hexdigest()
+
+
+def _construct(metadata: object, direct: object) -> str | None:
+    if isinstance(metadata, dict) and metadata.get("construct"): return str(metadata["construct"])
+    return str(direct) if direct else None
+
+
+def _summarize_question(question: Question, samples: list[SampleGrade], *, provenance: dict[str, str | None] | None = None) -> QuestionResult:
     raw_id = question.raw_id or (question.id.rsplit("-", 1)[0] if question.language else question.id)
     return QuestionResult(
         question_id=question.id,
@@ -356,6 +363,9 @@ def _summarize_question(question: Question, samples: list[SampleGrade]) -> Quest
         raw_id=raw_id,
         cluster_id=question.cluster_id or raw_id,
         language=question.language,
+        construct=question.construct,
+        question_hash=(provenance or {}).get("question_hash"),
+        fixture_hash=(provenance or {}).get("fixture_hash"),
     )
 
 

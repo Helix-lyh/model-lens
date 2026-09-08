@@ -27,10 +27,11 @@ from src.types import CompletionRecord, Question, QuestionResult, SampleGrade
 
 
 class FakeClient:
-    def __init__(self, answers: dict[str, str]):
+    def __init__(self, answers: dict[str, str], *, completion_tokens: int = 5):
         self.answers = answers
         self.calls: list[dict] = []
         self._lock = threading.Lock()
+        self.completion_tokens = completion_tokens
 
     def complete(self, messages, *, temperature=0.0, max_tokens=1, kind="chat", stream=False):
         rec = {
@@ -52,7 +53,7 @@ class FakeClient:
             status_code=200,
             latency_ms=1,
             prompt_tokens=10,
-            completion_tokens=5,
+            completion_tokens=self.completion_tokens,
             content=text,
         )
 
@@ -117,14 +118,47 @@ def test_quick_skips_hard() -> None:
     assert not any(c["kind"].split(":")[1].split("-")[1] == "hard" for c in client.calls)
 
 
+def _protocol_question(difficulty="easy", seq: int = 99) -> Question:
+    return Question(
+        id=f"knowledge-{difficulty}-{seq:02d}",
+        domain="knowledge",
+        difficulty=difficulty,
+        prompt="输出 711.90",
+        grader={"type": "alias", "answers": ["711.90"], "match": "exact"},
+        pass_criteria="精确数值",
+    )
+
+
 def test_quick_one_sample_and_knowledge_alarm() -> None:
-    qs = [q for q in load_questions() if q.domain == "knowledge"]
+    qs = [
+        _protocol_question("easy"),
+        _protocol_question("medium"),
+        _protocol_question("hard"),
+    ]
     client = FakeClient({})
     result = run_bank(client, qs, salt="t", quick=True)
     assert result.quick is True
+    assert [q.question_id for q in result.questions] == ["knowledge-easy-99", "knowledge-medium-99"]
     assert all(q.difficulty in {"easy", "medium"} for q in result.questions)
     assert result.n_questions == len(result.questions)
     assert all(len(q.samples) == 1 for q in result.questions)
+    assert len(client.calls) == len(result.questions)
+    assert all(c["temperature"] == 0.0 for c in client.calls)
+    assert all(q.pass0 is False for q in result.questions)
+    assert result.knowledge_all_wrong is True
+    assert result.knowledge_alarm
+
+
+def test_knowledge_empty_http200_is_fail_and_alarms() -> None:
+    qs = [
+        q
+        for q in load_questions()
+        if q.domain == "knowledge" and q.difficulty in {"easy", "medium"}
+    ]
+    result = run_bank(FakeClient({}), qs, salt="t", quick=True)
+    assert result.domain_pass0["knowledge"]["missing"] == 0
+    assert result.domain_pass0["knowledge"]["judged"] == len(qs)
+    assert all(q.pass0 is False for q in result.questions)
     assert result.knowledge_all_wrong is True
     assert result.knowledge_alarm
 
@@ -139,46 +173,65 @@ def test_reasoning_all_wrong_does_not_trip_knowledge_alarm() -> None:
     assert result.knowledge_alarm is None
 
 
-def test_full_mode_four_samples() -> None:
-    qs = [q for q in load_questions() if q.id == "knowledge-easy-01"]
-    client = FakeClient({"knowledge-easy-01": "711.90"})
+def test_full_mode_one_sample() -> None:
+    qs = [_protocol_question()]
+    client = FakeClient({"knowledge-easy-99": "711.90"})
     result = run_bank(client, qs, salt="t", quick=False)
-    assert len(result.questions[0].samples) == 4
+    assert len(result.questions[0].samples) == 1
     assert result.questions[0].pass0 is True
-    assert result.questions[0].majority is True
+    assert result.questions[0].majority is None
     assert result.questions[0].score10 == 10.0
     assert result.domain_points["knowledge"]["score10"] == 10.0
-    assert all(c["content"].startswith("【审计标记") for c in client.calls)
-    assert all(c["stream"] is False for c in client.calls)
+    assert len(client.calls) == 1
+    assert client.calls[0]["temperature"] == 0.0
+    assert client.calls[0]["content"].startswith("【审计标记")
+    assert client.calls[0]["stream"] is False
+
+
+def test_full_and_quick_call_once_per_expanded_instance() -> None:
+    qs = [_protocol_question("easy"), _protocol_question("hard")]
+    answers = {q.id: "711.90" for q in qs}
+    quick_client = FakeClient(answers)
+    full_client = FakeClient(answers)
+    quick = run_bank(quick_client, qs, salt="t", quick=True)
+    full = run_bank(full_client, qs, salt="t", quick=False)
+    assert [q.question_id for q in quick.questions] == ["knowledge-easy-99"]
+    assert len(quick_client.calls) == 1
+    assert [q.question_id for q in full.questions] == [q.id for q in qs]
+    assert len(full_client.calls) == 2
+    assert all(len(q.samples) == 1 for q in (*quick.questions, *full.questions))
+    assert all(c["temperature"] == 0.0 for c in (*quick_client.calls, *full_client.calls))
 
 
 def test_stream_metrics_flag_forwarded() -> None:
-    qs = [q for q in load_questions() if q.id == "knowledge-easy-01"]
-    client = FakeClient({"knowledge-easy-01": "711.90"})
+    qs = [_protocol_question()]
+    client = FakeClient({qs[0].id: "711.90"})
     run_bank(client, qs, salt="t", quick=True, stream_metrics=True)
+    assert len(client.calls) == 1
     assert client.calls[0]["stream"] is True
 
 
-def test_think_penalty_halves_easy_score() -> None:
-    qs = [q for q in load_questions() if q.id == "knowledge-easy-01"]
-    client = FakeClient({"knowledge-easy-01": "711.90"})
+def _run_protocol(difficulty: str, completion_tokens: int, *, quick: bool):
+    question = _protocol_question(difficulty)
+    client = FakeClient({question.id: "711.90"}, completion_tokens=completion_tokens)
+    return run_bank(client, [question], salt="t", quick=quick)
 
-    def _wrap(*args, **kwargs):
-        rec = FakeClient.complete(client, *args, **kwargs)
-        rec.completion_tokens = 90_000
-        return rec
 
-    client.complete = _wrap  # type: ignore[method-assign]
-    result = run_bank(client, qs, salt="t", quick=True)
-    assert result.questions[0].pass0 is True
-    assert result.questions[0].score10 == 5.0
-    sample = result.questions[0].samples[0]
-    assert sample.points == 1
-    assert sample.points_total == 2
-    assert result.domain_points["knowledge"]["earned"] == 1
-    assert result.domain_points["knowledge"]["total"] == 2
-    assert result.domain_points["knowledge"]["score10"] == 5.0
-    assert "think_penalty" in sample.detail
+def _assert_same_mechanical_score(low, high) -> None:
+    low_q, high_q = low.questions[0], high.questions[0]
+    assert high_q.pass0 is True
+    assert low_q.pass0 is True
+    assert high_q.score10 == low_q.score10 == 10.0
+    assert high_q.samples[0].points == low_q.samples[0].points == 1
+    assert high_q.samples[0].points_total == low_q.samples[0].points_total == 1
+    assert "think_penalty" not in (high_q.samples[0].detail or "")
+    assert "think_penalty" not in (low_q.samples[0].detail or "")
+
+
+def test_high_token_usage_does_not_change_easy_score() -> None:
+    low = _run_protocol("easy", 5, quick=True)
+    high = _run_protocol("easy", 90_000, quick=True)
+    _assert_same_mechanical_score(low, high)
 
 
 def test_http_error_is_missing_not_abort() -> None:
@@ -270,35 +323,21 @@ def test_majority_missing_is_none() -> None:
 
 
 def test_run_bank_concurrency_keeps_question_order() -> None:
-    qs = [q for q in load_questions() if q.domain == "knowledge" and q.difficulty == "easy"]
+    qs = [_protocol_question("easy", seq=90 + i) for i in range(4)]
     client = FakeClient({q.id: "711.90" for q in qs})
     result = run_bank(client, qs, salt="t", quick=True, concurrency=4)
     assert [q.question_id for q in result.questions] == [q.id for q in qs]
     assert len(client.calls) == len(qs)
     assert result.n_questions == len(qs)
+    assert all(len(q.samples) == 1 for q in result.questions)
+    assert all(c["temperature"] == 0.0 for c in client.calls)
 
 
-def test_extreme_think_penalty_preserves_pass_and_doubles_total() -> None:
-    q = next(q for q in load_questions() if q.id == "knowledge-extreme-01")
-    answer = (
-        '```json\n{"load_kwh":2.1,"battery_kwh":2.4,'
-        '"days_supported":1.029,"status":"ONE_DAY"}\n```'
-    )
-    client = FakeClient({q.id: answer})
-
-    def _wrap(*args, **kwargs):
-        rec = FakeClient.complete(client, *args, **kwargs)
-        rec.completion_tokens = 170_000
-        return rec
-
-    client.complete = _wrap  # type: ignore[method-assign]
-    result = run_bank(client, [q], salt="t", quick=False)
-    sample = result.questions[0].samples[0]
-    assert sample.passed is True
-    assert sample.score10 == 5.0
-    assert sample.points == 5
-    assert sample.points_total == 10
-    assert "think_penalty" in sample.detail
+def test_high_token_usage_does_not_change_extreme_score() -> None:
+    low = _run_protocol("extreme", 5, quick=False)
+    high = _run_protocol("extreme", 170_000, quick=False)
+    _assert_same_mechanical_score(low, high)
+    assert len(high.questions[0].samples) == 1
 
 
 def _variant_result(

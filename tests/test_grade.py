@@ -100,8 +100,14 @@ def test_knowledge_trap_canonical_and_intuition() -> None:
         "knowledge-extreme-05",
     }
     expect = {
-        "knowledge-easy-01": ("711.90", "0"),
-        "knowledge-medium-01": ("REVIEW", "CLEAR"),
+        "knowledge-easy-01": (
+            '{"address":"2001:db8::1:0:0:1"}',
+            '{"address":null}',
+        ),
+        "knowledge-medium-01": (
+            '{"service":"UNAVAILABLE","alias_allowed":false}',
+            '{"service":"AVAILABLE","alias_allowed":true}',
+        ),
     }
     for qid, (good, bad) in expect.items():
         q = by_id[qid]
@@ -114,16 +120,16 @@ def test_structure_follow_pass_and_fail() -> None:
     assert extract_structure_payload("```json\n{}\n```") == "{}"
     by_id = {q.id: q for q in load_questions() if q.domain == "knowledge"}
     good = {
-        "knowledge-hard-01": '{"reading_mA":2.4,"upper_mA":2.52,"risk":"HIGH","unit":"mA"}',
-        "knowledge-hard-02": '{"chosen_source":"lab","chosen_value":18,"discarded":["R2","R3"]}',
-        "knowledge-hard-03": '{"after_discount":770.0,"tax_base":790.0,"tax":63.2,"total":853.2}',
-        "knowledge-hard-04": '{"labels":["AMBER","GREEN","RED","GREEN"],"red_count":1,"green_count":2}',
-        "knowledge-hard-05": '{"old_threshold":11,"new_threshold":15,"old_action":"HOLD","new_action":"RESTOCK"}',
-        "knowledge-extreme-01": '{"load_kwh":2.1,"battery_kwh":2.4,"days_supported":1.029,"status":"ONE_DAY"}',
-        "knowledge-extreme-02": '{"before":"B","after":"NONE","before_reason":"B_MEETS_RULE","after_reason":"NO_QUALIFIED_SUPPLIER"}',
-        "knowledge-extreme-03": '{"fail_weight":0.9,"pass_weight":1.0,"decision":"PASS","margin":0.1}',
-        "knowledge-extreme-04": '{"winning_rule":"R3","decision":"REVIEW","suppressed_rules":["R2","R1"],"evidence_count":1}',
-        "knowledge-extreme-05": '{"before_total":1029.0,"before_decision":"REVIEW","after_total":999.6,"after_decision":"ACCEPT","delta":-29.4}',
+        "knowledge-hard-01": '{"relations":["NEWER","OLDER","UNDEFINED","EQUAL"],"add_250_10":4}',
+        "knowledge-hard-02": '{"ttl":240,"nxdomain_key":["QNAME","QCLASS"],"nodata_key":["QNAME","QTYPE","QCLASS"]}',
+        "knowledge-hard-03": '{"type":"TYPE65400","rdata":"\\\\# 3 00ff10","compress_names":false}',
+        "knowledge-hard-04": '{"base64url":"_w==","base32":"74======","pad_bits_zero":true}',
+        "knowledge-hard-05": '{"addresses":["2001:db8:0:1:2:3:4:5","2001::2:0:0:3:4","::"]}',
+        "knowledge-extreme-01": '{"after_first":4,"after_second":32771,"third_defined":false,"second_relation":"NEWER"}',
+        "knowledge-extreme-02": '{"x_hit":true,"y_hit":false,"x_remaining":30,"y_a_remaining":40}',
+        "knowledge-extreme-03": '{"first":["b","c"],"next":["a"],"weight_scope":"SAME_PRIORITY","target_alias":"FORBIDDEN"}',
+        "knowledge-extreme-04": '{"encodings":["MY======","MZXQ====","MZXW6==="],"alphabet_last":"7","bits_per_symbol":5}',
+        "knowledge-extreme-05": '{"lengths":[0,4],"hex_digits":[0,8],"empty_valid":true,"type_731":"TYPE731"}',
     }
     for qid, payload in good.items():
         grade = grade_response(by_id[qid], f"```json\n{payload}\n```", repo_root=repo_root())
@@ -132,6 +138,14 @@ def test_structure_follow_pass_and_fail() -> None:
         bad = grade_response(by_id[qid], "```json\n{}\n```", repo_root=repo_root())
         assert bad.passed is False
         assert bad.points is not None and bad.points < bad.points_total
+
+
+def test_empty_structure_response_is_fail_not_missing() -> None:
+    q = next(x for x in load_questions() if x.id == "knowledge-easy-01")
+    empty = grade_response(q, "", repo_root=repo_root())
+    assert empty.status == "fail"
+    assert empty.passed is False
+    assert empty.points == 0
 
 
 def test_reasoning_alias_and_structure() -> None:
@@ -146,6 +160,10 @@ def test_reasoning_alias_and_structure() -> None:
         "reasoning-hard-03",
         "reasoning-hard-04",
         "reasoning-hard-05",
+        "reasoning-hard-06",
+        "reasoning-hard-07",
+        "reasoning-hard-08",
+        "reasoning-hard-09",
         "reasoning-extreme-01",
         "reasoning-extreme-02",
         "reasoning-extreme-03",
@@ -165,22 +183,28 @@ def test_reasoning_alias_and_structure() -> None:
         assert grade_response(q, f"答案是 {good}", repo_root=repo_root()).passed is False
 
     good = {
-        "reasoning-hard-01": '{"order":["A","C","B","D"],"slot_A":1,"slot_D":4,"feasible":true}',
-        "reasoning-hard-02": '{"assignment":{"A":1,"B":1,"C":2,"D":2},"loads":{"1":7,"2":7},"minimum_resources":2,"feasible":true}',
-        "reasoning-hard-03": '{"counterexample":2,"square":4,"divisible_by_4":false,"verdict":"FALSE"}',
-        "reasoning-hard-04": '{"path":["A","C","E","D"],"cost":7,"hops":3,"unique":true}',
+        "reasoning-hard-01": '{"status":"OK","kept":["o","m"],"trace":["TAKE","LIMIT","TAKE","DUP"],"remaining":0}',
+        "reasoning-hard-02": '{"status":"OK","kept":["w","u"],"trace":["TAKE","DENY","TAKE","DUP"],"remaining":0}',
+        "reasoning-hard-03": '{"status":"IMPOSSIBLE","conflict":["R0","R9"]}',
+        "reasoning-hard-04": '{"status":"OK","kept":["x","z"],"trace":["TAKE","TAKE","LIMIT","DUP"],"remaining":1}',
         "reasoning-hard-05": '{"truth":[true,true,false],"liar_count":1,"consistent":true}',
-        "reasoning-extreme-01": '{"base_indices":[0,2],"base_value":17,"counterfactual_indices":[0,2],"counterfactual_value":17,"delta":0}',
+        "reasoning-hard-06": '{"swaps":8,"seven_enough":false}',
+        "reasoning-hard-07": '{"n":10,"left":1,"right":9}',
+        "reasoning-hard-08": '{"n":12,"smooth":0,"rough":12}',
+        "reasoning-hard-09": '{"h2022":1,"h12":2,"h25":4,"asl_fail":1.8}',
+        "reasoning-extreme-01": '{"base_indices":[1,3,4],"base_value":18,"changed_indices":[0,2],"changed_value":19,"delta":1}',
         "reasoning-extreme-02": '{"trace":[5,10,13,10,13],"final":13,"rolled_back":"ADD_3","replayed":"ADD_3"}',
         "reasoning-extreme-03": '{"max_confidence":0.8,"decision":"CONFLICT","value":null,"witness":["E1","E2"]}',
-        "reasoning-extreme-04": '{"x":2,"y":5,"cost":3,"optimal":true,"witness":"x+y=7"}',
-        "reasoning-extreme-05": '{"base_indices":[0,1,3],"base_value":17,"changed_indices":[0,1,3],"changed_value":17,"difference":0}',
+        "reasoning-extreme-04": '{"x":2,"y":5,"cost":3,"optimal":true,"witness":"BIND_SUM"}',
+        "reasoning-extreme-05": '{"path":["A","B","D"],"cost":5,"count":5,"changed_path":["A","B","E","D"],"changed_cost":5,"changed_count":3}',
     }
     for qid, payload in good.items():
-        grade = grade_response(by_id[qid], f"```json\n{payload}\n```", repo_root=repo_root())
+        q = by_id[qid]
+        text = payload if q.grader.get("strict_response") else f"```json\n{payload}\n```"
+        grade = grade_response(q, text, repo_root=repo_root())
         assert grade.passed is True, (qid, grade.detail)
         assert grade.score10 == 10.0
-        bad = grade_response(by_id[qid], "```json\n{}\n```", repo_root=repo_root())
+        bad = grade_response(q, "{}" if q.grader.get("strict_response") else "```json\n{}\n```", repo_root=repo_root())
         assert bad.passed is False
         assert bad.points is not None and bad.points < bad.points_total
 
@@ -277,17 +301,13 @@ def test_parse_points() -> None:
 
 def test_structured_json_rejects_duplicate_nonfinite_and_bool_integer() -> None:
     q = next(x for x in load_questions() if x.id == "architecture-hard-01")
-    valid = (
-        '{"failure_code":"OFFSET_SCAN","index_columns":["created_at","id"],'
-        '"pagination":"KEYSET","cursor_predicate":'
-        '"(created_at,id)<(cursor_time,cursor_id)","rows_scanned":20}'
-    )
+    valid = '{"status":"OK","kept":["c","a"],"trace":["TAKE","DENY","TAKE","DUP"],"remaining":0}'
     assert grade_response(q, valid, repo_root=repo_root()).passed is True
     invalid = [
-        (valid[:-1] + ',"rows_scanned":20}', 0),
-        (valid.replace('"rows_scanned":20', '"rows_scanned":NaN'), 0),
-        (valid.replace('"rows_scanned":20', '"rows_scanned":Infinity'), 0),
-        (valid.replace('"rows_scanned":20', '"rows_scanned":true'), 5),
+        (valid[:-1] + ',"remaining":0}', 0),
+        (valid.replace('"remaining":0', '"remaining":NaN'), 0),
+        (valid.replace('"remaining":0', '"remaining":Infinity'), 0),
+        (valid.replace('"remaining":0', '"remaining":true'), 4),
     ]
     for payload, points in invalid:
         grade = grade_response(q, payload, repo_root=repo_root())

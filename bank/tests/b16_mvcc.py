@@ -43,8 +43,8 @@ n += hit(
 n += hit(
     {"a": 1},
     [
-        {"id": "late", "begin": 1, "writes": {"a": 9}, "commit": 2},
-        {"id": "early", "begin": 0, "writes": {"a": 4}, "commit": 1},
+        {"id": "late", "begin": 1, "writes": {"a": 9}, "commit": 20},
+        {"id": "early", "begin": 0, "writes": {"a": 4}, "commit": 10},
     ],
     {"state": {"a": 9}, "statuses": {"late": "COMMIT", "early": "COMMIT"}},
     "begin-version",
