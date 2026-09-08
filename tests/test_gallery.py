@@ -142,7 +142,7 @@ def test_gallery_html_switches_models(tmp_path) -> None:
     assert payload["models"][0]["domain_points"]["knowledge"]["score10"] == 10.0
     assert payload["models"][0]["domains"]["reasoning"]["passed"] == 2
     assert payload["models"][0]["domain_points"]["reasoning"]["score10"] == 5.0
-    assert payload["models"][0]["bank_version"] == "20260908"
+    assert payload["models"][0]["bank_version"] == "2026090901"
     assert payload["models"][0]["scorer_version"] == "scorer-v2"
     assert payload["models"][0]["sampling_protocol"] == "single-v1"
     assert q0["construct"] == "rfc_fact"
@@ -222,7 +222,7 @@ def test_gallery_reads_bank_json_version_fields(tmp_path) -> None:
         json.dumps(
             {
                 "schema_version": "model-lens.bank.v2",
-                "bank_version": "20260908",
+                "bank_version": "2026090901",
                 "scorer_version": "scorer-v2",
                 "sampling_protocol": "single-v1",
                 "questions": [
@@ -244,7 +244,7 @@ def test_gallery_reads_bank_json_version_fields(tmp_path) -> None:
     payload = build_gallery([run_dir])
     model = payload["models"][0]
     assert model["schema_version"] == "model-lens.bank.v2"
-    assert model["bank_version"] == "20260908"
+    assert model["bank_version"] == "2026090901"
     assert model["scorer_version"] == "scorer-v2"
     assert model["sampling_protocol"] == "single-v1"
     q0 = model["questions"][0]

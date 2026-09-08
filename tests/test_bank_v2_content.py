@@ -12,7 +12,7 @@ from src.grade import grade_response, run_python_sandbox
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW = yaml.safe_load((ROOT / 'bank/questions.yaml').read_text())
-NEW = [q for q in RAW if str(q.get('metadata', {}).get('version') or '') == '20260908']
+NEW = [q for q in RAW if str(q.get('metadata', {}).get('version') or '') == '2026090901']
 
 
 def encoded(q):
@@ -25,7 +25,7 @@ def run(q, payload):
 
 def test_counts():
     qs = load_questions()
-    assert len(RAW) == 54 and len(qs) == 78 and len(NEW) == 24
+    assert len(RAW) == 54 and len(qs) == 78 and len(NEW) == 25
     assert sum(q['metadata']['construct'] == 'instruction_following' for q in NEW) == 8
     for domain, row in RAW_MATRIX.items():
         for difficulty, count in row.items():

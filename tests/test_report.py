@@ -263,7 +263,7 @@ def test_report_bank_domain_rates(tmp_path):
     assert "coding-medium-01-python" in md
     assert (run_dir / "bank.json").is_file()
     assert "支持" not in md
-    assert "bank_version=20260908" in md
+    assert "bank_version=2026090901" in md
     assert "scorer_version=scorer-v2" in md
     assert "sampling_protocol=single-v1" in md
     assert "全量（四档，4 次采样）" not in md
@@ -275,10 +275,10 @@ def test_report_bank_domain_rates(tmp_path):
     assert "fh-coding-01" in md
     assert "missing=1" in md
     report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
-    assert report["provenance"]["bank_version"] == "20260908"
+    assert report["provenance"]["bank_version"] == "2026090901"
     assert report["provenance"]["scorer_version"] == "scorer-v2"
     assert report["provenance"]["sampling_protocol"] == "single-v1"
-    assert report["bank"]["bank_version"] == "20260908"
+    assert report["bank"]["bank_version"] == "2026090901"
     assert report["bank"]["scorer_version"] == "scorer-v2"
     assert report["bank"]["sampling_protocol"] == "single-v1"
     q0 = report["bank"]["questions"][0]

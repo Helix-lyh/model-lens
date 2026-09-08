@@ -1,7 +1,7 @@
 # 题库参考答案与评分机制（54 条原始题，展开后 78 道）
 
 维护者文档。题面在 `bank/questions.yaml`，本文只放答案，**不要**把答案写回题面。
-题库版本 `20260908` 改写了 24 道非编码题，设计说明与参考 JSON 见 `docs/bank-v2-design.md`。
+题库版本 `2026090901` 在 24 道非编码改写之上锁了 JSON 类型，并把 `architecture-medium-01` 改成封闭结构题。设计说明与参考 JSON 见 `docs/bank-v2-design.md`。
 编码题的 Go/TS 参考实现见 `cursor_workspace/build_scripts/verify_lang_sandboxes.py`，
 Python 参考实现与结构题期望输出见 `cursor_workspace/build_scripts/verify_bank_answers.py`；
 两个脚本都会把参考答案跑进真实沙箱，必须全部满分。
@@ -15,7 +15,7 @@ Python 参考实现与结构题期望输出见 `cursor_workspace/build_scripts/v
   pass0 取该次；单次采样下 majority 为 None。高 token 用量不改变机械评分。
 - 四类 grader：
   - `keyword`：每命中一组 `must_include` 得 1 分；命中数 ≥ `min_hits` 且没碰 `must_exclude` 才 pass。
-    现行仅 `architecture-easy-01`、`architecture-medium-01`。
+    现行仅 `architecture-easy-01`。
   - `alias`：规范化（NFKC、去标点、casefold、去空白）后与 `answers` 精确/包含匹配，1 分。
     现行仅 `reasoning-easy-01/02`、`reasoning-medium-01/02`。
   - `code_tests`：按语言抽围栏代码，进沙箱编译加跑测；只认 stdout 里最后一个 `POINTS n/m`，
@@ -34,7 +34,7 @@ Python 参考实现与结构题期望输出见 `cursor_workspace/build_scripts/v
 
 ## 一、架构域（12 题）
 
-现行不是「12 题 keyword」。easy/medium 为 keyword；hard-01..04 为指令遵循 structure（`strict_response`）；其余 hard/extreme 为普通 structure。
+现行不是「12 题 keyword」。easy 为 keyword；medium-01 为切流结构题；hard-01..04 为指令遵循 structure（`strict_response`）；其余 hard/extreme 为普通 structure。
 
 ### architecture-easy-01 高 QPS 商品详情缓存（keyword，4 组，min_hits=4）
 1. 缓存商品详情（缓存、cache）
@@ -42,12 +42,9 @@ Python 参考实现与结构题期望输出见 `cursor_workspace/build_scripts/v
 3. TTL / 过期（ttl、过期、失效）
 4. 击穿防护：互斥锁 / singleflight / 预热（击穿、互斥锁、singleflight、预热）
 
-### architecture-medium-01 推荐 API 灰度（keyword，5 组，min_hits=5）
-1. 灰度 / 金丝雀 / 切流
-2. 明确比例或白名单（5%、10%、1%、白名单）
-3. 错误率 / p99 / 延迟
-4. 超时 / 5xx / 可用率 / 点击率 / 转化率 / cpu
-5. 可执行回滚条件
+### architecture-medium-01 推荐 API 切流（`v2_architecture_medium_01.py`，structure）
+JSON：`phase1_percent`（1–20）、`metrics`（≥3 个自拟非空名）、`window_minutes`（≥5）、`rollback.metric`+`rollback.threshold`（正整数，metric 必须已在 metrics 里）。
+参考例子见 `docs/bank-v2-design.md` / fixture EXPECTED，不是唯一合法答案。
 
 ### architecture-hard-01..04 离线部署审批协议（`v2_architecture_hard_*.py`，指令题）
 单行紧凑 JSON，键顺序按分支。权威期望见 `STRUCTURE` / v2 fixture / `docs/bank-v2-design.md`。
@@ -362,7 +359,7 @@ def plan_tasks(tasks, deps):
     return out if len(out) == len(tasks) else None
 ```
 
-## 三、知识域（12 题，全部 structure / 20260908 RFC）
+## 三、知识域（12 题，全部 structure / 2026090901 RFC）
 
 权威期望见 `STRUCTURE` 与 `bank/tests/v2_knowledge_*.py`，说明见 `docs/bank-v2-design.md`。
 现行 `knowledge-hard-01` **不是** `c05_nested.py`。旧 alias 直觉陷阱、`c05_nested` / `c06_lines` / `c07_array` / `c08_oneline` / `c09_lines6` / `c10_meta` 已作废。

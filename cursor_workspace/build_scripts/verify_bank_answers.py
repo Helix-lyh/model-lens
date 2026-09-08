@@ -277,6 +277,10 @@ STRUCTURE = {
     "bank/tests/v2_architecture_hard_02.py": '{"status":"OK","kept":["z","x"],"trace":["TAKE","LIMIT","TAKE","DUP"],"remaining":1}',
     "bank/tests/v2_architecture_hard_03.py": '{"status":"OK","kept":["q"],"trace":["DENY","TAKE","DUP","LIMIT"],"remaining":4}',
     "bank/tests/v2_architecture_hard_04.py": '{"status":"IMPOSSIBLE","conflict":["R0","R9"]}',
+    "bank/tests/v2_architecture_medium_01.py": (
+        '{"phase1_percent":5,"metrics":["error_rate","latency","http_5xx"],'
+        '"window_minutes":30,"rollback":{"metric":"error_rate","threshold":1}}'
+    ),
     "bank/tests/a_hard_05.py": (
         '{"atomic_write":"ONE_DB_TRANSACTION","publisher_retry":"RETRY_UNSENT",'
         '"consumer_key":"event_id","ack_order":"COMMIT_THEN_ACK",'

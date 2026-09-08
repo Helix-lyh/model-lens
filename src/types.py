@@ -171,7 +171,7 @@ class BankResult:
     knowledge_alarm: str | None = None
     n_questions: int = 0
     schema_version: str = "model-lens.bank.v2"
-    bank_version: str = "20260908"
+    bank_version: str = "2026090901"
     scorer_version: str = "scorer-v2"
     sampling_protocol: str = "single-v1"
     raw_question_count: int = 0
