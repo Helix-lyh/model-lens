@@ -5,8 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
-from src.types import Endpoint
-
 AuthStyle = Literal["bearer", "x-api-key", "api-key", "x-goog-api-key"]
 
 
@@ -69,12 +67,6 @@ class ProtocolAdapter(Protocol):
     def synthetic_payload(self, events: list[dict[str, Any]], content: str) -> dict[str, Any]: ...
 
 
-def int_or_none(value: object) -> int | None:
-    if isinstance(value, bool) or not isinstance(value, int):
-        return None
-    return value
-
-
 def first_user_text(messages: list[dict[str, Any]]) -> str:
     for item in messages:
         if item.get("role") == "user":
@@ -100,10 +92,3 @@ def apply_auth(headers: dict[str, str], *, auth: AuthStyle, api_key: str) -> dic
         out["x-goog-api-key"] = api_key
     return out
 
-
-def as_resolved(endpoint: Endpoint, resolved: ResolvedChannel | None = None) -> ResolvedChannel:
-    if resolved is not None:
-        return resolved
-    from src.channels.resolve import resolve_channel
-
-    return resolve_channel(endpoint)

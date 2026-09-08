@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from src.bank import DOMAINS
+from src.cluster import cluster_id_from_row, raw_matrix_from_bank
 from src.types import BankResult, DegradeResult, FamilyResult, IdentityResult
 from src.usage import summarize_jsonl
 
@@ -88,7 +89,8 @@ def _write_human_reports(run_dir: Path, payload: dict[str, Any]) -> None:
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    _write_gallery(run_dir)
+    if payload.get("bank"):
+        _write_gallery(run_dir)
 
 
 def _run_payload(
@@ -136,7 +138,6 @@ def _report_struct(title: str, payload: dict[str, Any]) -> dict[str, Any]:
             "wrapper": payload.get("wrapper"),
             "sku": payload.get("sku"),
             "envelopes": payload.get("envelopes"),
-            "bank": payload.get("bank"),
             "bank_ref": payload.get("bank_ref"),
             "coding_agree": (payload.get("identity") or {}).get("coding_agree")
             if isinstance(payload.get("identity"), dict)
@@ -357,14 +358,14 @@ def _raw_count(bank: dict[str, Any]) -> int:
     for row in bank.get("questions") or []:
         if not isinstance(row, dict):
             continue
-        raw = row.get("raw_id") or row.get("cluster_id") or row.get("question_id")
+        raw = cluster_id_from_row(row)
         if raw:
-            seen.add(str(raw))
+            seen.add(raw)
     return len(seen)
 
 
 def _fmt_raw_matrix(bank: dict[str, Any]) -> str:
-    matrix = bank.get("raw_matrix") or {}
+    matrix = bank.get("raw_matrix") or raw_matrix_from_bank(bank)
     parts = []
     for domain in DOMAINS:
         row = matrix.get(domain) or {}

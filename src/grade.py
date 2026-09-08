@@ -272,7 +272,7 @@ def _grade_structure(question: Question, text: str, *, repo_root: Path) -> Sampl
             detail=str(exc),
             content=text,
         )
-    status, detail = run_sandbox("", tests_path, payload=payload)
+    status, detail = run_python_sandbox("", tests_path, payload=payload)
     passed = status == "pass"
     return _apply_points(
         SampleGrade(
@@ -361,7 +361,7 @@ def _forbidden_grade(code: str, lang: str, text: str) -> SampleGrade | None:
 
 def _run_lang_sandbox(lang: str, code: str, tests_path: Path) -> tuple[GradeStatus, str]:
     if lang == "python":
-        return run_sandbox(code, tests_path)
+        return run_python_sandbox(code, tests_path)
     if lang == "go":
         return run_go_sandbox(code, tests_path)
     if lang == "typescript":
@@ -421,7 +421,7 @@ def _forbidden_import(code: str, lang: str) -> str | None:
     return None
 
 
-def run_sandbox(
+def run_python_sandbox(
     code: str,
     tests_path: Path,
     *,

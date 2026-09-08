@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 
 from src.bank import repo_root
-from src.grade import run_sandbox
+from src.grade import run_python_sandbox
 
 ROOT = repo_root()
 PY = ROOT / "bank/tests"
@@ -38,7 +38,7 @@ def test_python_hard_extreme_fixtures_reject_constant_examples():
         "b17_order_events.py": "def order_events(events): return {'state':'CREATED','applied':[],'rejected':[]}\n",
     }
     for name, code in mutants.items():
-        status, detail = run_sandbox(code, PY / name)
+        status, detail = run_python_sandbox(code, PY / name)
         assert status == "fail", (name, detail)
 
 def test_python_fixture_sources_have_multiple_cases():

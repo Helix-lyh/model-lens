@@ -8,7 +8,13 @@ import pytest
 
 from src.channels.resolve import get_adapter
 from src.client import ChatClient, JsonlRecorder
-from src.stream import StreamUnsupported, assemble_stream, feed_sse, parse_sse_block
+from src.stream import (
+    StreamUnsupported,
+    assemble_stream,
+    feed_sse,
+    parse_sse_block,
+    stream_failure,
+)
 from src.types import Endpoint
 
 
@@ -78,6 +84,17 @@ def test_apply_stream_bedrock_unsupported() -> None:
     )
     with pytest.raises(StreamUnsupported):
         get_adapter("bedrock-converse").apply_stream(prepared)
+
+
+def test_parse_sse_drops_bad_json() -> None:
+    assert parse_sse_block("data: {not json}\n") is None
+
+
+def test_stream_failure_empty_and_error_event() -> None:
+    assert stream_failure([], 0) == "stream: 无 SSE 事件"
+    assert stream_failure([{"error": {"message": "overloaded"}}], 1) == "stream: overloaded"
+    assert stream_failure([{"type": "error", "error": {"type": "overloaded_error"}}], 1) == "stream: overloaded_error"
+    assert stream_failure([{"choices": [{"delta": {"content": "x"}}]}], 1) is None
 
 
 def test_client_stream_fills_ttft_and_decode(

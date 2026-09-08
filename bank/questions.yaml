@@ -54,7 +54,7 @@
     tests_file: bank/tests/v2_architecture_hard_01.py
     strict_response: true
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: instruction_following
     reference_answer:
       status: OK
@@ -93,7 +93,7 @@
     tests_file: bank/tests/v2_architecture_hard_02.py
     strict_response: true
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: instruction_following
     reference_answer:
       status: OK
@@ -132,7 +132,7 @@
     tests_file: bank/tests/v2_architecture_hard_03.py
     strict_response: true
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: instruction_following
     reference_answer:
       status: OK
@@ -170,7 +170,7 @@
     tests_file: bank/tests/v2_architecture_hard_04.py
     strict_response: true
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: instruction_following
     reference_answer:
       status: IMPOSSIBLE
@@ -204,7 +204,7 @@
     type: structure
     tests_file: bank/tests/v2_architecture_extreme_01.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: reasoning
     reference_answer:
       actions:
@@ -253,7 +253,7 @@
     type: structure
     tests_file: bank/tests/v2_architecture_extreme_03.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: reasoning
     reference_answer:
       actions:
@@ -522,7 +522,7 @@
     type: structure
     tests_file: bank/tests/v2_knowledge_easy_01.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: world_knowledge
     reference_answer:
       address: 2001:db8::1:0:0:1
@@ -545,7 +545,7 @@
     type: structure
     tests_file: bank/tests/v2_knowledge_medium_01.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: world_knowledge
     reference_answer:
       service: UNAVAILABLE
@@ -570,7 +570,7 @@
     type: structure
     tests_file: bank/tests/v2_knowledge_hard_01.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: world_knowledge
     reference_answer:
       relations:
@@ -599,7 +599,7 @@
     type: structure
     tests_file: bank/tests/v2_knowledge_hard_02.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: world_knowledge
     reference_answer:
       ttl: 240
@@ -630,7 +630,7 @@
     type: structure
     tests_file: bank/tests/v2_knowledge_hard_03.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: world_knowledge
     reference_answer:
       type: TYPE65400
@@ -656,7 +656,7 @@
     type: structure
     tests_file: bank/tests/v2_knowledge_hard_04.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: world_knowledge
     reference_answer:
       base64url: _w==
@@ -682,7 +682,7 @@
     type: structure
     tests_file: bank/tests/v2_knowledge_hard_05.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: world_knowledge
     reference_answer:
       addresses:
@@ -708,7 +708,7 @@
     type: structure
     tests_file: bank/tests/v2_knowledge_extreme_01.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: world_knowledge
     reference_answer:
       after_first: 4
@@ -736,7 +736,7 @@
     type: structure
     tests_file: bank/tests/v2_knowledge_extreme_02.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: world_knowledge
     reference_answer:
       x_hit: true
@@ -765,7 +765,7 @@
     type: structure
     tests_file: bank/tests/v2_knowledge_extreme_03.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: world_knowledge
     reference_answer:
       first:
@@ -797,7 +797,7 @@
     type: structure
     tests_file: bank/tests/v2_knowledge_extreme_04.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: world_knowledge
     reference_answer:
       encodings:
@@ -826,7 +826,7 @@
     type: structure
     tests_file: bank/tests/v2_knowledge_extreme_05.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: world_knowledge
     reference_answer:
       lengths:
@@ -905,7 +905,7 @@
     tests_file: bank/tests/v2_reasoning_hard_01.py
     strict_response: true
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: instruction_following
     reference_answer:
       status: OK
@@ -944,7 +944,7 @@
     tests_file: bank/tests/v2_reasoning_hard_02.py
     strict_response: true
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: instruction_following
     reference_answer:
       status: OK
@@ -983,7 +983,7 @@
     tests_file: bank/tests/v2_reasoning_hard_03.py
     strict_response: true
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: instruction_following
     reference_answer:
       status: IMPOSSIBLE
@@ -1014,7 +1014,7 @@
     tests_file: bank/tests/v2_reasoning_hard_04.py
     strict_response: true
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: instruction_following
     reference_answer:
       status: OK
@@ -1102,7 +1102,7 @@
     type: structure
     tests_file: bank/tests/v2_reasoning_extreme_01.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: reasoning
     reference_answer:
       base_indices:
@@ -1164,7 +1164,7 @@
     type: structure
     tests_file: bank/tests/v2_reasoning_extreme_05.py
   metadata:
-    version: bank-v2.1
+    version: "20260908"
     construct: reasoning
     reference_answer:
       path:

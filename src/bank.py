@@ -10,10 +10,11 @@ from typing import Any, Literal
 
 import yaml
 
+from src.cluster import cluster_id_of, language_of
 from src.fixtures import resolve_fixture_path
 from src.grade import attach_temperature, grade_response
 from src.toolchain import CODE_LANGS
-from src.types import BankResult, Difficulty, Question, QuestionResult, SampleGrade
+from src.types import DEFAULT_CONCURRENCY, BankResult, Difficulty, Question, QuestionResult, SampleGrade
 
 DOMAINS = ("architecture", "coding", "knowledge", "reasoning")
 DIFFICULTIES: tuple[Difficulty, ...] = ("easy", "medium", "hard", "extreme")
@@ -30,7 +31,6 @@ BANK_MAX = 60
 BANK_RAW_COUNT = 54
 BANK_EXPANDED_COUNT = 78
 BANK_QUICK_COUNT = 14
-DEFAULT_CONCURRENCY = 4
 QUICK_DIFFICULTIES: tuple[Difficulty, ...] = ("easy", "medium")
 RAW_MATRIX: dict[str, dict[str, int]] = {
     "architecture": {"easy": 1, "medium": 1, "hard": 5, "extreme": 5},
@@ -377,27 +377,26 @@ def _majority(samples: list[SampleGrade]) -> bool | None:
 
 
 def _raw_id(item: QuestionResult) -> str:
-    explicit = item.raw_id or item.cluster_id
-    if explicit:
-        return str(explicit)
-    lang = _language(item)
-    return item.question_id.rsplit("-", 1)[0] if lang else item.question_id
+    return cluster_id_of(
+        question_id=item.question_id,
+        raw_id=item.raw_id,
+        cluster_id=item.cluster_id,
+        language=item.language,
+        prefer="raw",
+    )
 
 
 def _language(item: QuestionResult) -> str | None:
-    if item.language:
-        return item.language
-    for lang in CODE_LANGS:
-        if item.question_id.endswith(f"-{lang}"):
-            return lang
-    return None
+    return language_of(item.language, item.question_id)
 
 
 def _cluster_id(item: QuestionResult) -> str:
-    if item.cluster_id or item.raw_id:
-        return str(item.cluster_id or item.raw_id)
-    lang = _language(item)
-    return item.question_id.rsplit("-", 1)[0] if lang else item.question_id
+    return cluster_id_of(
+        question_id=item.question_id,
+        raw_id=item.raw_id,
+        cluster_id=item.cluster_id,
+        language=item.language,
+    )
 
 
 def _cluster_rows(items: list[QuestionResult]) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:

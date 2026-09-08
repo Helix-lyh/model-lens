@@ -17,7 +17,7 @@ def _targets(model: str = "omen-alpha", claimed: str = "glm-5.3-flash") -> Targe
 
 def test_parser_has_shell():
     args = build_parser().parse_args(
-        ["shell", "--target", "out/targets.omen.yaml", "--peers", "glm-5.3-flash"]
+        ["shell", "--target", "examples/targets.yaml", "--peers", "glm-5.3-flash"]
     )
     assert args.cmd == "shell"
     assert args.peers == "glm-5.3-flash"

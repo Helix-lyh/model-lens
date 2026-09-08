@@ -116,7 +116,7 @@ def test_perfect_glm5_high_confidence():
     }
     client = _client_for(BASE, probes, glm_hats)
 
-    result = run_family(client, catalog, BASE, probes, claimed_model="ignored")
+    result = run_family(client, catalog, BASE, probes)
 
     assert result.status == "ok"
     assert result.family == "glm5"

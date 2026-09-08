@@ -1,12 +1,35 @@
 from __future__ import annotations
 
+from src.types import CompletionRecord
 from src.usage import (
     TokenUsage,
     count_request_chars,
     derive_metrics,
     extract_token_usage,
+    http_ok,
     summarize_records,
 )
+
+
+def _rec(*, status_code: int | None = 200, error: str | None = None) -> CompletionRecord:
+    return CompletionRecord(
+        kind="t",
+        endpoint="https://example.test/v1",
+        model="demo",
+        request={},
+        status_code=status_code,
+        latency_ms=1,
+        prompt_tokens=1,
+        completion_tokens=0,
+        content="x",
+        error=error,
+    )
+
+
+def test_http_ok_rejects_error_on_2xx() -> None:
+    assert http_ok(_rec(status_code=200, error=None)) is True
+    assert http_ok(_rec(status_code=200, error="stream: 无 SSE 事件")) is False
+    assert http_ok(_rec(status_code=500, error=None)) is False
 
 
 def test_openai_cached_and_reasoning() -> None:

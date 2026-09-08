@@ -13,7 +13,8 @@ import httpx
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from src.bank import DEFAULT_CONCURRENCY, load_questions, run_bank
+from src.bank import load_questions, run_bank
+from src.types import DEFAULT_CONCURRENCY
 from src.catalog import load_catalog, lookup_claimed_family
 from src.client import ChatClient, JsonlRecorder
 from src.compare import decide_degrade, decide_identity

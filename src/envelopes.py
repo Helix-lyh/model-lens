@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from src.types import Completer, CompletionRecord
-from src.usage import int_or_none
+from src.usage import http_ok, record_prompt_tokens
 
 EnvelopeStatus = Literal["ok", "insufficient"]
 
@@ -94,7 +94,7 @@ def _classify(rec: CompletionRecord) -> tuple[str, str | None]:
     """从 status / error / content / raw 判信封种类，detail 截断 240。"""
     blob = _text_from_record(rec)
     detail = _clip_detail(blob)
-    if _http_ok(rec):
+    if http_ok(rec):
         return "accepted", detail
 
     if "[1210]" in blob or "[1214]" in blob:
@@ -107,7 +107,6 @@ def _classify(rec: CompletionRecord) -> tuple[str, str | None]:
     if (
         "untagged enum" in low
         or "deserialize" in low
-        or "invalid type" in low
         or "expected f32" in low
     ):
         return "serde", detail
@@ -187,18 +186,8 @@ def _valid(probe: EnvelopeProbe) -> bool:
     return probe.http is not None or bool(probe.kind)
 
 
-def _http_ok(rec: CompletionRecord) -> bool:
-    sc = rec.status_code
-    return sc is not None and 200 <= sc < 300
-
-
 def _prompt_tokens(rec: CompletionRecord) -> int | None:
-    """整数 token：先信 usage.prompt_tokens，没有再回退顶栏。不估算。"""
-    if isinstance(rec.usage, dict):
-        from_usage = int_or_none(rec.usage.get("prompt_tokens"))
-        if from_usage is not None:
-            return from_usage
-    return int_or_none(rec.prompt_tokens)
+    return record_prompt_tokens(rec)
 
 
 def _text_from_record(rec: CompletionRecord) -> str:

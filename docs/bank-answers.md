@@ -1,7 +1,7 @@
 # 题库参考答案与评分机制（54 条原始题，展开后 78 道）
 
 维护者文档。题面在 `bank/questions.yaml`，本文只放答案，**不要**把答案写回题面。
-bank-v2.1 改写了 24 道非编码题，设计说明与参考 JSON 见 `docs/bank-v2-design.md`。
+题库版本 `20260908` 改写了 24 道非编码题，设计说明与参考 JSON 见 `docs/bank-v2-design.md`。
 编码题的 Go/TS 参考实现见 `cursor_workspace/build_scripts/verify_lang_sandboxes.py`，
 Python 参考实现与结构题期望输出见 `cursor_workspace/build_scripts/verify_bank_answers.py`；
 两个脚本都会把参考答案跑进真实沙箱，必须全部满分。
@@ -362,7 +362,7 @@ def plan_tasks(tasks, deps):
     return out if len(out) == len(tasks) else None
 ```
 
-## 三、知识域（12 题，全部 structure / bank-v2.1 RFC）
+## 三、知识域（12 题，全部 structure / 20260908 RFC）
 
 权威期望见 `STRUCTURE` 与 `bank/tests/v2_knowledge_*.py`，说明见 `docs/bank-v2-design.md`。
 现行 `knowledge-hard-01` **不是** `c05_nested.py`。旧 alias 直觉陷阱、`c05_nested` / `c06_lines` / `c07_array` / `c08_oneline` / `c09_lines6` / `c10_meta` 已作废。

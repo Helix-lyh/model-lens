@@ -62,6 +62,35 @@ def flush_sse(buffer: str) -> list[dict[str, Any]]:
     return [event] if event is not None else []
 
 
+def event_error_message(event: dict[str, Any]) -> str | None:
+    err = event.get("error")
+    if isinstance(err, dict):
+        msg = err.get("message") or err.get("type")
+        if isinstance(msg, str) and msg:
+            return msg
+        return "error"
+    if isinstance(err, str) and err:
+        return err
+    if event.get("type") == "error":
+        nested = event.get("error")
+        if isinstance(nested, dict):
+            msg = nested.get("message") or nested.get("type")
+            if isinstance(msg, str) and msg:
+                return msg
+        return "error"
+    return None
+
+
+def stream_failure(events: list[dict[str, Any]], event_count: int) -> str | None:
+    if event_count == 0:
+        return "stream: 无 SSE 事件"
+    for event in events:
+        msg = event_error_message(event)
+        if msg:
+            return f"stream: {msg}"
+    return None
+
+
 def assemble_stream(adapter: Any, events: Iterable[dict[str, Any]]) -> StreamAssemble:
     evs = list(events)
     parts = [delta for ev in evs if (delta := adapter.content_delta(ev))]

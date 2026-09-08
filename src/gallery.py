@@ -7,13 +7,13 @@ from pathlib import Path
 from typing import Any
 
 from src.bank import load_questions
+from src.cluster import cluster_id_from_row, language_of, raw_matrix_from_bank
 from src.reasoning import extract_reasoning
 
 SCHEMA = "model-lens.gallery.v1"
 _TEMPLATE = Path(__file__).resolve().parent.parent / "web" / "gallery.html"
 _CODE_TYPES = frozenset({"code_tests"})
 _CRITERIA_TYPES = frozenset({"alias", "keyword", "structure"})
-_LANG_SUFFIXES = ("python", "go", "typescript")
 
 
 def write_run_gallery(run_dir: Path, *, root: Path | None = None) -> dict[str, Any]:
@@ -39,9 +39,16 @@ def write_gallery(run_dirs: list[Path], out_dir: Path, *, root: Path | None = No
 
 
 def build_gallery(run_dirs: list[Path], *, root: Path | None = None) -> dict[str, Any]:
-    questions = {q.id: q for q in load_questions(root)}
+    need_bank = any(_run_has_bank_questions(Path(run_dir)) for run_dir in run_dirs)
+    questions = {q.id: q for q in load_questions(root)} if need_bank else {}
     models = [build_model(Path(run_dir), questions) for run_dir in run_dirs]
     return {"schema": SCHEMA, "models": models}
+
+
+def _run_has_bank_questions(run_dir: Path) -> bool:
+    src = _read_json(run_dir / "report.json") or _read_json(run_dir / "family.json") or {}
+    bank = src.get("bank") or _read_json(run_dir / "bank.json") or {}
+    return bool(isinstance(bank, dict) and bank.get("questions"))
 
 
 def build_model(run_dir: Path, questions: dict[str, Any]) -> dict[str, Any]:
@@ -101,21 +108,12 @@ def render_html(payload: dict[str, Any]) -> str:
 
 def _row_language(row: dict[str, Any]) -> str | None:
     language = row.get("language")
-    if language in _LANG_SUFFIXES:
-        return str(language)
-    question_id = str(row.get("question_id") or "")
-    for suffix in _LANG_SUFFIXES:
-        if question_id.endswith(f"-{suffix}"):
-            return suffix
-    return None
+    lang = language if isinstance(language, str) else None
+    return language_of(lang, str(row.get("question_id") or ""))
 
 
 def _row_cluster_id(row: dict[str, Any]) -> str | None:
-    explicit = row.get("cluster_id") or row.get("raw_id")
-    if explicit:
-        return str(explicit)
-    question_id = str(row.get("question_id") or "")
-    return question_id.rsplit("-", 1)[0] if _row_language(row) else question_id or None
+    return cluster_id_from_row(row)
 
 
 def _raw_count(bank: dict[str, Any]) -> int:
@@ -149,20 +147,7 @@ def _coding_variant_count(bank: dict[str, Any]) -> int:
 
 
 def _raw_matrix(bank: dict[str, Any]) -> dict[str, dict[str, int]]:
-    matrix: dict[str, dict[str, int]] = {}
-    seen: set[str] = set()
-    for row in bank.get("questions") or []:
-        if not isinstance(row, dict):
-            continue
-        raw = row.get("raw_id") or row.get("cluster_id") or row.get("question_id")
-        domain = row.get("domain")
-        difficulty = row.get("difficulty")
-        if not raw or not domain or not difficulty or str(raw) in seen:
-            continue
-        seen.add(str(raw))
-        matrix.setdefault(str(domain), {}).setdefault(str(difficulty), 0)
-        matrix[str(domain)][str(difficulty)] += 1
-    return matrix
+    return raw_matrix_from_bank(bank)
 
 
 def _columns(src: dict[str, Any]) -> dict[str, Any]:

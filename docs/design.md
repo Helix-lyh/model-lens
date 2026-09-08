@@ -1,6 +1,6 @@
 # model-lens 现行方案
 
-个人兴趣。三栏独立结论，综合可用大约 60%–80% 即可。  
+个人兴趣。三栏独立结论。同家族弱档和 8-bit 允许漏检，不设综合通过线。  
 本文吸收 [review-20260830](review-20260830.md)，**取代**原稿 `ModelLens.md` 作为实现合同。评审未改的产品共识仍有效。
 
 **先做 Module F。** 只验证「匿名模型是不是某词表家族」时，只跑 `family`，不必先写满题库。
@@ -34,7 +34,7 @@ targets.yaml
 
 数据流单向：请求写入 `out/<run>/requests.jsonl`，分析脚本只读记录。
 
-独立仓库（`~/code/model-lens`）。自建 `httpx` 客户端，不引入 `openai` / `anthropic` SDK，不依赖 TideSight。渠道按 pi / DSH 的拆法：`channel` 选厂商预设，`api` 选线协议；新官方站通常只加预设，不改调用方。字段名用 `tokenizer_family` / `vocab_hits`。
+独立仓库。自建 `httpx` 客户端，不引入 `openai` / `anthropic` SDK，不依赖 TideSight。渠道按 pi / DSH 的拆法：`channel` 选厂商预设，`api` 选线协议；新官方站通常只加预设，不改调用方。字段名用 `tokenizer_family` / `vocab_hits`。
 
 线协议（可扩展）：`openai-completions`（New API / 绝大多数兼容口）、`openai-responses`、`anthropic-messages`、`google-generative-ai`、`google-vertex`、`azure-openai-completions`、`bedrock-converse`。各家 usage 字段归一成整数 `prompt_tokens`；缺整数则 Module F fail-closed。禁止本地估算。不引入 boto3 / 官方云 SDK。
 
@@ -142,8 +142,8 @@ Phase 1 必收（互不塌缩、均已核实可公开获取）：
 
 ### 3.1 规模
 
-题库 **20–60** 条原始题（编码按 1 题计，不按语言展开后计数），四域都要有，且每域覆盖 easy / medium / hard。  
-编号：`{architecture|coding|knowledge|reasoning}-{easy|medium|hard}-{两位序号}`，例如 `coding-medium-01`。  
+题库 **20–60** 条原始题（编码按 1 题计，不按语言展开后计数），四域都要有，且每域覆盖 easy / medium / hard / extreme。  
+编号：`{architecture|coding|knowledge|reasoning}-{easy|medium|hard|extreme}-{两位序号}`，例如 `coding-medium-01`。  
 编码题加载时按语言展开为 `coding-medium-01-python` / `-go` / `-typescript`。  
 `--quick` 快速：只跑 easy/medium，每题 `temperature=0` 一次。  
 默认全量：四档都跑，每题 `temperature=0` 一次。  
@@ -155,7 +155,7 @@ Phase 1 必收（互不塌缩、均已核实可公开获取）：
 
 题面盐：与标准答案无关的短前缀（例如 run id）。不声称能防语义缓存。
 
-域方向：架构仍是工程判断；编码仍是可跑单测。知识易档短答 exact；中/难档含长流程指令遵循（非常规嵌套 / 故意「错键」 / 后条覆盖前条），用 `structure` 多条硬规则核对。推理易/中档短答 exact；难档可含逻辑网格 `structure`。禁止安全拒答类题干，禁止抄公开基准原文。推理不进 I 向量、不进 D 决策、不触发知识冒烟。
+域方向：架构仍是工程判断；编码仍是可跑单测。知识题考真实标准事实（短答 exact 或封闭 structure），不把指令遵循放进 knowledge。指令遵循（非常规嵌套 / 故意「错键」 / 后条覆盖前条）放在 architecture / reasoning 构念。推理易/中档短答 exact；难档可含逻辑网格 `structure`。禁止安全拒答类题干，禁止抄公开基准原文。推理不进 I 向量、不进 D 决策、不触发知识冒烟。
 
 结构题先收束再计点：题面锁死字段类型（JSON 数字 / 布尔 / 字符串 / 整数数组）和带干扰项的枚举，不要把唯一正确答案写进题面。自由文本改成封闭枚举，或拆成多个检查点。不要靠同义答案表穷举，不要 LLM-as-judge。
 
@@ -172,7 +172,7 @@ Phase 1 必收（互不塌缩、均已核实可公开获取）：
 | 知识 | 短答 exact 1 分；`structure` 每条硬规则 1 分 | **否**（过易，只当冒烟：全错才报警） | **否** |
 | 推理 | 短答 exact 1 分；逻辑网格 `structure` 逐条计点 | **否** | **否**（只进分域附录） |
 
-编码抽不出代码、本机缺该语言工具链、或工具链低于门槛（Python 3.11 / go 1.20）：该题 `missing`，不中断整场，不进 D 分母。沙箱清空 `TARGET_KEY` / `REF_KEY` 及进程里其它 API 环境变量。编译失败、禁运 import、跑完没有 `POINTS`、或超时记 0 分。猜对不算：知识栏 `match: exact`，带解释的句子不得分。环境初始化见 `AGENTS.md` 与 `cursor_workspace/build_scripts/init_env.py`。
+编码抽不出代码、本机缺该语言工具链、或工具链低于门槛（Python 3.11 / go 1.20）：该题 `missing`，不中断整场，不进 D 分母。沙箱清空 `TARGET_KEY` / `REF_KEY` 及进程里其它 API 环境变量。编译失败、禁运 import、跑完没有 `POINTS`、或超时记 0 分。猜对不算：知识栏 `match: exact`，带解释的句子不得分。环境初始化见仓库 README 与 `cursor_workspace/build_scripts/init_env.py`。
 
 ---
 
@@ -312,7 +312,7 @@ Python 3.11+。依赖：`httpx`、`pyyaml`、`tiktoken`、`tokenizers`。独立 
 
 ### Phase 2
 
-写满题库与 grader（20–60，三档编号）。编码：同一题面 Python / Go / TypeScript 抽代码 + 编译跑测。用任一能用的模型跑通，修评分误杀。
+写满题库与 grader（20–60，四档编号）。编码：同一题面 Python / Go / TypeScript 抽代码 + 编译跑测。用任一能用的模型跑通，修评分误杀。
 
 ### Phase 3
 
@@ -353,7 +353,7 @@ README 写清：准确率预期、8-bit 与同家族弱档、token 不可信、�
 ## 11. 硬约束
 
 1. 先 F，再题库。  
-2. 题库 20–60 条原始题（展开前计数），四域 × 三档英文编号；快速只跑 easy/medium。   
+2. 题库 20–60 条原始题（展开前计数），四域 × 四档英文编号（easy/medium/hard/extreme）；快速只跑 easy/medium。   
 3. 三栏不准加权总分。  
 4. 请求落 jsonl，分析可离线重放。  
 5. 密钥只走环境变量。  

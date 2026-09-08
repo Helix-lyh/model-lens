@@ -3,7 +3,7 @@
 报告附录用。不进家族 / 判真 / 降智。不合成总分，不写「支持」。主合同见 [design](design.md) 文末附录。
 
 ```bash
-python -m src.cli shell --target out/targets.omen.yaml --peers glm-5.3-flash
+python -m src.cli shell --target examples/targets.yaml --peers glm-5.3-flash
 ```
 
 请求：非流式；`max_tokens` 不传或走官方上限，禁止 `1`。禁止本地估算 `prompt_tokens`。禁止 `transformers` / `openai` SDK。

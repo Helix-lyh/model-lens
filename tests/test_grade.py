@@ -12,7 +12,7 @@ from src.grade import (
     grade_response,
     parse_points,
     run_go_sandbox,
-    run_sandbox,
+    run_python_sandbox,
     run_ts_sandbox,
 )
 from src.toolchain import Tool, Toolchain, discover
@@ -337,7 +337,7 @@ def test_fixture_paths_reject_absolute_parent_and_symlink(tmp_path: Path) -> Non
 
 
 def test_sandbox_shelf_pass() -> None:
-    status, detail = run_sandbox(_SHELF, repo_root() / "bank/tests/b01_shelf.py")
+    status, detail = run_python_sandbox(_SHELF, repo_root() / "bank/tests/b01_shelf.py")
     assert status == "pass"
     assert detail == "POINTS 6/6"
 
@@ -347,7 +347,7 @@ def test_sandbox_shelf_partial() -> None:
 def apply_ops(ops):
     return {"A": 0, "B": 0, "C": 0}
 '''
-    status, detail = run_sandbox(code, repo_root() / "bank/tests/b01_shelf.py")
+    status, detail = run_python_sandbox(code, repo_root() / "bank/tests/b01_shelf.py")
     assert status == "fail"
     assert "POINTS 1/6" in detail
 
@@ -357,7 +357,7 @@ def test_sandbox_clears_api_keys(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-also-hidden")
     monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "bedrock-should-not-leak")
     monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/tmp/fake-adc.json")
-    status, detail = run_sandbox(_SHELF, repo_root() / "bank/tests/b01_shelf.py")
+    status, detail = run_python_sandbox(_SHELF, repo_root() / "bank/tests/b01_shelf.py")
     assert status == "pass"
     spy = tmp_path / "spy.py"
     spy.write_text(
@@ -371,14 +371,14 @@ def test_sandbox_clears_api_keys(monkeypatch, tmp_path: Path) -> None:
         "print('POINTS 1/1')\n",
         encoding="utf-8",
     )
-    status, detail = run_sandbox(_SHELF, spy)
+    status, detail = run_python_sandbox(_SHELF, spy)
     assert status == "pass", detail
 
 
 def test_sandbox_exit0_without_points_fails(tmp_path: Path) -> None:
     spy = tmp_path / "spy.py"
     spy.write_text("print('ok')\n", encoding="utf-8")
-    status, detail = run_sandbox("x = 1\n", spy)
+    status, detail = run_python_sandbox("x = 1\n", spy)
     assert status == "fail"
     assert "sandbox ok" not in detail
     assert "POINTS" not in detail or "no POINTS" in detail
@@ -392,7 +392,7 @@ def test_sandbox_ignores_points_on_stderr(tmp_path: Path) -> None:
         "print('ok')\n",
         encoding="utf-8",
     )
-    status, detail = run_sandbox("x = 1\n", spy)
+    status, detail = run_python_sandbox("x = 1\n", spy)
     assert status == "fail"
     assert detail != "POINTS 9/9"
 
@@ -400,7 +400,7 @@ def test_sandbox_ignores_points_on_stderr(tmp_path: Path) -> None:
 def test_sandbox_uses_last_stdout_points(tmp_path: Path) -> None:
     spy = tmp_path / "spy.py"
     spy.write_text("print('POINTS 9/9')\nprint('POINTS 3/6')\n", encoding="utf-8")
-    status, detail = run_sandbox("x = 1\n", spy)
+    status, detail = run_python_sandbox("x = 1\n", spy)
     assert status == "fail"
     assert "POINTS 3/6" in detail
     assert parse_points(detail) == (3, 6)
@@ -413,7 +413,7 @@ def apply_ops(ops):
     socket.create_connection(('example.com', 80), timeout=1)
     return {"A": 0, "B": 0, "C": 0}
 """
-    status, detail = run_sandbox(code, repo_root() / "bank/tests/b01_shelf.py")
+    status, detail = run_python_sandbox(code, repo_root() / "bank/tests/b01_shelf.py")
     assert status == "fail"
     assert "network disabled" in detail or "OSError" in detail or "POINTS 0/6" in detail
 
@@ -425,7 +425,7 @@ def apply_ops(ops):
     subprocess.run(["echo", "leak"], check=False)
     return {"A": 0, "B": 0, "C": 0}
 """
-    status, detail = run_sandbox(code, repo_root() / "bank/tests/b01_shelf.py")
+    status, detail = run_python_sandbox(code, repo_root() / "bank/tests/b01_shelf.py")
     assert status == "fail"
     assert "subprocess disabled" in detail or "POINTS 0/6" in detail
 

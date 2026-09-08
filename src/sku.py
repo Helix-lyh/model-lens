@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from src.types import Completer, CompletionRecord
+from src.usage import http_ok, record_prompt_tokens
 
 SKU_HI = "hi"
 SKU_BASE = (
@@ -114,7 +115,7 @@ def measure_sku_card(client: Completer, *, model_id: str) -> SkuCard:
 
 
 def compare_sku_cards(target: SkuCard, peers: list[SkuCard]) -> CatalogAbResult:
-    """对照目标与同网关具名兄弟。有壳差先报 shell_diff，不写就是某某。"""
+    """对照目标与同网关具名兄弟。先报 shell_diff，再 adapter_diff / same_shell / insufficient；对不上不猜型号。"""
     compares = [_peer_compare(target, peer) for peer in peers]
     cards = [target, *peers]
 
@@ -137,12 +138,12 @@ def compare_sku_cards(target: SkuCard, peers: list[SkuCard]) -> CatalogAbResult:
     return _result("insufficient", target, compares, cards)
 
 
-def run_catalog_ab(
+def run_sku_ab(
     clients: dict[str, Completer],
     *,
     target_id: str,
 ) -> CatalogAbResult:
-    """clients 必须含 target_id；其余当对照。先测目标，再按插入序测对照。"""
+    """clients 必须含 target_id；其余当对照。先测目标，再按插入序测对照。不读词表 catalog。"""
     if target_id not in clients:
         raise KeyError(target_id)
     target = measure_sku_card(clients[target_id], model_id=target_id)
@@ -185,33 +186,10 @@ def _ask(
     )
 
 
-def _http_ok(rec: CompletionRecord) -> bool:
-    sc = rec.status_code
-    return sc is not None and 200 <= sc < 300
-
-
-def _usage_prompt_tokens(rec: CompletionRecord) -> int | None:
-    usage = rec.usage
-    if not isinstance(usage, dict):
-        return None
-    value = usage.get("prompt_tokens")
-    return value if type(value) is int else None
-
-
-def _record_prompt_tokens(rec: CompletionRecord) -> int | None:
-    """整数 token：先信 usage.prompt_tokens，没有再回退顶栏。拒绝 bool。"""
-    from_usage = _usage_prompt_tokens(rec)
-    if from_usage is not None:
-        return from_usage
-    if type(rec.prompt_tokens) is int:
-        return rec.prompt_tokens
-    return None
-
-
 def _trusted_tokens(rec: CompletionRecord) -> int | None:
-    if not _http_ok(rec):
+    if not http_ok(rec):
         return None
-    return _record_prompt_tokens(rec)
+    return record_prompt_tokens(rec)
 
 
 def _subtract(base: int | None, probe: int | None) -> int | None:
@@ -231,9 +209,9 @@ def _rec_detail(rec: CompletionRecord) -> str | None:
 
 
 def _token_kind(rec: CompletionRecord) -> str:
-    if not _http_ok(rec):
+    if not http_ok(rec):
         return "http_error"
-    if _record_prompt_tokens(rec) is None:
+    if record_prompt_tokens(rec) is None:
         return "missing_usage"
     return "ok"
 
@@ -288,7 +266,7 @@ def _effort_body(rec: CompletionRecord) -> str:
 
 
 def _effort_kind(rec: CompletionRecord) -> str:
-    if _http_ok(rec):
+    if http_ok(rec):
         return "accepted"
     body = _effort_body(rec)
     if "[1210]" in body or "[1214]" in body:

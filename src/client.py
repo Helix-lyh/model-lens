@@ -19,7 +19,7 @@ from src.channels.openai_completions import chat_completions_url
 from src.channels.resolve import get_adapter, resolve_channel
 from src.config import resolve_api_key
 from src.limits import official_max_output
-from src.stream import StreamUnsupported, assemble_stream, feed_sse, flush_sse
+from src.stream import StreamUnsupported, assemble_stream, feed_sse, flush_sse, stream_failure
 from src.reasoning import extract_reasoning
 from src.types import CompletionRecord, Endpoint
 from src.usage import (
@@ -356,6 +356,7 @@ class ChatClient:
         assembled = assemble_stream(self.adapter, events)
         usage = self.adapter.parse_token_usage(assembled.payload)
         content = assembled.content or self.adapter.parse_content(assembled.payload)
+        error = stream_failure(events, assembled.event_count)
         metrics = derive_metrics(
             usage,
             latency_ms=latency_ms,
@@ -375,7 +376,7 @@ class ChatClient:
             content=content,
             reasoning=extract_reasoning(assembled.payload),
             raw=self.adapter.slim_raw(assembled.payload),
-            error=None,
+            error=error,
             channel=self.resolved.channel_id,
             api=self.resolved.api,
             usage=usage_asdict(usage),

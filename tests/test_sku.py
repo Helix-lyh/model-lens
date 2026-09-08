@@ -12,7 +12,7 @@ from src.sku import (
     compare_sku_cards,
     format_sku_line,
     measure_sku_card,
-    run_catalog_ab,
+    run_sku_ab,
 )
 from src.types import Completer, CompletionRecord
 
@@ -137,7 +137,7 @@ def test_omen_style_shell_diff():
         "omen-alpha": _client(hi=37, effort="accepted"),
         "glm-5.3-flash": _client(hi=13, effort="zhipu_numeric"),
     }
-    result = run_catalog_ab(clients, target_id="omen-alpha")
+    result = run_sku_ab(clients, target_id="omen-alpha")
 
     assert result.status == "shell_diff"
     assert result.target.hi_prompt_tokens == 37
@@ -156,7 +156,7 @@ def test_same_shell_note_has_no_support():
         "a": _client(hi=37, effort="accepted"),
         "b": _client(hi=37, effort="accepted"),
     }
-    result = run_catalog_ab(clients, target_id="a")
+    result = run_sku_ab(clients, target_id="a")
 
     assert result.status == "same_shell"
     assert result.peers[0].wrapper_offset == 0
@@ -173,7 +173,7 @@ def test_adapter_diff_same_hi_different_effort():
         "a": _client(hi=37, effort="accepted"),
         "b": _client(hi=37, effort="zhipu_numeric"),
     }
-    result = run_catalog_ab(clients, target_id="a")
+    result = run_sku_ab(clients, target_id="a")
 
     assert result.status == "adapter_diff"
     assert result.peers[0].wrapper_offset == 0
@@ -242,7 +242,7 @@ def test_adapter_diff_special_delta():
         "a": _client(hi=37, special_delta=1, effort="accepted"),
         "b": _client(hi=37, special_delta=8, effort="accepted"),
     }
-    result = run_catalog_ab(clients, target_id="a")
+    result = run_sku_ab(clients, target_id="a")
     assert result.status == "adapter_diff"
     assert result.peers[0].wrapper_offset == 0
     assert result.peers[0].same_effort_kind is True
@@ -253,7 +253,7 @@ def test_special_one_side_missing_not_adapter():
         "a": _client(hi=37, special_delta=1, effort="accepted"),
         "b": _client(hi=37, special_delta=None, special_status=500, effort="accepted"),
     }
-    result = run_catalog_ab(clients, target_id="a")
+    result = run_sku_ab(clients, target_id="a")
     assert result.status == "same_shell"
     assert result.peers[0].special_image_delta_peer is None
 
@@ -277,12 +277,12 @@ def test_shell_diff_beats_adapter():
         "thick": _client(hi=13, effort="accepted"),
         "same_hi": _client(hi=37, effort="zhipu_numeric"),
     }
-    result = run_catalog_ab(clients, target_id="target")
+    result = run_sku_ab(clients, target_id="target")
     assert result.status == "shell_diff"
     assert format_sku_line(result) == "sku=shell_diff hi=37 offset=+24 vs thick"
 
 
-def test_run_catalog_ab_measures_target_first():
+def test_run_sku_ab_measures_target_first():
     order: list[str] = []
 
     class OrderClient(FakeClient):
@@ -302,7 +302,7 @@ def test_run_catalog_ab_measures_target_first():
         "peer": OrderClient("peer", 13),
         "target": OrderClient("target", 37),
     }
-    result = run_catalog_ab(clients, target_id="target")
+    result = run_sku_ab(clients, target_id="target")
     assert order == ["target", "peer"]
     assert result.cards[0].model_id == "target"
     assert [c.model_id for c in result.cards[1:]] == ["peer"]

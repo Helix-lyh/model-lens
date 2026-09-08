@@ -195,6 +195,26 @@ def test_openai_and_anthropic_is_mixed():
     assert "支持" not in line
 
 
+def test_openai_invalid_type_is_not_serde():
+    client = FakeClient(
+        by_kind={
+            "env_temperature_type": {
+                "status_code": 400,
+                "error": (
+                    '{"error":{"type":"invalid_request_error",'
+                    '"message":"Invalid type for \'temperature\': expected a decimal"}}'
+                ),
+            }
+        }
+    )
+
+    result = run_envelopes(client)
+
+    probes = _by_name(result)
+    assert probes["temperature_wrong_type"].kind == "openai_invalid"
+    assert result.family != "rust_serde"
+
+
 def test_developer_accepted_wizard_rejected():
     client = FakeClient(
         by_role={

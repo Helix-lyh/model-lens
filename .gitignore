@@ -12,6 +12,10 @@ build/
 out/
 .env
 .env.*
+*.jsonl
 catalog/tokenizers/*
 !catalog/tokenizers/.gitkeep
+targets.local.yaml
+.claude/
+.gitnexus/
 .DS_Store

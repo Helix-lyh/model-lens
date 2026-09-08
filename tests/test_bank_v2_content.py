@@ -8,11 +8,11 @@ import pytest
 import yaml
 
 from src.bank import load_questions, RAW_MATRIX
-from src.grade import grade_response, run_sandbox
+from src.grade import grade_response, run_python_sandbox
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW = yaml.safe_load((ROOT / 'bank/questions.yaml').read_text())
-NEW = [q for q in RAW if q.get('metadata', {}).get('version') == 'bank-v2.1']
+NEW = [q for q in RAW if str(q.get('metadata', {}).get('version') or '') == '20260908']
 
 
 def encoded(q):
@@ -20,7 +20,7 @@ def encoded(q):
 
 
 def run(q, payload):
-    return run_sandbox('', ROOT / q['grader']['tests_file'], payload=payload)[0]
+    return run_python_sandbox('', ROOT / q['grader']['tests_file'], payload=payload)[0]
 
 
 def test_counts():

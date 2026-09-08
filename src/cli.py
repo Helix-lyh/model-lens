@@ -1,4 +1,4 @@
-"""model-lens CLI：family 只跑 F；bank / audit 跑题库。"""
+"""model-lens CLI：family 跑 F，有参考源时顺带写 I；bank / audit 跑题库。"""
 
 from __future__ import annotations
 
@@ -6,13 +6,21 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.bank import DEFAULT_CONCURRENCY, load_questions, run_bank
+from src.bank import load_questions, run_bank
 from src.client import ChatClient, JsonlRecorder
 from src.config import load_targets
 from src.compare import decide_degrade, decide_identity
 from src.catalog import lookup_claimed_family
 from src.family import format_family_line
-from src.types import BankResult, DegradeResult, Endpoint, FamilyResult, IdentityResult, Targets
+from src.types import (
+    DEFAULT_CONCURRENCY,
+    BankResult,
+    DegradeResult,
+    Endpoint,
+    FamilyResult,
+    IdentityResult,
+    Targets,
+)
 
 
 def _project_root() -> Path:
@@ -30,12 +38,22 @@ FAMILY_TIMEOUT_S = 60.0
 BANK_TIMEOUT_S = 180.0
 
 
-def _add_concurrency(parser: argparse.ArgumentParser) -> None:
+def _add_concurrency(parser: argparse.ArgumentParser, *, family_base: bool = False) -> None:
+    extra = "；家族 BASE 仍先串行" if family_base else ""
     parser.add_argument(
         "--concurrency",
         type=int,
         default=DEFAULT_CONCURRENCY,
-        help=f"同时进行的请求数，默认 {DEFAULT_CONCURRENCY}；家族 BASE 仍先串行",
+        help=f"同时进行的请求数，默认 {DEFAULT_CONCURRENCY}{extra}",
+    )
+
+
+def _add_target(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--target",
+        required=True,
+        metavar="YAML",
+        help="targets.yaml 路径（claimed_model / target / 可选 reference）",
     )
 
 
@@ -130,7 +148,7 @@ def _run_shell_layers(
 ):
     from src.catalog import load_catalog
     from src.envelopes import format_envelopes_line, run_envelopes
-    from src.sku import format_sku_line, run_catalog_ab
+    from src.sku import format_sku_line, run_sku_ab
     from src.wrapper import format_wrapper_line, run_wrapper
 
     catalog = load_catalog(_project_root())
@@ -142,7 +160,7 @@ def _run_shell_layers(
         clients[peer_id] = _peer_client(
             targets.target, peer_id, run_dir, timeout_s=timeout_s
         )
-    sku = run_catalog_ab(clients, target_id=targets.target.model)
+    sku = run_sku_ab(clients, target_id=targets.target.model)
     print(format_sku_line(sku))
 
     envelopes = run_envelopes(client)
@@ -304,8 +322,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    p_family = sub.add_parser("family", help="只跑 Module F")
-    p_family.add_argument("--target", required=True)
+    p_family = sub.add_parser("family", help="跑 Module F；有参考源时顺带写 I（不跑题库 / D）")
+    _add_target(p_family)
     p_family.add_argument("--out", default="out")
     p_family.add_argument(
         "--timeout",
@@ -313,11 +331,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=FAMILY_TIMEOUT_S,
         help=f"单次请求超时秒，默认 {FAMILY_TIMEOUT_S:.0f}",
     )
-    _add_concurrency(p_family)
+    _add_concurrency(p_family, family_base=True)
     p_family.set_defaults(func=_cmd_family)
 
     p_bank = sub.add_parser("bank", help="只跑 Module C 题库")
-    p_bank.add_argument("--target", required=True)
+    _add_target(p_bank)
     p_bank.add_argument("--out", default="out")
     p_bank.add_argument(
         "--quick",
@@ -327,7 +345,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_bank.add_argument(
         "--stream-metrics",
         action="store_true",
-        help="题库走 SSE 测 TTFT / decode TPS；家族栏仍非流式。中转 streaming 的 usage 常不可信",
+        help="本题库走 SSE 测 TTFT / decode TPS。中转 streaming 的 usage 常不可信",
     )
     p_bank.add_argument(
         "--timeout",
@@ -338,7 +356,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_concurrency(p_bank)
     p_bank.set_defaults(func=_cmd_bank)
 
-    p_report = sub.add_parser("report", help="对已有 run 重出 md/json")
+    p_report = sub.add_parser("report", help="对已有 run 重出 md/json；有题库时也重写 gallery.json")
     p_report.add_argument("--run", required=True)
     p_report.set_defaults(func=_cmd_report)
 
@@ -348,7 +366,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_gallery.set_defaults(func=_cmd_gallery)
 
     p_audit = sub.add_parser("audit", help="F + C + I/D")
-    p_audit.add_argument("--target", required=True)
+    _add_target(p_audit)
     p_audit.add_argument("--out", default="out")
     p_audit.add_argument(
         "--quick",
@@ -371,11 +389,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=BANK_TIMEOUT_S,
         help=f"单次请求超时秒，默认 {BANK_TIMEOUT_S:.0f}；家族栏同一客户端",
     )
-    _add_concurrency(p_audit)
+    _add_concurrency(p_audit, family_base=True)
     p_audit.set_defaults(func=_cmd_audit)
 
     p_shell = sub.add_parser("shell", help="附录：wrapper / 同网关 SKU / 错误信封；不进 F/I/D")
-    p_shell.add_argument("--target", required=True)
+    _add_target(p_shell)
     p_shell.add_argument("--out", default="out")
     p_shell.add_argument(
         "--peers",

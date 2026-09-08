@@ -15,7 +15,7 @@ from statistics import median_low
 from typing import Literal
 
 from src.types import Completer, CompletionRecord, Vocab
-from src.usage import int_or_none
+from src.usage import http_ok, record_prompt_tokens
 
 WrapperStatus = Literal["constant", "drifted", "untrusted"]
 
@@ -96,16 +96,16 @@ def _measure(client: Completer, catalog: dict[str, Vocab], text: str) -> Wrapper
         stream=False,
     )
     local_n = {kid: vocab.encode_len(text) for kid, vocab in catalog.items()}
-    if not _http_ok(rec):
+    if not http_ok(rec):
         return WrapperSample(
             text=text,
-            prompt_tokens=_prompt_tokens(rec),
+            prompt_tokens=record_prompt_tokens(rec),
             dropped=True,
             drop_reason="http_non_2xx",
             local_n=local_n,
             wrapper={kid: None for kid in catalog},
         )
-    prompt = _prompt_tokens(rec)
+    prompt = record_prompt_tokens(rec)
     if prompt is None:
         return WrapperSample(
             text=text,
@@ -226,15 +226,4 @@ def _typical(values: list[int]) -> int:
     return int(median_low(values))
 
 
-def _http_ok(rec: CompletionRecord) -> bool:
-    sc = rec.status_code
-    return sc is not None and 200 <= sc < 300
 
-
-def _prompt_tokens(rec: CompletionRecord) -> int | None:
-    """整数 token：先信 usage.prompt_tokens，没有合法字段再回退顶栏。拒绝 bool。"""
-    if isinstance(rec.usage, dict):
-        from_usage = int_or_none(rec.usage.get("prompt_tokens"))
-        if from_usage is not None:
-            return from_usage
-    return int_or_none(rec.prompt_tokens)

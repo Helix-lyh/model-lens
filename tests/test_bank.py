@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 import threading
 
 import pytest
@@ -14,6 +15,7 @@ from src.bank import (
     DOMAINS,
     RAW_MATRIX,
     _expand_question,
+    _grade_one,
     _group_stats,
     _majority,
     _summarize_bank,
@@ -331,6 +333,45 @@ def test_run_bank_concurrency_keeps_question_order() -> None:
     assert result.n_questions == len(qs)
     assert all(len(q.samples) == 1 for q in result.questions)
     assert all(c["temperature"] == 0.0 for c in client.calls)
+
+
+def test_complete_error_on_2xx_is_missing() -> None:
+    question = Question(
+        id="knowledge-easy-99",
+        domain="knowledge",
+        difficulty="easy",
+        prompt="x",
+        grader={"type": "alias", "answers": ["yes"], "match": "exact"},
+        pass_criteria="t",
+    )
+
+    class ErrClient:
+        def complete(self, messages, **_kwargs):
+            return CompletionRecord(
+                kind="bank:knowledge-easy-99:t0.0:n0",
+                endpoint="https://example.test/v1",
+                model="demo",
+                request={"messages": messages},
+                status_code=200,
+                latency_ms=1,
+                prompt_tokens=1,
+                completion_tokens=0,
+                content="",
+                error="stream: 无 SSE 事件",
+            )
+
+    grade = _grade_one(
+        ErrClient(),
+        question,
+        salt="t",
+        root=Path("."),
+        kind_prefix="bank",
+        stream_metrics=True,
+        temp=0.0,
+        sample_i=0,
+    )
+    assert grade.status == "missing"
+    assert grade.passed is None
 
 
 def test_high_token_usage_does_not_change_extreme_score() -> None:

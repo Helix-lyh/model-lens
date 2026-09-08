@@ -11,6 +11,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from src.types import CompletionRecord
+
+
 def int_or_none(value: object) -> int | None:
     if isinstance(value, bool) or not isinstance(value, int):
         return None
@@ -47,6 +50,22 @@ def nested_int(obj: object, *keys: str) -> int | None:
             return None
         cur = cur.get(key)
     return int_or_none(cur)
+
+
+def http_ok(rec: CompletionRecord) -> bool:
+    status = rec.status_code
+    if rec.error:
+        return False
+    return status is not None and 200 <= status < 300
+
+
+def record_prompt_tokens(rec: CompletionRecord) -> int | None:
+    """整数 token：先信 usage.prompt_tokens，没有再回退顶栏。拒绝 bool。不估算。"""
+    if isinstance(rec.usage, dict):
+        from_usage = int_or_none(rec.usage.get("prompt_tokens"))
+        if from_usage is not None:
+            return from_usage
+    return int_or_none(rec.prompt_tokens)
 
 
 def extract_token_usage(data: object) -> TokenUsage:

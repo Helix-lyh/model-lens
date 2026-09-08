@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 
-from src.bank import DEFAULT_CONCURRENCY
 from src.types import (
+    DEFAULT_CONCURRENCY,
     Completer,
     CompletionRecord,
     Confidence,
@@ -15,6 +15,7 @@ from src.types import (
     ProbeDelta,
     Vocab,
 )
+from src.usage import http_ok, int_or_none, record_prompt_tokens
 
 _MIN_VALID_PROBES = 8
 _MIN_EXACT_HITS = 6
@@ -30,19 +31,16 @@ def run_family(
     base: str,
     probes: list[Probe],
     *,
-    claimed_model: str | None = None,
     concurrency: int = DEFAULT_CONCURRENCY,
 ) -> FamilyResult:
     """对 BASE 与每条 BASE+x 做非流式差分，按 L1 / exact_hits 选家族。
 
-    claimed_model 不参与计分。协议探测不在此调用。
+    声称型号不参与计分。协议探测不在此调用。
     """
-    del claimed_model
-
     base_rec = _complete(client, base, kind="family_base")
-    if not _http_ok(base_rec):
+    if not http_ok(base_rec):
         return _untrusted("base_http_error", probes=[], n_probes=0)
-    prompt_tokens_base = _record_prompt_tokens(base_rec)
+    prompt_tokens_base = record_prompt_tokens(base_rec)
     if prompt_tokens_base is None:
         return _untrusted("base_missing_prompt_tokens", probes=[], n_probes=0)
     cached_tokens_base = _record_cached_tokens(base_rec)
@@ -177,15 +175,15 @@ def _measure_probe(
     text = base + probe.text
     rec = _complete(client, text, kind=f"family_probe:{probe.id}")
 
-    if not _http_ok(rec):
+    if not http_ok(rec):
         return _dropped(
             probe,
             prompt_tokens_base=prompt_tokens_base,
-            prompt_tokens_probe=_record_prompt_tokens(rec),
+            prompt_tokens_probe=record_prompt_tokens(rec),
             n_hat=n_hat,
             reason="http_non_2xx",
         )
-    prompt_tokens_probe = _record_prompt_tokens(rec)
+    prompt_tokens_probe = record_prompt_tokens(rec)
     if prompt_tokens_probe is None:
         return _dropped(
             probe,
@@ -292,35 +290,11 @@ def _confidence(best: FamilyScore, second: FamilyScore | None) -> Confidence:
     return "low"
 
 
-def _http_ok(rec: CompletionRecord) -> bool:
-    sc = rec.status_code
-    return sc is not None and 200 <= sc < 300
-
-
-def _int_tokens(value: object) -> bool:
-    return type(value) is int
-
-
-def _usage_int(rec: CompletionRecord, key: str) -> int | None:
+def _record_cached_tokens(rec: CompletionRecord) -> int | None:
     usage = rec.usage
     if not isinstance(usage, dict):
         return None
-    value = usage.get(key)
-    return value if type(value) is int else None
-
-
-def _record_prompt_tokens(rec: CompletionRecord) -> int | None:
-    """整数 token：先信 usage.prompt_tokens，没有合法字段再回退顶栏。拒绝 bool。"""
-    from_usage = _usage_int(rec, "prompt_tokens")
-    if from_usage is not None:
-        return from_usage
-    if _int_tokens(rec.prompt_tokens):
-        return rec.prompt_tokens
-    return None
-
-
-def _record_cached_tokens(rec: CompletionRecord) -> int | None:
-    return _usage_int(rec, "cached_tokens")
+    return int_or_none(usage.get("cached_tokens"))
 
 
 def _cached_exceeds_prompt(prompt: int, cached: int | None) -> bool:

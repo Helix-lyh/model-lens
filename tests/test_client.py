@@ -266,3 +266,32 @@ def test_recorder_file_never_contains_secret(
     assert "Authorization" not in row
     assert "Authorization" not in row["request"]
     assert row["endpoint"] == "https://gateway.example/v1"
+
+
+def test_stream_empty_sse_sets_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content="data: [DONE]\n\n",
+            headers={"content-type": "text/event-stream"},
+        )
+
+    client, _ = _make_client(tmp_path, monkeypatch, handler)
+    rec = client.complete([{"role": "user", "content": "hi"}], stream=True)
+    assert rec.status_code == 200
+    assert rec.error == "stream: 无 SSE 事件"
+    assert rec.content in (None, "")
+
+
+def test_stream_error_event_sets_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        sse = 'data: {"type":"error","error":{"type":"overloaded_error","message":"busy"}}\n\n'
+        return httpx.Response(200, content=sse, headers={"content-type": "text/event-stream"})
+
+    client, _ = _make_client(tmp_path, monkeypatch, handler)
+    rec = client.complete([{"role": "user", "content": "hi"}], stream=True)
+    assert rec.error == "stream: busy"

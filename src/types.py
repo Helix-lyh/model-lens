@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any, Literal, Protocol, runtime_checkable
 
 
+DEFAULT_CONCURRENCY = 4
+
 FamilyStatus = Literal["ok", "ambiguous", "token_untrusted"]
 Confidence = Literal["high", "medium", "low"]
 IdentityStatus = Literal["不支持", "同族未分型", "skipped", "invalid"]
@@ -169,7 +171,7 @@ class BankResult:
     knowledge_alarm: str | None = None
     n_questions: int = 0
     schema_version: str = "model-lens.bank.v2"
-    bank_version: str = "bank-v2.1"
+    bank_version: str = "20260908"
     scorer_version: str = "scorer-v2"
     sampling_protocol: str = "single-v1"
     raw_question_count: int = 0

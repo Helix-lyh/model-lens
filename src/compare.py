@@ -5,6 +5,8 @@ from __future__ import annotations
 from urllib.parse import urlparse
 
 from src.channels.resolve import resolve_channel
+from src.cluster import cluster_id_of, language_of
+from src.toolchain import CODE_LANGS
 from src.types import (
     BankResult,
     Confidence,
@@ -18,7 +20,6 @@ from src.types import (
 
 _CONF_RANK = {"low": 1, "medium": 2, "high": 3}
 _GATEWAY_CHANNELS = frozenset({"newapi"})
-_CODE_LANGS = ("python", "go", "typescript")
 PASS0_LINE = 0.25
 STAB_LINE = 0.20
 SMALL = 0.10
@@ -153,11 +154,9 @@ def decide_degrade(
     s10_r = _coding_score10(bank_ref)
     if p0_t is None or p0_r is None:
         return _degrade("skipped", "编码题有效样本不足", p0_t, p0_r, st_t, st_r, s10_t, s10_r)
-    if st_t is None or st_r is None:
-        return _degrade("skipped", "编码题缺少 pass0，算不了 stab", p0_t, p0_r, st_t, st_r, s10_t, s10_r)
 
     d0 = p0_r - p0_t
-    ds = st_r - st_t
+    ds = None if st_t is None or st_r is None else st_r - st_t
     d10 = None if s10_t is None or s10_r is None else s10_r - s10_t
     status, note = _degrade_verdict(d0, ds, d10)
     return DegradeResult(
@@ -167,7 +166,7 @@ def decide_degrade(
         stab_target=st_t,
         stab_ref=st_r,
         pass0_delta=round(d0, 4),
-        stab_delta=round(ds, 4),
+        stab_delta=None if ds is None else round(ds, 4),
         note=note,
         score10_target=s10_t,
         score10_ref=s10_r,
@@ -176,11 +175,15 @@ def decide_degrade(
 
 
 def _degrade_verdict(
-    d0: float, ds: float, d10: float | None
+    d0: float, ds: float | None, d10: float | None
 ) -> tuple[str, str]:
-    pass_hit = d0 >= PASS0_LINE and ds >= STAB_LINE
+    if ds is None:
+        pass_hit = d0 >= PASS0_LINE
+        small = d0 < SMALL and (d10 is None or d10 < SCORE10_SMALL)
+    else:
+        pass_hit = d0 >= PASS0_LINE and ds >= STAB_LINE
+        small = d0 < SMALL and ds < SMALL and (d10 is None or d10 < SCORE10_SMALL)
     score_hit = d10 is not None and d10 >= SCORE10_LINE
-    small = d0 < SMALL and ds < SMALL and (d10 is None or d10 < SCORE10_SMALL)
     if pass_hit or score_hit:
         return "疑似衰减", _delta_note(d0, ds, d10) + "。" + DEGRADE_FOOTNOTE
     if small:
@@ -188,8 +191,10 @@ def _degrade_verdict(
     return "偏离不足以下结论", _delta_note(d0, ds, d10) + "，未同时破线。" + DEGRADE_FOOTNOTE
 
 
-def _delta_note(d0: float, ds: float, d10: float | None) -> str:
-    note = f"pass0Δ={d0:.2f} stabΔ={ds:.2f}"
+def _delta_note(d0: float, ds: float | None, d10: float | None) -> str:
+    note = f"pass0Δ={d0:.2f}"
+    if ds is not None:
+        note += f" stabΔ={ds:.2f}"
     if d10 is not None:
         note += f" score10Δ={d10:.2f}"
     return note
@@ -255,20 +260,16 @@ def _coding_qs(bank: BankResult) -> list[QuestionResult]:
 
 
 def _cluster_key(question: QuestionResult) -> str:
-    if question.cluster_id or question.raw_id:
-        return str(question.cluster_id or question.raw_id)
-    if question.language or any(question.question_id.endswith(f"-{lang}") for lang in ("python", "go", "typescript")):
-        return question.question_id.rsplit("-", 1)[0]
-    return question.question_id
+    return cluster_id_of(
+        question_id=question.question_id,
+        raw_id=question.raw_id,
+        cluster_id=question.cluster_id,
+        language=question.language,
+    )
 
 
 def _question_language(question: QuestionResult) -> str | None:
-    if question.language:
-        return question.language
-    for lang in ("python", "go", "typescript"):
-        if question.question_id.endswith(f"-{lang}"):
-            return lang
-    return None
+    return language_of(question.language, question.question_id)
 
 
 def _coding_clusters(
@@ -283,7 +284,7 @@ def _coding_clusters(
     passes only when every judged language passes; missing toolchains therefore
     never become a model failure. Strict mode is complete-case only: all three
     language variants must be present and judged before the cluster enters the
-    denominator.
+    denominator. Cluster identity uses src.cluster，与 bank / gallery 同一套后缀规则。
     """
     grouped: dict[str, list[QuestionResult]] = {}
     for question in _coding_qs(bank):
@@ -294,43 +295,17 @@ def _coding_clusters(
         if strict:
             if any(
                 lang not in by_language or getattr(by_language[lang], field) is None
-                for lang in _CODE_LANGS
+                for lang in CODE_LANGS
             ):
                 out[cluster] = None
                 continue
             out[cluster] = all(
-                getattr(by_language[lang], field) is True for lang in _CODE_LANGS
+                getattr(by_language[lang], field) is True for lang in CODE_LANGS
             )
             continue
         values = [getattr(question, field) for question in variants]
         judged = [value for value in values if value is not None]
         out[cluster] = None if not judged else all(value is True for value in judged)
-    return out
-
-
-def coding_diagnostics(bank: BankResult | None) -> dict[str, dict]:
-    if bank is None:
-        return {}
-    grouped: dict[str, list[QuestionResult]] = {}
-    for question in _coding_qs(bank):
-        grouped.setdefault(_cluster_key(question), []).append(question)
-    out: dict[str, dict] = {}
-    for cluster, variants in grouped.items():
-        by_lang = {_question_language(q) or q.question_id: q for q in variants}
-        out[cluster] = {
-            "available_languages": [lang for lang in _CODE_LANGS if lang in by_lang and by_lang[lang].pass0 is not None],
-            "missing_languages": [lang for lang in _CODE_LANGS if lang not in by_lang or by_lang[lang].pass0 is None],
-            "strict_complete": all(lang in by_lang and by_lang[lang].pass0 is not None for lang in _CODE_LANGS),
-            "languages": {
-                lang: {
-                    "pass0": by_lang[lang].pass0,
-                    "majority": by_lang[lang].majority,
-                    "score10": by_lang[lang].score10,
-                    "status": by_lang[lang].samples[0].status if by_lang[lang].samples else None,
-                }
-                for lang in ("python", "go", "typescript") if lang in by_lang
-            },
-        }
     return out
 
 
@@ -343,9 +318,6 @@ def _coding_pass0(bank: BankResult) -> float | None:
 
 def _coding_stab(bank: BankResult) -> float | None:
     judged = [value for value in _coding_clusters(bank, field="majority").values() if value is not None]
-    if not judged:
-        # single-v1 没有 majority；用 raw cluster 的 pass0 当稳定口径，避免 D 柱被静默 skipped。
-        judged = [value for value in _coding_clusters(bank, field="pass0").values() if value is not None]
     if not judged:
         return None
     return sum(1 for value in judged if value) / len(judged)

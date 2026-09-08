@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from src.bank import repo_root
-from src.grade import run_sandbox
+from src.grade import run_python_sandbox
 
 ROOT = repo_root()
 
@@ -347,12 +347,12 @@ STRUCTURE = {
 def main() -> None:
     failed = 0
     for rel, code in PY.items():
-        status, detail = run_sandbox(code, ROOT / rel)
+        status, detail = run_python_sandbox(code, ROOT / rel)
         print(f"PY {rel}: {status} {detail}")
         if status != "pass":
             failed += 1
     for rel, payload in STRUCTURE.items():
-        status, detail = run_sandbox("", ROOT / rel, payload=payload)
+        status, detail = run_python_sandbox("", ROOT / rel, payload=payload)
         print(f"STRUCT {rel}: {status} {detail}")
         if status != "pass":
             failed += 1
