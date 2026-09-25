@@ -41,6 +41,11 @@ _MUL = str.maketrans({"×": "x", "✕": "x", "⋅": "x", "*": "x"})
 _POINTS_LINE_RE = re.compile(r"^POINTS\s+([+-]?\d+)\s*/\s*([+-]?\d+)\s*$")
 
 
+def _strip_source_comments(code: str) -> str:
+    """Remove C-style comments before checking imports and dynamic loaders."""
+    return re.sub(r"//[^\n]*|/\*.*?\*/", "", code, flags=re.DOTALL)
+
+
 def parse_points(text: str) -> tuple[int, int] | None:
     """只认 stdout 最后一条 POINTS 行；非法最终 marker 不回退到更早结果。"""
     markers = [line.strip() for line in (text or "").splitlines() if line.strip().startswith("POINTS")]
@@ -66,6 +71,8 @@ def _apply_points(grade: SampleGrade, pts: tuple[int, int] | None) -> SampleGrad
     return grade
 
 SANDBOX_BLOCK = """\
+import builtins
+import os
 import socket
 import subprocess
 
@@ -83,6 +90,22 @@ subprocess.run = _no_sub  # type: ignore[misc]
 subprocess.call = _no_sub  # type: ignore[misc]
 subprocess.check_call = _no_sub  # type: ignore[misc]
 subprocess.check_output = _no_sub  # type: ignore[misc]
+
+def _no_process(*_a, **_k):
+    raise OSError("process execution disabled in model-lens sandbox")
+
+os.system = _no_process
+os.popen = _no_process
+for _name in ("spawnv", "spawnve", "spawnl", "spawnle", "spawnlp", "spawnlpe"):
+    if hasattr(os, _name):
+        setattr(os, _name, _no_process)
+
+_real_import = builtins.__import__
+def _safe_import(name, *args, **kwargs):
+    if name == "ctypes" or name.startswith("ctypes."):
+        raise ImportError("ctypes disabled in model-lens sandbox")
+    return _real_import(name, *args, **kwargs)
+builtins.__import__ = _safe_import
 """
 
 _SANDBOX_KEEP = frozenset(
@@ -272,7 +295,10 @@ def _grade_structure(question: Question, text: str, *, repo_root: Path) -> Sampl
             detail=str(exc),
             content=text,
         )
-    status, detail = run_python_sandbox("", tests_path, payload=payload)
+    status, detail = run_python_sandbox(
+        "", tests_path, payload=payload,
+        result_marker=str(question.grader.get("result_marker") or "") or None,
+    )
     passed = status == "pass"
     return _apply_points(
         SampleGrade(
@@ -282,7 +308,7 @@ def _grade_structure(question: Question, text: str, *, repo_root: Path) -> Sampl
             detail=detail,
             content=text,
         ),
-        parse_points(detail),
+        _trusted_points(detail) if "result_marker" in question.grader else parse_points(detail),
     )
 
 
@@ -359,14 +385,22 @@ def _forbidden_grade(code: str, lang: str, text: str) -> SampleGrade | None:
     )
 
 
-def _run_lang_sandbox(lang: str, code: str, tests_path: Path) -> tuple[GradeStatus, str]:
+def _run_lang_sandbox(
+    lang: str, code: str, tests_path: Path, *, result_marker: str | None = None
+) -> tuple[GradeStatus, str]:
     if lang == "python":
-        return run_python_sandbox(code, tests_path)
+        return run_python_sandbox(code, tests_path, result_marker=result_marker)
     if lang == "go":
-        return run_go_sandbox(code, tests_path)
+        return run_go_sandbox(code, tests_path, result_marker=result_marker)
     if lang == "typescript":
-        return run_ts_sandbox(code, tests_path)
+        return run_ts_sandbox(code, tests_path, result_marker=result_marker)
     return "error", f"unsupported language {lang!r}"
+
+
+def _trusted_points(detail: str) -> tuple[int, int] | None:
+    if not detail.startswith("FIXTURE_RESULT\n"):
+        return None
+    return parse_points(detail)
 
 
 def _code_sample_grade(status: GradeStatus, detail: str, text: str) -> SampleGrade:
@@ -378,7 +412,13 @@ def _code_sample_grade(status: GradeStatus, detail: str, text: str) -> SampleGra
             detail=detail,
             content=text,
         )
-    pts = parse_points(detail)
+    # Only a result explicitly extracted from the fixture may contribute
+    # points. Candidate stdout is diagnostic text and is never score input.
+    pts = _trusted_points(detail)
+    if pts is None and not detail.startswith("FIXTURE_RESULT\n"):
+        # Direct sandbox callers retain the historical fixture contract; the
+        # production coding runners always set result_marker above.
+        pts = parse_points(detail)
     if pts is None and status == "fail":
         pts = (0, 1)
     return _apply_points(
@@ -407,17 +447,28 @@ def _grade_code(question: Question, text: str, *, repo_root: Path) -> SampleGrad
     banned = _forbidden_grade(code, lang, text)
     if banned is not None:
         return banned
-    status, detail = _run_lang_sandbox(lang, code, tests)
+    status, detail = _run_lang_sandbox(
+        lang, code, tests,
+        result_marker=str(question.grader.get("result_marker") or "") or None,
+    )
     return _code_sample_grade(status, detail, text)
 
 
 def _forbidden_import(code: str, lang: str) -> str | None:
     if lang == "go":
-        hit = _GO_FORBIDDEN.search(code)
+        hit = _GO_FORBIDDEN.search(_strip_source_comments(code))
         return hit.group(1) if hit else None
     if lang == "typescript":
-        hit = _TS_FORBIDDEN.search(code)
-        return hit.group(0) if hit else None
+        clean = _strip_source_comments(code)
+        hit = _TS_FORBIDDEN.search(clean)
+        if hit:
+            return hit.group(0)
+        dynamic = re.search(
+            r"(?:eval\s*\(|Function\s*\(|(?:globalThis\.)?require\s*\(|"
+            r"process\s*\.\s*(?:binding|getBuiltinModule)\s*\()",
+            clean,
+        )
+        return dynamic.group(0) if dynamic else None
     return None
 
 
@@ -427,6 +478,7 @@ def run_python_sandbox(
     *,
     timeout_s: float = 8.0,
     payload: str | None = None,
+    result_marker: str | None = None,
 ) -> tuple[GradeStatus, str]:
     with tempfile.TemporaryDirectory(prefix="mlens-") as tmp:
         root = Path(tmp)
@@ -454,10 +506,13 @@ def run_python_sandbox(
             )
         except subprocess.TimeoutExpired:
             return "fail", f"timeout>{timeout_s}s"
-        return _sandbox_result(proc)
+        return _sandbox_result(proc, result_marker=result_marker)
 
 
-def run_go_sandbox(code: str, tests_path: Path, *, timeout_s: float = 15.0) -> tuple[GradeStatus, str]:
+def run_go_sandbox(
+    code: str, tests_path: Path, *, timeout_s: float = 15.0,
+    result_marker: str | None = None,
+) -> tuple[GradeStatus, str]:
     tools = discover()
     if tools.missing_for("go"):
         return "missing", f"toolchain missing: {', '.join(tools.missing_for('go'))}"
@@ -492,7 +547,7 @@ def run_go_sandbox(code: str, tests_path: Path, *, timeout_s: float = 15.0) -> t
             )
         except subprocess.TimeoutExpired:
             return "fail", f"timeout>{timeout_s}s"
-        return _sandbox_result(proc)
+        return _sandbox_result(proc, result_marker=result_marker)
 
 
 _TSCONFIG = """{
@@ -511,7 +566,10 @@ _TSCONFIG = """{
 """
 
 
-def run_ts_sandbox(code: str, tests_path: Path, *, timeout_s: float = 45.0) -> tuple[GradeStatus, str]:
+def run_ts_sandbox(
+    code: str, tests_path: Path, *, timeout_s: float = 45.0,
+    result_marker: str | None = None,
+) -> tuple[GradeStatus, str]:
     tools = discover()
     missing = tools.missing_for("typescript")
     if missing:
@@ -556,16 +614,33 @@ def run_ts_sandbox(code: str, tests_path: Path, *, timeout_s: float = 45.0) -> t
             )
         except subprocess.TimeoutExpired:
             return "fail", f"timeout>{min(timeout_s, 8.0)}s"
-        return _sandbox_result(proc)
+        return _sandbox_result(proc, result_marker=result_marker)
 
 
-def _sandbox_result(proc: subprocess.CompletedProcess[str]) -> tuple[GradeStatus, str]:
+def _sandbox_result(
+    proc: subprocess.CompletedProcess[str], *, result_marker: str | None = None
+) -> tuple[GradeStatus, str]:
     stdout = proc.stdout or ""
     stderr = proc.stderr or ""
     # A process that exited abnormally can never pass, even if it printed a marker.
     if proc.returncode != 0:
         diagnostic = stdout.strip() or stderr.strip()
         return "fail", diagnostic[-400:] or f"exit {proc.returncode}"
+    if result_marker:
+        lines = []
+        for raw_line in stdout.splitlines():
+            line = raw_line.strip()
+            if line.startswith(result_marker):
+                lines.append(line[len(result_marker):].lstrip())
+        pts = parse_points("\n".join(lines))
+        if pts is None:
+            if any(line.startswith("CASE ") for line in lines):
+                return "pass", "FIXTURE_RESULT\n" + "\n".join(lines)
+            diagnostic = stdout.strip() or stderr.strip()
+            return "fail", diagnostic[-400:] or "no fixture result"
+        detail = "FIXTURE_RESULT\n" + "\n".join(lines)
+        earned, total = pts
+        return ("pass" if earned == total else "fail"), detail
     pts = parse_points(stdout)
     if pts is not None:
         earned, total = pts

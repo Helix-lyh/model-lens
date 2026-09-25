@@ -1,0 +1,710 @@
+{
+  "version": "20260925",
+  "status": "candidate",
+  "core_items": 16,
+  "expanded_instances": 32,
+  "protocol": {
+    "tools": false,
+    "network": false,
+    "primary_rounds": 1,
+    "optional_repair_rounds": 3,
+    "repair_factors": [
+      1.0,
+      0.7,
+      0.45
+    ],
+    "scoring": "deterministic",
+    "format_points": 0
+  },
+  "items": [
+    {
+      "id": "R-E-01",
+      "difficulty": "easy",
+      "title": "包装金额与余数证书",
+      "kind": "reasoning",
+      "groups": [
+        {
+          "id": "residue_min",
+          "points": 6
+        },
+        {
+          "id": "impossible",
+          "points": 10
+        },
+        {
+          "id": "largest_count",
+          "points": 4
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompt": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n有面额为 5、8、11 的三种包装，数量均为非负整数，不限制包装总数。\n求 1..50 中不能凑出的金额。输出对象：\nresidue_min：按余数 0,1,2,3,4 排列，能够凑出且模 5 为该余数的最小非负金额；\nimpossible：1..50 中不能凑出的全部金额，升序、不重复；largest：最大的不可达金额；count：不可达金额数量。\n只输出一个 JSON 对象。",
+      "reference_answer": {
+        "residue_min": [
+          0,
+          11,
+          22,
+          8,
+          19
+        ],
+        "impossible": [
+          1,
+          2,
+          3,
+          4,
+          6,
+          7,
+          9,
+          12,
+          14,
+          17
+        ],
+        "largest": 17,
+        "count": 10
+      }
+    },
+    {
+      "id": "R-E-02",
+      "difficulty": "easy",
+      "title": "先验选择后的条件概率",
+      "kind": "reasoning",
+      "groups": [
+        {
+          "id": "likelihood_u",
+          "points": 4
+        },
+        {
+          "id": "likelihood_v",
+          "points": 4
+        },
+        {
+          "id": "posterior_u",
+          "points": 6
+        },
+        {
+          "id": "both_red",
+          "points": 6
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompt": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n先选袋子：选择 U 的概率为 1/3，选择 V 的概率为 2/3。U 内有 3 红 1 蓝，V 内有 1 红 3 蓝。\n在选中袋子中等概率、不放回抽两个球。报告程序当且仅当至少一个球是红色时输出 H；现在观察到 H。\n求 likelihood_u=P(H|U)、likelihood_v=P(H|V)、posterior_u=P(U|H)、both_red=P(两球都红|H)。\n每个概率使用 [分子,分母] 的整数数组，分母必须为正；等价分数均可。只输出包含这四个字段的 JSON。",
+      "reference_answer": {
+        "likelihood_u": [
+          1,
+          1
+        ],
+        "likelihood_v": [
+          1,
+          2
+        ],
+        "posterior_u": [
+          1,
+          2
+        ],
+        "both_red": [
+          1,
+          4
+        ]
+      }
+    },
+    {
+      "id": "R-N-01",
+      "difficulty": "medium",
+      "title": "预先固定抽取的最坏情况",
+      "kind": "reasoning",
+      "groups": [
+        {
+          "id": "frontier",
+          "points": 8
+        },
+        {
+          "id": "minimum",
+          "points": 4
+        },
+        {
+          "id": "allocations",
+          "points": 4
+        },
+        {
+          "id": "counterexample",
+          "points": 4
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompt": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n三种颜色按红、蓝、绿排序。左手套库存 L=[3,5,4]，右手套库存 R=[4,2,6]。\n摸之前能选择左或右，不能挑颜色；取出后可看见颜色。但本题必须预先固定总共取 l 只左、r 只右，不能根据看到的颜色改变计划。\n目标：无论抽到什么，都至少有一双同色左右手套。0<=l,r<=12。\n输出 frontier：长度 13，frontier[l] 是仍存在无配对抽法时可取得的最多右手套数；minimum：最少 l+r；\nallocations：所有达到 minimum 且必有配对的 [l,r]，按 l 升序；\ncounterexample：固定 (l,r)=(5,5) 的一种无配对抽法，含 left、right 两个长度 3 的非负整数数组，各颜色不超过库存。\n只输出一个 JSON 对象。",
+      "reference_answer": {
+        "frontier": [
+          12,
+          10,
+          10,
+          10,
+          10,
+          10,
+          6,
+          6,
+          6,
+          4,
+          0,
+          0,
+          0
+        ],
+        "minimum": 11,
+        "allocations": [
+          [
+            10,
+            1
+          ]
+        ],
+        "counterexample": {
+          "left": [
+            0,
+            5,
+            0
+          ],
+          "right": [
+            4,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "R-N-02",
+      "difficulty": "medium",
+      "title": "带端点比较与奇偶性的禁位排列",
+      "kind": "reasoning",
+      "groups": [
+        {
+          "id": "count4",
+          "points": 3
+        },
+        {
+          "id": "count5",
+          "points": 3
+        },
+        {
+          "id": "parity7",
+          "points": 10
+        },
+        {
+          "id": "count7",
+          "points": 4
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompt": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n对 1..n 的排列 p，位置从 1 编号。要求 p(i)!=i，且 i<n 时 p(i)!=i+1；另要求 p(1)<p(n)。没有首尾环形禁位。\n一个逆序对是 i<j 且 p(i)>p(j)。\n输出 count4、count5：n=4、5 的合法排列数；parity7：[n=7 时逆序对数为偶数的合法排列数, 为奇数的合法排列数]；count7：n=7 合法排列总数。\n只输出一个 JSON 对象。",
+      "reference_answer": {
+        "count4": 0,
+        "count5": 3,
+        "parity7": [
+          93,
+          91
+        ],
+        "count7": 184
+      }
+    },
+    {
+      "id": "R-H-01",
+      "difficulty": "hard",
+      "title": "双处理器与互斥资源调度",
+      "kind": "reasoning",
+      "groups": [
+        {
+          "id": "lower_bounds",
+          "points": 3
+        },
+        {
+          "id": "base",
+          "points": 8
+        },
+        {
+          "id": "optimal_count",
+          "points": 4
+        },
+        {
+          "id": "changed",
+          "points": 5
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompt": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n任务 A..F 的时长依次 [3,2,4,3,2,2]。依赖：A->C、A->D、B->E、C->F、D->F、E->F。\n有两台相同处理器；任务不可抢占，每个任务使用一台处理器。开始时间是非负整数，执行区间为 [start,start+duration)，端点相接不重叠。\n额外规则：C 和 E 使用同一独占资源，不能重叠。允许处理器主动空闲。\n输出 lower_bounds：[只考虑依赖的最长路径时长, 总工作量除以 2 向上取整]；\nbase：含 makespan（全部任务完成的最早时间）、starts（A..F 的开始时间，最优方案中取字典序最小）；\noptimal_count：最优 makespan 下不同开始时间向量的个数，不区分处理器编号；\nchanged：仅删除 C/E 资源互斥后，按相同规则给出 makespan、starts。\n只输出一个 JSON 对象。",
+      "reference_answer": {
+        "lower_bounds": [
+          9,
+          8
+        ],
+        "base": {
+          "makespan": 10,
+          "starts": [
+            0,
+            0,
+            4,
+            3,
+            2,
+            8
+          ]
+        },
+        "optimal_count": 5,
+        "changed": {
+          "makespan": 9,
+          "starts": [
+            0,
+            0,
+            3,
+            4,
+            2,
+            7
+          ]
+        }
+      }
+    },
+    {
+      "id": "R-H-02",
+      "difficulty": "hard",
+      "title": "约束选物与没有增益的反事实",
+      "kind": "reasoning",
+      "groups": [
+        {
+          "id": "base",
+          "points": 7
+        },
+        {
+          "id": "changed",
+          "points": 7
+        },
+        {
+          "id": "feasible_counts",
+          "points": 4
+        },
+        {
+          "id": "delta",
+          "points": 2
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompt": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n有八件物品，下标 0..7 的 (重量,价值) 分别为\n[(4,8),(5,11),(6,13),(3,7),(2,4),(4,9),(5,12),(1,2)]。每件最多选一次，总重量<=15。\n规则：选 2 必须选 4；选 6 必须选 3；0 与 5 不能同选；1 与 6 不能同选。\n最大化价值；并列先取总重量较小，再取升序下标数组字典序较小。空集合可行。\n输出 base：{indices,value,weight,value_ties}，value_ties 是只按最大价值计的最优集合数，尚未应用后两项平局规则；\nchanged：仅删除 1/6 互斥后按同样规则的四字段对象；\nfeasible_counts：[原规则可行集合数,删除互斥后可行集合数]；delta：新最大价值减旧最大价值。\n只输出 JSON。",
+      "reference_answer": {
+        "base": {
+          "indices": [
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "value": 34,
+          "weight": 15,
+          "value_ties": 1
+        },
+        "changed": {
+          "indices": [
+            1,
+            3,
+            4,
+            6
+          ],
+          "value": 34,
+          "weight": 15,
+          "value_ties": 2
+        },
+        "feasible_counts": [
+          72,
+          75
+        ],
+        "delta": 0
+      }
+    },
+    {
+      "id": "R-X-01",
+      "difficulty": "extreme",
+      "title": "可观察颜色的自适应抽取博弈",
+      "kind": "reasoning",
+      "groups": [
+        {
+          "id": "fixed",
+          "points": 4
+        },
+        {
+          "id": "after_first_left",
+          "points": 8
+        },
+        {
+          "id": "first_action_costs",
+          "points": 4
+        },
+        {
+          "id": "adaptive",
+          "points": 4
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompt": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n红、蓝、绿三色的左手套库存 [2,3,4]，右手套库存 [3,2,4]。\n每一步选择取一只左或右，从该侧剩余手套中取出，颜色不能由你选择；取出后立刻看见颜色。允许据此调整下一步选择，出现同色左右配对立即成功。\n问对最不利的颜色序列，最佳策略需要的最少总抽取数。不是期望值，不能放回。\n输出 fixed：若预先固定左右数量时的最少总数；\nafter_first_left：首步取左且得到红/蓝/绿后，最佳自适应策略仍需要的最坏剩余步数，长度 3，不含首步；\nfirst_action_costs：[强制首步左后的最佳最坏总数,强制首步右后的最佳最坏总数]；adaptive：不限制首步时的最少最坏总数。\n只输出 JSON。",
+      "reference_answer": {
+        "fixed": 9,
+        "after_first_left": [
+          6,
+          7,
+          6
+        ],
+        "first_action_costs": [
+          8,
+          8
+        ],
+        "adaptive": 8
+      }
+    },
+    {
+      "id": "R-X-02",
+      "difficulty": "extreme",
+      "title": "缺角棋盘的计数与旋转去重",
+      "kind": "reasoning",
+      "groups": [
+        {
+          "id": "horizontal_histogram",
+          "points": 8
+        },
+        {
+          "id": "selected",
+          "points": 3
+        },
+        {
+          "id": "rotation_fixed",
+          "points": 5
+        },
+        {
+          "id": "orbits",
+          "points": 4
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompt": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n4 行 7 列棋盘，坐标 (行,列) 从 0 开始。删除 (0,0) 和 (3,6)。\n用 1x2 骨牌无重叠地完全铺满其余 26 格；骨牌可横可竖。先按每块骨牌实际覆盖的格子区分铺法。\n输出 horizontal_histogram：全部铺法中按横放骨牌数 h 分类的 [h,铺法数]，h 升序，只列非零项；\nselected：恰好横放 10 块时的铺法数；rotation_fixed：其中旋转 180 度后完全不变的铺法数；\norbits：恰好横放 10 块时，把相差 180 度旋转的铺法视为同一种后的数量。只按该旋转去重，不按镜像去重。\n只输出 JSON。",
+      "reference_answer": {
+        "horizontal_histogram": [
+          [
+            6,
+            21
+          ],
+          [
+            8,
+            48
+          ],
+          [
+            10,
+            30
+          ],
+          [
+            12,
+            4
+          ]
+        ],
+        "selected": 30,
+        "rotation_fixed": 2,
+        "orbits": 16
+      }
+    },
+    {
+      "id": "P-E-01",
+      "difficulty": "easy",
+      "title": "半开区间归并",
+      "kind": "coding",
+      "groups": [
+        {
+          "id": "empty",
+          "points": 4
+        },
+        {
+          "id": "touching",
+          "points": 4
+        },
+        {
+          "id": "overlap",
+          "points": 4
+        },
+        {
+          "id": "ordering",
+          "points": 4
+        },
+        {
+          "id": "mixed",
+          "points": 4
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompts": {
+        "python": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {intervals:[[l,r],...]}，整数 -1000000<=l<=r<=1000000，最多 2000 个区间。\n将半开区间 [l,r) 的并集转换为按左端点升序的最少区间列表。空区间丢弃；相接如 [1,3)、[3,5) 必须合并。\n返回 {intervals:归并后的列表,length:并集总长度}。可修改输入，但多次调用之间不得残留状态。\n公开例：[[1,3],[3,5],[2,4],[8,8]] -> {intervals:[[1,5]],length:4}。\n实现接口：def solve(data):，输入和输出为 JSON 对应的 Python 数据。\n只输出一个 python 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "go": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {intervals:[[l,r],...]}，整数 -1000000<=l<=r<=1000000，最多 2000 个区间。\n将半开区间 [l,r) 的并集转换为按左端点升序的最少区间列表。空区间丢弃；相接如 [1,3)、[3,5) 必须合并。\n返回 {intervals:归并后的列表,length:并集总长度}。可修改输入，但多次调用之间不得残留状态。\n公开例：[[1,3],[3,5],[2,4],[8,8]] -> {intervals:[[1,5]],length:4}。\n实现接口：func Solve(input json.RawMessage) json.RawMessage，package solution，自行 import encoding/json。输入是一份 JSON，返回编码后的 JSON。\n只输出一个 go 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "typescript": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {intervals:[[l,r],...]}，整数 -1000000<=l<=r<=1000000，最多 2000 个区间。\n将半开区间 [l,r) 的并集转换为按左端点升序的最少区间列表。空区间丢弃；相接如 [1,3)、[3,5) 必须合并。\n返回 {intervals:归并后的列表,length:并集总长度}。可修改输入，但多次调用之间不得残留状态。\n公开例：[[1,3],[3,5],[2,4],[8,8]] -> {intervals:[[1,5]],length:4}。\n实现接口：export function solve(data: any): any，输入和输出为 JSON 对应的数据。\n只输出一个 typescript 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。"
+      },
+      "reference_function": "merge_intervals",
+      "test_points": 20
+    },
+    {
+      "id": "P-E-02",
+      "difficulty": "easy",
+      "title": "逐字符转义分隔",
+      "kind": "coding",
+      "groups": [
+        {
+          "id": "empty_fields",
+          "points": 4
+        },
+        {
+          "id": "escaped_separator",
+          "points": 4
+        },
+        {
+          "id": "escaped_escape",
+          "points": 4
+        },
+        {
+          "id": "trailing",
+          "points": 4
+        },
+        {
+          "id": "mixed",
+          "points": 4
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompts": {
+        "python": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {text:字符串}，长度<=10000，仅含 ASCII 可打印字符。\n从左到右解析：未转义的 | 分隔字段，保留空字段；反斜杠转义紧跟的任意一个字符，该字符按字面加入当前字段，反斜杠本身不保留。\n末尾没有后继字符的反斜杠按字面保留。返回字段字符串数组。不递归处理已经转义出的字符。\n公开例：空串 -> [\"\"]；\"a||b|\" -> [\"a\",\"\",\"b\",\"\"]；字符序列 a、反斜杠、|、b -> [\"a|b\"]。\n实现接口：def solve(data):，输入和输出为 JSON 对应的 Python 数据。\n只输出一个 python 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "go": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {text:字符串}，长度<=10000，仅含 ASCII 可打印字符。\n从左到右解析：未转义的 | 分隔字段，保留空字段；反斜杠转义紧跟的任意一个字符，该字符按字面加入当前字段，反斜杠本身不保留。\n末尾没有后继字符的反斜杠按字面保留。返回字段字符串数组。不递归处理已经转义出的字符。\n公开例：空串 -> [\"\"]；\"a||b|\" -> [\"a\",\"\",\"b\",\"\"]；字符序列 a、反斜杠、|、b -> [\"a|b\"]。\n实现接口：func Solve(input json.RawMessage) json.RawMessage，package solution，自行 import encoding/json。输入是一份 JSON，返回编码后的 JSON。\n只输出一个 go 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "typescript": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {text:字符串}，长度<=10000，仅含 ASCII 可打印字符。\n从左到右解析：未转义的 | 分隔字段，保留空字段；反斜杠转义紧跟的任意一个字符，该字符按字面加入当前字段，反斜杠本身不保留。\n末尾没有后继字符的反斜杠按字面保留。返回字段字符串数组。不递归处理已经转义出的字符。\n公开例：空串 -> [\"\"]；\"a||b|\" -> [\"a\",\"\",\"b\",\"\"]；字符序列 a、反斜杠、|、b -> [\"a|b\"]。\n实现接口：export function solve(data: any): any，输入和输出为 JSON 对应的数据。\n只输出一个 typescript 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。"
+      },
+      "reference_function": "escaped_split",
+      "test_points": 20
+    },
+    {
+      "id": "P-N-01",
+      "difficulty": "medium",
+      "title": "去重与原子库存批次",
+      "kind": "coding",
+      "groups": [
+        {
+          "id": "basic",
+          "points": 4
+        },
+        {
+          "id": "atomic",
+          "points": 4
+        },
+        {
+          "id": "duplicate",
+          "points": 4
+        },
+        {
+          "id": "coalesce",
+          "points": 4
+        },
+        {
+          "id": "interactions",
+          "points": 4
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompts": {
+        "python": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {initial:{sku:非负整数,...},events:[{id:字符串,delta:[[sku,整数增量],...]},...]}。\nsku 和 id 为非空 ASCII 字母数字串，最多 100 个 sku、2000 个事件，每事件最多 20 条 delta，所有库存和增量绝对值不超过 1000000。\n初始缺失 sku 视为 0。按序处理，id 首次出现立即占用，即使该事件失败；重复 id 返回 DUP，不做其他检查。\n同一事件先按 sku 合并全部增量，再检查所有最终库存是否非负；有负数则整个事件不生效，返回 NEGATIVE；否则原子更新，返回 OK。\n返回 {stock:[[sku,最终库存],...],trace:[状态,...]}。stock 只列非零库存并按 sku 字典序排序；空增量事件也占号并返回 OK。\n公开例：initial={a:2}，事件 x 的 delta=[[a,-3],[a,1]]，再一次 x 的 delta=[[a,5]] -> stock=[]，trace=[OK,DUP]。\n实现接口：def solve(data):，输入和输出为 JSON 对应的 Python 数据。\n只输出一个 python 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "go": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {initial:{sku:非负整数,...},events:[{id:字符串,delta:[[sku,整数增量],...]},...]}。\nsku 和 id 为非空 ASCII 字母数字串，最多 100 个 sku、2000 个事件，每事件最多 20 条 delta，所有库存和增量绝对值不超过 1000000。\n初始缺失 sku 视为 0。按序处理，id 首次出现立即占用，即使该事件失败；重复 id 返回 DUP，不做其他检查。\n同一事件先按 sku 合并全部增量，再检查所有最终库存是否非负；有负数则整个事件不生效，返回 NEGATIVE；否则原子更新，返回 OK。\n返回 {stock:[[sku,最终库存],...],trace:[状态,...]}。stock 只列非零库存并按 sku 字典序排序；空增量事件也占号并返回 OK。\n公开例：initial={a:2}，事件 x 的 delta=[[a,-3],[a,1]]，再一次 x 的 delta=[[a,5]] -> stock=[]，trace=[OK,DUP]。\n实现接口：func Solve(input json.RawMessage) json.RawMessage，package solution，自行 import encoding/json。输入是一份 JSON，返回编码后的 JSON。\n只输出一个 go 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "typescript": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {initial:{sku:非负整数,...},events:[{id:字符串,delta:[[sku,整数增量],...]},...]}。\nsku 和 id 为非空 ASCII 字母数字串，最多 100 个 sku、2000 个事件，每事件最多 20 条 delta，所有库存和增量绝对值不超过 1000000。\n初始缺失 sku 视为 0。按序处理，id 首次出现立即占用，即使该事件失败；重复 id 返回 DUP，不做其他检查。\n同一事件先按 sku 合并全部增量，再检查所有最终库存是否非负；有负数则整个事件不生效，返回 NEGATIVE；否则原子更新，返回 OK。\n返回 {stock:[[sku,最终库存],...],trace:[状态,...]}。stock 只列非零库存并按 sku 字典序排序；空增量事件也占号并返回 OK。\n公开例：initial={a:2}，事件 x 的 delta=[[a,-3],[a,1]]，再一次 x 的 delta=[[a,5]] -> stock=[]，trace=[OK,DUP]。\n实现接口：export function solve(data: any): any，输入和输出为 JSON 对应的数据。\n只输出一个 typescript 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。"
+      },
+      "reference_function": "atomic_stock",
+      "test_points": 20
+    },
+    {
+      "id": "P-N-02",
+      "difficulty": "medium",
+      "title": "拓扑顺序与真正的环成员",
+      "kind": "coding",
+      "groups": [
+        {
+          "id": "dag",
+          "points": 4
+        },
+        {
+          "id": "ties",
+          "points": 4
+        },
+        {
+          "id": "cycles",
+          "points": 4
+        },
+        {
+          "id": "downstream",
+          "points": 4
+        },
+        {
+          "id": "mixed",
+          "points": 4
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompts": {
+        "python": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {nodes:[唯一节点名,...],edges:[[u,v],...]}；边表示 u 必须先于 v，端点保证存在。\n0..60 个节点，0..2000 条边。名字为 ASCII 字母数字串，按字符串字典序比较。重复边只算一次；允许自环。\n若无环，返回 {order:字典序最小的完整拓扑序,cycle_nodes:[]}。\n若有环，返回 {order:null,cycle_nodes:真正处在至少一个有向环中的节点名升序列表}；仅仅被环阻塞的下游节点不能列入。\n公开例：nodes=[a,b,c]，edges=[[a,b],[b,a],[b,c]] -> {order:null,cycle_nodes:[a,b]}。\n实现接口：def solve(data):，输入和输出为 JSON 对应的 Python 数据。\n只输出一个 python 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "go": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {nodes:[唯一节点名,...],edges:[[u,v],...]}；边表示 u 必须先于 v，端点保证存在。\n0..60 个节点，0..2000 条边。名字为 ASCII 字母数字串，按字符串字典序比较。重复边只算一次；允许自环。\n若无环，返回 {order:字典序最小的完整拓扑序,cycle_nodes:[]}。\n若有环，返回 {order:null,cycle_nodes:真正处在至少一个有向环中的节点名升序列表}；仅仅被环阻塞的下游节点不能列入。\n公开例：nodes=[a,b,c]，edges=[[a,b],[b,a],[b,c]] -> {order:null,cycle_nodes:[a,b]}。\n实现接口：func Solve(input json.RawMessage) json.RawMessage，package solution，自行 import encoding/json。输入是一份 JSON，返回编码后的 JSON。\n只输出一个 go 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "typescript": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {nodes:[唯一节点名,...],edges:[[u,v],...]}；边表示 u 必须先于 v，端点保证存在。\n0..60 个节点，0..2000 条边。名字为 ASCII 字母数字串，按字符串字典序比较。重复边只算一次；允许自环。\n若无环，返回 {order:字典序最小的完整拓扑序,cycle_nodes:[]}。\n若有环，返回 {order:null,cycle_nodes:真正处在至少一个有向环中的节点名升序列表}；仅仅被环阻塞的下游节点不能列入。\n公开例：nodes=[a,b,c]，edges=[[a,b],[b,a],[b,c]] -> {order:null,cycle_nodes:[a,b]}。\n实现接口：export function solve(data: any): any，输入和输出为 JSON 对应的数据。\n只输出一个 typescript 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。"
+      },
+      "reference_function": "dependency_order",
+      "test_points": 20
+    },
+    {
+      "id": "P-H-01",
+      "difficulty": "hard",
+      "title": "带两层平局规则的区间调度",
+      "kind": "coding",
+      "groups": [
+        {
+          "id": "basic",
+          "points": 4
+        },
+        {
+          "id": "boundary",
+          "points": 4
+        },
+        {
+          "id": "count_tie",
+          "points": 4
+        },
+        {
+          "id": "lex_tie",
+          "points": 4
+        },
+        {
+          "id": "scale",
+          "points": 4
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompts": {
+        "python": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {jobs:[{id,start,end,value},...]}，id 唯一，为 ASCII 字母数字串；0<=start<end<=1000000；value 为 -1000..1000 的整数，最多 2000 项。\n选择互不重叠的半开区间任务，端点相接可共存，空集合可行。先最大化总 value；平局取任务数少者；仍平局，比较按执行时间排列的 id 数组，取字典序最小。\n返回 {value:总价值,ids:执行顺序的 id 数组}。\n公开例：[{id:a,start:0,end:2,value:4},{id:b,start:2,end:4,value:4},{id:c,start:0,end:4,value:8}] -> {value:8,ids:[c]}。\n实现接口：def solve(data):，输入和输出为 JSON 对应的 Python 数据。\n只输出一个 python 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "go": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {jobs:[{id,start,end,value},...]}，id 唯一，为 ASCII 字母数字串；0<=start<end<=1000000；value 为 -1000..1000 的整数，最多 2000 项。\n选择互不重叠的半开区间任务，端点相接可共存，空集合可行。先最大化总 value；平局取任务数少者；仍平局，比较按执行时间排列的 id 数组，取字典序最小。\n返回 {value:总价值,ids:执行顺序的 id 数组}。\n公开例：[{id:a,start:0,end:2,value:4},{id:b,start:2,end:4,value:4},{id:c,start:0,end:4,value:8}] -> {value:8,ids:[c]}。\n实现接口：func Solve(input json.RawMessage) json.RawMessage，package solution，自行 import encoding/json。输入是一份 JSON，返回编码后的 JSON。\n只输出一个 go 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "typescript": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {jobs:[{id,start,end,value},...]}，id 唯一，为 ASCII 字母数字串；0<=start<end<=1000000；value 为 -1000..1000 的整数，最多 2000 项。\n选择互不重叠的半开区间任务，端点相接可共存，空集合可行。先最大化总 value；平局取任务数少者；仍平局，比较按执行时间排列的 id 数组，取字典序最小。\n返回 {value:总价值,ids:执行顺序的 id 数组}。\n公开例：[{id:a,start:0,end:2,value:4},{id:b,start:2,end:4,value:4},{id:c,start:0,end:4,value:8}] -> {value:8,ids:[c]}。\n实现接口：export function solve(data: any): any，输入和输出为 JSON 对应的数据。\n只输出一个 typescript 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。"
+      },
+      "reference_function": "weighted_schedule",
+      "test_points": 20
+    },
+    {
+      "id": "P-H-02",
+      "difficulty": "hard",
+      "title": "快照事务与写写冲突",
+      "kind": "coding",
+      "groups": [
+        {
+          "id": "snapshot",
+          "points": 4
+        },
+        {
+          "id": "own_writes",
+          "points": 4
+        },
+        {
+          "id": "conflict",
+          "points": 4
+        },
+        {
+          "id": "version",
+          "points": 4
+        },
+        {
+          "id": "isolation",
+          "points": 4
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompts": {
+        "python": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {initial:{key:整数,...},events:[事件,...]}。最多 200 个 key、2000 条事件，值为绝对值<=1000000 的整数。\n事件为 [BEGIN,tx]、[GET,tx,key]、[SET,tx,key,value]、[COMMIT,tx]。名字是非空 ASCII 字母数字串；tx 的 BEGIN 只出现一次，后续事件只引用活跃事务；结束时可以仍有活跃事务。\n全局版本从 0 开始。BEGIN 记录当前已提交内容和版本；GET 先读自己的写集，否则读 BEGIN 快照，缺失返回 null；不能读其他事务未提交内容。\nCOMMIT：若自己的任一写入 key 最近提交版本 > 本事务快照版本，整个事务失败并结束；否则原子提交，全局版本加 1，包括空写集提交。失败提交不增加版本。同值写入也算写；读集不参与冲突判断。\n返回 {reads:[[tx,key,value_or_null],...],commits:[[tx,成功布尔,成功后的版本或null],...],final:[[key,value],...]}，前两项按发生顺序，final 按 key 升序且只含已提交内容。\n公开例：initial={x:1}；[BEGIN,a],[BEGIN,b],[SET,a,x,2],[COMMIT,a],[GET,b,x],[SET,b,x,3],[COMMIT,b] -> reads=[[b,x,1]],commits=[[a,true,1],[b,false,null]],final=[[x,2]]。\n实现接口：def solve(data):，输入和输出为 JSON 对应的 Python 数据。\n只输出一个 python 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "go": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {initial:{key:整数,...},events:[事件,...]}。最多 200 个 key、2000 条事件，值为绝对值<=1000000 的整数。\n事件为 [BEGIN,tx]、[GET,tx,key]、[SET,tx,key,value]、[COMMIT,tx]。名字是非空 ASCII 字母数字串；tx 的 BEGIN 只出现一次，后续事件只引用活跃事务；结束时可以仍有活跃事务。\n全局版本从 0 开始。BEGIN 记录当前已提交内容和版本；GET 先读自己的写集，否则读 BEGIN 快照，缺失返回 null；不能读其他事务未提交内容。\nCOMMIT：若自己的任一写入 key 最近提交版本 > 本事务快照版本，整个事务失败并结束；否则原子提交，全局版本加 1，包括空写集提交。失败提交不增加版本。同值写入也算写；读集不参与冲突判断。\n返回 {reads:[[tx,key,value_or_null],...],commits:[[tx,成功布尔,成功后的版本或null],...],final:[[key,value],...]}，前两项按发生顺序，final 按 key 升序且只含已提交内容。\n公开例：initial={x:1}；[BEGIN,a],[BEGIN,b],[SET,a,x,2],[COMMIT,a],[GET,b,x],[SET,b,x,3],[COMMIT,b] -> reads=[[b,x,1]],commits=[[a,true,1],[b,false,null]],final=[[x,2]]。\n实现接口：func Solve(input json.RawMessage) json.RawMessage，package solution，自行 import encoding/json。输入是一份 JSON，返回编码后的 JSON。\n只输出一个 go 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "typescript": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {initial:{key:整数,...},events:[事件,...]}。最多 200 个 key、2000 条事件，值为绝对值<=1000000 的整数。\n事件为 [BEGIN,tx]、[GET,tx,key]、[SET,tx,key,value]、[COMMIT,tx]。名字是非空 ASCII 字母数字串；tx 的 BEGIN 只出现一次，后续事件只引用活跃事务；结束时可以仍有活跃事务。\n全局版本从 0 开始。BEGIN 记录当前已提交内容和版本；GET 先读自己的写集，否则读 BEGIN 快照，缺失返回 null；不能读其他事务未提交内容。\nCOMMIT：若自己的任一写入 key 最近提交版本 > 本事务快照版本，整个事务失败并结束；否则原子提交，全局版本加 1，包括空写集提交。失败提交不增加版本。同值写入也算写；读集不参与冲突判断。\n返回 {reads:[[tx,key,value_or_null],...],commits:[[tx,成功布尔,成功后的版本或null],...],final:[[key,value],...]}，前两项按发生顺序，final 按 key 升序且只含已提交内容。\n公开例：initial={x:1}；[BEGIN,a],[BEGIN,b],[SET,a,x,2],[COMMIT,a],[GET,b,x],[SET,b,x,3],[COMMIT,b] -> reads=[[b,x,1]],commits=[[a,true,1],[b,false,null]],final=[[x,2]]。\n实现接口：export function solve(data: any): any，输入和输出为 JSON 对应的数据。\n只输出一个 typescript 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。"
+      },
+      "reference_function": "snapshot_transactions",
+      "test_points": 20
+    },
+    {
+      "id": "P-X-01",
+      "difficulty": "extreme",
+      "title": "带边计数的动态连通性",
+      "kind": "coding",
+      "groups": [
+        {
+          "id": "basic",
+          "points": 4
+        },
+        {
+          "id": "multiplicity",
+          "points": 4
+        },
+        {
+          "id": "deletions",
+          "points": 4
+        },
+        {
+          "id": "rollback",
+          "points": 4
+        },
+        {
+          "id": "scale",
+          "points": 4
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompts": {
+        "python": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {n:顶点数,events:[[op,u,v],...]}，顶点 0..n-1，1<=n<=20000，最多 40000 条事件。\n无向图初始无边；op 为 ADD、REMOVE、ASK。ADD 给无向边的引用计数加 1；REMOVE 只减去一个引用，已经为零则无操作。计数大于零时边存在；(u,v) 与 (v,u) 是同一条边；允许自环。\nASK 查询该时刻 u 和 v 是否连通；顶点与自己永远连通。只返回所有 ASK 的布尔数组，按出现顺序。\n公开例：n=2；ADD 0 1、ADD 1 0、REMOVE 0 1、ASK 0 1、REMOVE 1 0、ASK 0 1 -> [true,false]。\n大规模测试包含长链上的反复断开与恢复。需要避免每次查询都遍历整张图；按给定离线事件列表设计。\n实现接口：def solve(data):，输入和输出为 JSON 对应的 Python 数据。\n只输出一个 python 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "go": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {n:顶点数,events:[[op,u,v],...]}，顶点 0..n-1，1<=n<=20000，最多 40000 条事件。\n无向图初始无边；op 为 ADD、REMOVE、ASK。ADD 给无向边的引用计数加 1；REMOVE 只减去一个引用，已经为零则无操作。计数大于零时边存在；(u,v) 与 (v,u) 是同一条边；允许自环。\nASK 查询该时刻 u 和 v 是否连通；顶点与自己永远连通。只返回所有 ASK 的布尔数组，按出现顺序。\n公开例：n=2；ADD 0 1、ADD 1 0、REMOVE 0 1、ASK 0 1、REMOVE 1 0、ASK 0 1 -> [true,false]。\n大规模测试包含长链上的反复断开与恢复。需要避免每次查询都遍历整张图；按给定离线事件列表设计。\n实现接口：func Solve(input json.RawMessage) json.RawMessage，package solution，自行 import encoding/json。输入是一份 JSON，返回编码后的 JSON。\n只输出一个 go 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "typescript": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {n:顶点数,events:[[op,u,v],...]}，顶点 0..n-1，1<=n<=20000，最多 40000 条事件。\n无向图初始无边；op 为 ADD、REMOVE、ASK。ADD 给无向边的引用计数加 1；REMOVE 只减去一个引用，已经为零则无操作。计数大于零时边存在；(u,v) 与 (v,u) 是同一条边；允许自环。\nASK 查询该时刻 u 和 v 是否连通；顶点与自己永远连通。只返回所有 ASK 的布尔数组，按出现顺序。\n公开例：n=2；ADD 0 1、ADD 1 0、REMOVE 0 1、ASK 0 1、REMOVE 1 0、ASK 0 1 -> [true,false]。\n大规模测试包含长链上的反复断开与恢复。需要避免每次查询都遍历整张图；按给定离线事件列表设计。\n实现接口：export function solve(data: any): any，输入和输出为 JSON 对应的数据。\n只输出一个 typescript 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。"
+      },
+      "reference_function": "dynamic_connectivity",
+      "test_points": 20
+    },
+    {
+      "id": "P-X-02",
+      "difficulty": "extreme",
+      "title": "错误优先级明确的寄存器解释器",
+      "kind": "coding",
+      "groups": [
+        {
+          "id": "arithmetic",
+          "points": 4
+        },
+        {
+          "id": "static",
+          "points": 4
+        },
+        {
+          "id": "labels",
+          "points": 4
+        },
+        {
+          "id": "runtime",
+          "points": 4
+        },
+        {
+          "id": "step_boundary",
+          "points": 4
+        }
+      ],
+      "points_total": 20,
+      "difficulty_status": "provisional",
+      "prompts": {
+        "python": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {src:程序字符串,limit:0..10000 的整数}；最多 2000 个源代码行，行长<=200。\n三个寄存器 A/B/C 初值 0，所有操作码和寄存器都区分大小写。空行忽略；# 起到行尾为注释。空白分词。\n指令：SET X Y、ADD X Y、MUL X Y、MOD X Y、JZ X L、JNZ X L、JMP L、LABEL L、HALT。\nX 必须是 A/B/C；Y 可以是寄存器或符合 [+-]?[0-9]+ 的十进制整数，文字整数必须在有符号 32 位范围。标签名符合 [A-Za-z_][A-Za-z0-9_]*，区分大小写，指向 LABEL 后的下一条可执行指令，允许标签在程序末尾。\n先静态检查整个源程序，包括不可达代码：未知指令、参数数目错误、非法寄存器/操作数/标签、重复标签、任何不存在的跳转目标均返回 {status:ERR,steps:0}；静态错误优先于任何运行期结果。\n运行期 LABEL 不计步，其余指令每执行一条计 1 步，包括 HALT 和出错指令。在准备执行下一条前，若 steps 已等于 limit，则 TIMEOUT；已经到达程序末尾则成功，不再检查步数。\nADD/MUL 运算结果超出 [-2147483648,2147483647] 则 OVERFLOW；MOD 除数 0 则 DIV0；否则余数与除数同号，例如 -7 mod 3=2，7 mod -3=-2。乘法应精确判断溢出，不可依赖浮点舍入。\n正常 HALT 或执行到末尾返回 {status:OK,value:A,steps:已执行步数}；运行期错误只返回 {status:DIV0|OVERFLOW|TIMEOUT,steps:已执行步数}。\n公开例：src=\"SET A -7\\nMOD A 3\\nHALT\",limit=3 -> {status:OK,value:2,steps:3}。\n实现接口：def solve(data):，输入和输出为 JSON 对应的 Python 数据。\n只输出一个 python 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "go": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {src:程序字符串,limit:0..10000 的整数}；最多 2000 个源代码行，行长<=200。\n三个寄存器 A/B/C 初值 0，所有操作码和寄存器都区分大小写。空行忽略；# 起到行尾为注释。空白分词。\n指令：SET X Y、ADD X Y、MUL X Y、MOD X Y、JZ X L、JNZ X L、JMP L、LABEL L、HALT。\nX 必须是 A/B/C；Y 可以是寄存器或符合 [+-]?[0-9]+ 的十进制整数，文字整数必须在有符号 32 位范围。标签名符合 [A-Za-z_][A-Za-z0-9_]*，区分大小写，指向 LABEL 后的下一条可执行指令，允许标签在程序末尾。\n先静态检查整个源程序，包括不可达代码：未知指令、参数数目错误、非法寄存器/操作数/标签、重复标签、任何不存在的跳转目标均返回 {status:ERR,steps:0}；静态错误优先于任何运行期结果。\n运行期 LABEL 不计步，其余指令每执行一条计 1 步，包括 HALT 和出错指令。在准备执行下一条前，若 steps 已等于 limit，则 TIMEOUT；已经到达程序末尾则成功，不再检查步数。\nADD/MUL 运算结果超出 [-2147483648,2147483647] 则 OVERFLOW；MOD 除数 0 则 DIV0；否则余数与除数同号，例如 -7 mod 3=2，7 mod -3=-2。乘法应精确判断溢出，不可依赖浮点舍入。\n正常 HALT 或执行到末尾返回 {status:OK,value:A,steps:已执行步数}；运行期错误只返回 {status:DIV0|OVERFLOW|TIMEOUT,steps:已执行步数}。\n公开例：src=\"SET A -7\\nMOD A 3\\nHALT\",limit=3 -> {status:OK,value:2,steps:3}。\n实现接口：func Solve(input json.RawMessage) json.RawMessage，package solution，自行 import encoding/json。输入是一份 JSON，返回编码后的 JSON。\n只输出一个 go 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。",
+        "typescript": "你只能依据题面独立作答，不得使用工具、联网或运行代码。无需输出思维链。\n输入 {src:程序字符串,limit:0..10000 的整数}；最多 2000 个源代码行，行长<=200。\n三个寄存器 A/B/C 初值 0，所有操作码和寄存器都区分大小写。空行忽略；# 起到行尾为注释。空白分词。\n指令：SET X Y、ADD X Y、MUL X Y、MOD X Y、JZ X L、JNZ X L、JMP L、LABEL L、HALT。\nX 必须是 A/B/C；Y 可以是寄存器或符合 [+-]?[0-9]+ 的十进制整数，文字整数必须在有符号 32 位范围。标签名符合 [A-Za-z_][A-Za-z0-9_]*，区分大小写，指向 LABEL 后的下一条可执行指令，允许标签在程序末尾。\n先静态检查整个源程序，包括不可达代码：未知指令、参数数目错误、非法寄存器/操作数/标签、重复标签、任何不存在的跳转目标均返回 {status:ERR,steps:0}；静态错误优先于任何运行期结果。\n运行期 LABEL 不计步，其余指令每执行一条计 1 步，包括 HALT 和出错指令。在准备执行下一条前，若 steps 已等于 limit，则 TIMEOUT；已经到达程序末尾则成功，不再检查步数。\nADD/MUL 运算结果超出 [-2147483648,2147483647] 则 OVERFLOW；MOD 除数 0 则 DIV0；否则余数与除数同号，例如 -7 mod 3=2，7 mod -3=-2。乘法应精确判断溢出，不可依赖浮点舍入。\n正常 HALT 或执行到末尾返回 {status:OK,value:A,steps:已执行步数}；运行期错误只返回 {status:DIV0|OVERFLOW|TIMEOUT,steps:已执行步数}。\n公开例：src=\"SET A -7\\nMOD A 3\\nHALT\",limit=3 -> {status:OK,value:2,steps:3}。\n实现接口：export function solve(data: any): any，输入和输出为 JSON 对应的数据。\n只输出一个 typescript 代码围栏。只用标准库，不使用文件、网络或子进程；不得读取判分器或打印评分标记。每次调用独立，允许修改本次输入。"
+      },
+      "reference_function": "register_machine",
+      "test_points": 20
+    }
+  ]
+}

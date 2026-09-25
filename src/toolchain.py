@@ -33,7 +33,12 @@ def _extra_bins() -> list[Path]:
     ]
     nvm = home / ".nvm" / "versions" / "node"
     if nvm.is_dir():
-        extras.extend(sorted((p / "bin" for p in nvm.iterdir() if p.is_dir()), reverse=True))
+        versions = sorted(
+            (p for p in nvm.iterdir() if p.is_dir()),
+            key=lambda p: tuple(int(n) for n in re.findall(r"\d+", p.name)),
+            reverse=True,
+        )
+        extras.extend(p / "bin" for p in versions)
     return extras
 
 
@@ -58,8 +63,13 @@ def which(name: str) -> str | None:
 
 def _run_version(argv: list[str]) -> str | None:
     try:
-        proc = subprocess.run(argv, capture_output=True, text=True, timeout=8)
+        proc = subprocess.run(
+            argv, capture_output=True, text=True, timeout=8,
+            env={**os.environ, "PATH": search_path()},
+        )
     except (OSError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode != 0:
         return None
     blob = f"{proc.stdout or ''}{proc.stderr or ''}".strip()
     return blob.splitlines()[0] if blob else None
@@ -81,6 +91,10 @@ class Tool:
             return _meets_min(self.version, PY_MIN)
         if self.name == "go":
             return _meets_min(self.version, GO_MIN)
+        if self.name == "tsc":
+            return self.version == f"Version {TSC_VERSION}"
+        if self.name == "node":
+            return bool(self.version and re.fullmatch(r"v\d+\.\d+\.\d+", self.version))
         return True
 
 
@@ -153,8 +167,8 @@ def tsc_bin(root: Path | None = None) -> Path:
     return cache_dir(root) / "tsc" / "node_modules" / ".bin" / "tsc"
 
 
-def _tsc_tool() -> Tool:
-    cached = tsc_bin()
+def _tsc_tool(root: Path | None = None) -> Tool:
+    cached = tsc_bin(root)
     if cached.is_file():
         path = str(cached)
         return Tool(
@@ -179,8 +193,13 @@ def _tsc_tool() -> Tool:
             )
     npx = which("npx")
     if npx:
-        argv = (npx, "--yes", "-p", f"typescript@{TSC_VERSION}", "tsc")
-        return Tool(name="tsc", path=npx, argv=argv, detail=f"npx typescript@{TSC_VERSION}")
+        # Discovery (including init --check) must never install over the network.
+        argv = (npx, "--offline", "--yes", "-p", f"typescript@{TSC_VERSION}", "tsc")
+        return Tool(
+            name="tsc", path=npx, argv=argv,
+            version=_run_version([*argv, "--version"]),
+            detail=f"offline npx typescript@{TSC_VERSION}",
+        )
     return Tool(name="tsc", path=None, detail="需要 tsc 或 npx")
 
 
@@ -200,11 +219,12 @@ def ensure_tsc(root: Path | None = None) -> Tool:
         capture_output=True,
         text=True,
         timeout=120,
+        env={**os.environ, "PATH": search_path()},
     )
     if proc.returncode != 0:
         blob = f"{proc.stdout or ''}{proc.stderr or ''}".strip()
         return Tool(name="tsc", path=None, detail=blob[-300:] or "npm install typescript 失败")
-    return _tsc_tool()
+    return _tsc_tool(root)
 
 
 def ensure_cache_dirs(root: Path | None = None) -> Path:

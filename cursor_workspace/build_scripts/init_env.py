@@ -35,8 +35,11 @@ def _ok_python(cmd: str) -> bool:
     path = which(cmd)
     if not path:
         return False
-    proc = subprocess.run([path, "-c", "import sys; print(sys.version_info[:2])"], capture_output=True, text=True)
-    return proc.returncode == 0 and proc.stdout.strip() in {"(3, 11)", "(3, 12)", "(3, 13)", "(3, 14)"}
+    proc = subprocess.run(
+        [path, "-c", "import sys; sys.exit(sys.version_info < (3, 11))"],
+        capture_output=True, text=True,
+    )
+    return proc.returncode == 0
 
 
 def _install_dev(py: Path) -> None:

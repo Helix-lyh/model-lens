@@ -30,6 +30,10 @@ def test_tool_ok_requires_version_floor() -> None:
     assert old_go.ok is False
     assert new_go.ok is True
     assert Tool("go", None).ok is False
+    assert Tool("node", "/bin/node", argv=("/bin/node",), version=None).ok is False
+    assert Tool("node", "/bin/node", argv=("/bin/node",), version="v24.18.0").ok is True
+    assert Tool("tsc", "/bin/tsc", argv=("/bin/tsc",), version="Version 5.8.1").ok is False
+    assert Tool("tsc", "/bin/tsc", argv=("/bin/tsc",), version="Version 5.8.2").ok is True
     stale = Toolchain(python=old_py, go=old_go, node=Tool("node", None), tsc=Tool("tsc", None))
     assert stale.missing_for("python") == ["python"]
     assert stale.missing_for("go") == ["go"]

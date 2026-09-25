@@ -1,0 +1,51 @@
+"""Frozen challenge-08 overlays.
+
+The v08 cases keep the public contract stable but make several scoring groups
+cross multiple state transitions. Expected values are committed literals and
+are checked by the independent oracle in the contract tests.
+"""
+
+from copy import deepcopy
+
+from .challenge_goldens_v07 import golden_cases as previous_golden_cases
+
+
+_UPGRADES = {
+    "CP-01": [
+        ({"initial": {"a": 5, "b": 2}, "events": [{"op": "RESERVE", "id": "r1", "order": "o1", "lines": [["a", 1], ["a", 1]]}, {"op": "SNAPSHOT", "id": "s"}, {"op": "PAY", "id": "p", "order": "o1"}, {"op": "RESERVE", "id": "r2", "order": "o2", "lines": [["a", 2], ["b", 1]]}, {"op": "RESTORE", "id": "x", "snapshot": "s"}, {"op": "CANCEL", "id": "c", "order": "o1"}, {"op": "RESERVE", "id": "r2", "order": "o3", "lines": [["a", 3]]}]}, {"trace": ["OK", "SNAP", "OK", "OK", "RESTORE", "OK", "DUP"], "inventory": [["a", 5], ["b", 2]], "orders": [["o1", "CANCELED", []]]}),
+        ({"initial": {"a": 3}, "events": [{"op": "RESERVE", "id": "r", "order": "o", "lines": [["a", 1], ["a", -1]]}, {"op": "RESERVE", "id": "r2", "order": "o", "lines": [["a", 1]]}, {"op": "SNAPSHOT", "id": "s"}, {"op": "RESERVE", "id": "r3", "order": "p", "lines": [["a", 2]]}, {"op": "RESTORE", "id": "x", "snapshot": "s"}, {"op": "PAY", "id": "p", "order": "p"}]}, {"trace": ["REJECT", "OK", "SNAP", "OK", "RESTORE", "INVALID"], "inventory": [["a", 2]], "orders": [["o", "RESERVED", [["a", 1]]]]}),
+        ({"initial": {"x": 2}, "events": [{"op": "SNAPSHOT", "id": "s"}, {"op": "RESERVE", "id": "r", "order": "o", "lines": [["x", 1]]}, {"op": "PAY", "id": "p", "order": "o"}, {"op": "RESTORE", "id": "z", "snapshot": "s"}, {"op": "RESERVE", "id": "r2", "order": "o", "lines": [["x", 2]]}, {"op": "PAY", "id": "p2", "order": "o"}, {"op": "SHIP", "id": "sh", "order": "o"}]}, {"trace": ["SNAP", "OK", "OK", "RESTORE", "OK", "OK", "OK"], "inventory": [], "orders": [["o", "SHIPPED", [["x", 2]]]]}),
+    ],
+    "CP-02": [
+        ({"lease": 3, "tasks": [{"id": "a", "priority": 2, "ready": 0, "max_attempts": 2}, {"id": "b", "priority": 1, "ready": 0, "max_attempts": 1}], "events": [{"op": "POLL", "worker": "w", "now": 0}, {"op": "POLL", "worker": "w2", "now": 0}, {"op": "ACK", "worker": "w", "task": "a", "token": "a:1", "now": 4}, {"op": "POLL", "worker": "w2", "now": 4}, {"op": "FAIL", "worker": "w2", "task": "a", "token": "a:2", "now": 5}, {"op": "POLL", "worker": "w", "now": 5}]}, {"trace": ["a:1", "b:1", "STALE", "a:2", "DEAD", None], "tasks": [["a", "DEAD", 2], ["b", "DEAD", 1]]}),
+        ({"lease": 2, "tasks": [{"id": "a", "priority": 1, "ready": 0, "max_attempts": 2}, {"id": "b", "priority": 3, "ready": 0, "max_attempts": 2}], "events": [{"op": "POLL", "worker": "w", "now": 0}, {"op": "POLL", "worker": "w", "now": 0}, {"op": "CANCEL", "task": "a", "now": 1}, {"op": "POLL", "worker": "w", "now": 1}, {"op": "FAIL", "worker": "w", "task": "b", "token": "b:1", "now": 1}, {"op": "POLL", "worker": "w2", "now": 1}, {"op": "ACK", "worker": "w2", "task": "b", "token": "b:2", "now": 2}]}, {"trace": ["b:1", None, "OK", None, "RETRY", "b:2", "OK"], "tasks": [["a", "CANCELED", 0], ["b", "DONE", 2]]}),
+        ({"lease": 1, "tasks": [{"id": "a", "priority": 1, "ready": 2, "max_attempts": 2}], "events": [{"op": "POLL", "worker": "w", "now": 0}, {"op": "POLL", "worker": "w", "now": 2}, {"op": "FAIL", "worker": "w", "task": "a", "token": "a:1", "now": 2}, {"op": "POLL", "worker": "w", "now": 2}, {"op": "TICK", "now": 3}, {"op": "ACK", "worker": "w", "task": "a", "token": "a:2", "now": 3}, {"op": "POLL", "worker": "w", "now": 3}]}, {"trace": [None, "a:1", "RETRY", "a:2", "OK", "STALE", None], "tasks": [["a", "DEAD", 2]]}),
+    ],
+    "CP-03": [
+        ({"roles": {"a": ["b"], "b": ["a"], "c": []}, "users": {"u": ["a"]}, "events": [["ADD", "allow", {"effect": "allow", "role": "b", "action": "*", "resource": "doc:*"}], ["ADD", "deny", {"effect": "deny", "role": "a", "action": "read", "resource": "doc:1", "start": 2, "end": 5}], ["CHECK", "u", "read", "doc:1", 1], ["CHECK", "u", "read", "doc:1", 2], ["SETROLE", "a", ["c"]], ["CHECK", "u", "read", "doc:1", 2], ["SETROLE", "a", ["b"]], ["CHECK", "u", "write", "doc:2", 9]]}, ["ALLOW", "DENY", "DENY", "ALLOW"]),
+        ({"roles": {"r": ["p"], "p": []}, "users": {"u": ["r"]}, "events": [["ADD", "x", {"effect": "allow", "role": "p", "action": "*", "resource": "doc:*"}], ["ADD", "x", {"effect": "deny", "role": "r", "action": "read", "resource": "doc:1"}], ["CHECK", "u", "read", "doc:1", 0], ["REMOVE", "x"], ["CHECK", "u", "read", "doc:1", 0], ["SETROLE", "r", ["missing"]], ["CHECK", "u", "read", "doc:2", 0]]}, ["DENY", "DENY", "DENY"]),
+        ({"roles": {"r": ["p"], "p": ["q"], "q": ["r"]}, "users": {"u": ["r"]}, "events": [["ADD", "w", {"effect": "allow", "role": "q", "action": "*", "resource": "*"}], ["ADD", "d", {"effect": "deny", "role": "p", "action": "write", "resource": "x"}], ["CHECK", "u", "write", "x", 0], ["SETROLE", "p", []], ["CHECK", "u", "write", "x", 0], ["REMOVE", "w"], ["CHECK", "u", "read", "y", 0]]}, ["DENY", "DENY", "DENY"]),
+    ],
+    "CP-04": [
+        ({"environment": "prod", "base": {"api": {"port": 80, "debug": False}, "web": {"v": 1}}, "overlays": {"prod": {"api": {"port": 443}}}, "dependencies": {"web": ["api"]}, "changes": [{"id": "z", "service": "web", "set": {"v": 2}, "delete": []}, {"id": "a", "service": "api", "set": {"debug": True}, "delete": []}, {"id": "b", "service": "api", "set": {"port": 8080}, "delete": [], "after": ["a"]}, {"id": "skip", "service": "api", "env": "staging", "set": {"x": 1}, "delete": []}], "rollback": ["skip"]}, {"status": "OK", "order": ["a", "b", "z"], "config": [["api", [["debug", True], ["port", 8080]]], ["web", [["v", 2]]]], "conflicts": []}),
+        ({"environment": "staging", "base": {"api": {"x": 0}}, "overlays": {"staging": {"api": {"x": 1}}}, "dependencies": {}, "changes": [{"id": "a", "service": "api", "env": "*", "set": {"x": 2}, "delete": []}, {"id": "b", "service": "api", "env": "staging", "set": {"x": 3}, "delete": []}], "rollback": []}, {"status": "CONFLICT", "order": ["a", "b"], "config": [], "conflicts": [["a", "b"]]}),
+        ({"environment": "prod", "base": {"s": {"x": 0}}, "overlays": {}, "dependencies": {"s": ["t"], "t": ["s"]}, "changes": [{"id": "a", "service": "s", "set": {"x": 1}, "delete": []}, {"id": "b", "service": "t", "set": {"y": 2}, "delete": []}], "rollback": []}, {"status": "CYCLE", "order": [], "config": [], "conflicts": []}),
+    ],
+    "CP-07": [
+        ({"workers": 2, "resources": {"gpu": 1, "db": 1}, "blackouts": [[3, 5]], "jobs": [{"id": "a", "release": 0, "duration": 3, "priority": 2, "deadline": 4, "needs": ["gpu"], "deps": []}, {"id": "b", "release": 0, "duration": 2, "priority": 1, "deadline": 7, "needs": ["gpu"], "deps": ["a"]}, {"id": "c", "release": 1, "duration": 1, "priority": 3, "deadline": 3, "needs": ["db"], "deps": []}], "cancel": []}, {"schedule": [["a", 0, 3, 0, False], ["c", 1, 2, 1, False], ["b", 5, 7, 0, False]], "states": [["a", "DONE"], ["b", "DONE"], ["c", "DONE"]]}),
+        ({"workers": 1, "resources": {"gpu": 1}, "jobs": [{"id": "a", "release": 0, "duration": 2, "priority": 1, "deadline": 2, "needs": ["gpu"], "deps": []}, {"id": "b", "release": 0, "duration": 1, "priority": 2, "deadline": 3, "needs": ["gpu"], "deps": []}, {"id": "c", "release": 0, "duration": 1, "priority": 3, "deadline": 4, "needs": ["gpu", "missing"], "deps": []}], "cancel": [{"id": "b", "time": 1}]}, {"schedule": [["b", 0, 1, 0, False], ["a", 1, 3, 0, True]], "states": [["a", "DONE"], ["b", "DONE"], ["c", "PENDING"]]}),
+        ({"workers": 2, "resources": {}, "jobs": [{"id": "a", "release": 0, "duration": 2, "priority": 1, "deadline": 5, "needs": [], "deps": []}, {"id": "b", "release": 0, "duration": 1, "priority": 2, "deadline": 2, "needs": [], "deps": ["a"]}, {"id": "c", "release": 0, "duration": 1, "priority": 3, "deadline": 1, "needs": [], "deps": ["missing"]}], "cancel": [{"id": "b", "time": 0}]}, {"schedule": [["a", 0, 2, 0, False]], "states": [["a", "DONE"], ["b", "CANCELED"], ["c", "PENDING"]]}),
+    ],
+    "CP-08": [
+        ({"facts": {"x": 1, "tags": []}, "rules": [{"id": "p", "phase": "pre", "priority": 2, "when": {"op": "exists", "field": "x"}, "set": {"x": 2}, "add": {}, "remove": []}, {"id": "m1", "phase": "main", "priority": 2, "when": {"op": "changed", "field": "x"}, "set": {"x": 3, "ok": True}, "add": {}, "remove": []}, {"id": "m2", "phase": "main", "priority": 1, "when": {"op": "eq", "field": "x", "value": 2}, "set": {"x": 4}, "add": {}, "remove": []}, {"id": "q", "phase": "post", "priority": 1, "when": {"op": "changed", "field": "x"}, "set": {"seen": True}, "add": {}, "remove": []}]}, {"facts": [["ok", True], ["seen", True], ["tags", []], ["x", 3]], "fired": ["p", "m1", "q"], "conflicts": [], "stopped": False}),
+        ({"facts": {"a": 1, "tags": ["x"]}, "rules": [{"id": "a", "phase": "main", "priority": 2, "when": {"all": [{"op": "gte", "field": "a", "value": 1}, {"op": "not", "not": {"op": "eq", "field": "a", "value": 2}}]}, "set": {}, "add": {"tags": "x"}, "remove": []}, {"id": "b", "phase": "main", "priority": 1, "when": {"any": [{"op": "contains", "field": "tags", "value": "x"}, {"op": "eq", "field": "a", "value": 9}]}, "set": {"ok": 1}, "add": {}, "remove": []}]}, {"facts": [["a", 1], ["ok", 1], ["tags", ["x"]]], "fired": ["a", "b"], "conflicts": [], "stopped": False}),
+        ({"facts": {"x": 1, "y": 2}, "rules": [{"id": "a", "phase": "main", "priority": 2, "when": {"op": "exists", "field": "x"}, "set": {"z": 1}, "add": {}, "remove": ["y"]}, {"id": "b", "phase": "main", "priority": 1, "when": {"op": "all", "all": [{"op": "changed", "field": "y"}, {"op": "exists", "field": "z"}]}, "set": {"bad": True}, "add": {}, "remove": []}, {"id": "c", "phase": "post", "priority": 1, "when": {"op": "changed", "field": "y"}, "set": {"gone": True}, "add": {}, "remove": []}]}, {"facts": [["bad", True], ["gone", True], ["x", 1], ["z", 1]], "fired": ["a", "b", "c"], "conflicts": [], "stopped": False}),
+    ],
+}
+
+
+def golden_cases(item_id):
+    groups = previous_golden_cases(item_id)
+    for index, (data, expected) in enumerate(_UPGRADES.get(item_id, ())):
+        groups[index][0] = (deepcopy(data), deepcopy(expected))
+    return groups
