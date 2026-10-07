@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import random
 import threading
 import time
 from dataclasses import asdict
@@ -30,6 +31,15 @@ from src.usage import (
     metrics_asdict,
     usage_asdict,
 )
+
+
+def _backoff_if_no_channel(record: CompletionRecord) -> None:
+    """渠道重建后 abilities 缓存未同步时，503 会持续一两分钟。只对这条错误退避。"""
+    if record.status_code != 503:
+        return
+    if "No available channel" not in (record.error or ""):
+        return
+    time.sleep(random.uniform(5, 10))
 
 
 def _http_error_message(resp: httpx.Response) -> str:
@@ -82,7 +92,11 @@ class ChatClient:
         self.max_retries = max_retries
         self._api_key = resolve_api_key(endpoint)
         self._owns_http = http_client is None
-        self._http = http_client or httpx.Client(timeout=timeout_s)
+        # Cloudflare 1010 会按子串 Python-urllib 封禁。官方 SDK 的 UA 可以过上游。
+        self._http = http_client or httpx.Client(
+            timeout=timeout_s,
+            headers={"User-Agent": "OpenAI/Python 1.40.0"},
+        )
 
     def complete(
         self,
@@ -196,11 +210,13 @@ class ChatClient:
                         t0=t0,
                     )
                     if retryable and attempt < attempts - 1:
+                        _backoff_if_no_channel(record)
                         continue
                     return record
             except httpx.RequestError as exc:
                 latency_ms = int((time.perf_counter() - t0) * 1000)
-                if attempt < attempts - 1:
+                # 超时不再重试。连接失败等请求错误仍按 max_retries 重试。
+                if not isinstance(exc, httpx.TimeoutException) and attempt < attempts - 1:
                     continue
                 return self._failure(
                     kind=kind,
@@ -212,6 +228,7 @@ class ChatClient:
             if record is None:
                 continue
             if self._stream_5xx_retryable(record, attempt, attempts):
+                _backoff_if_no_channel(record)
                 continue
             return record
         assert record is not None

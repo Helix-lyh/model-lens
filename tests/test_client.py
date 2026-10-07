@@ -226,6 +226,22 @@ def test_max_tokens_none_omitted_from_body(
     assert bodies[0]["stream"] is False
 
 
+def test_timeout_does_not_retry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    client, _ = _make_client(tmp_path, monkeypatch, handler, max_retries=3)
+    record = client.complete([{"role": "user", "content": "x"}])
+    assert calls["n"] == 1
+    assert record.status_code is None
+    assert record.error
+
+
 def test_connect_error_retries(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

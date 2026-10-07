@@ -16,11 +16,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from eval_bank_20260925.catalog import BY_ID  # noqa: E402
-from eval_bank_20260925.challenge_coding import coding_items  # noqa: E402
+import eval_bank_20260925.plugins  # noqa: E402,F401
+from eval_bank_20260925.bank_registry import ITEMS  # noqa: E402
+from eval_bank_20260925.evaluation import pass_at_k as shared_pass_at_k, summarize as shared_summarize, summarize_engineering  # noqa: E402
 
-LEVELS = ("easy", "medium", "hard", "extreme")
-ALL_BY_ID = {**BY_ID, **{item.id: item for item in coding_items()}}
+LEVELS = ("extreme",)
+ALL_BY_ID = {item.item_id: item for item in ITEMS.items()}
 
 
 def _prefer(existing: dict, incoming: dict) -> dict:
@@ -31,7 +32,27 @@ def _prefer(existing: dict, incoming: dict) -> dict:
         return existing
     if new_status in {"pass", "fail"} and old_status in {"error", "missing"}:
         return incoming
+    if old_status in {"pass", "fail"} and new_status in {"pass", "fail"} and (
+        existing.get("passed") != incoming.get("passed")
+        or existing.get("points") != incoming.get("points")
+    ):
+        raise ValueError(f"duplicate sample conflict: {existing.get('item')} {existing.get('sample')}")
     return incoming
+
+
+def _normalize_timeout(row: dict) -> dict:
+    """Apply the current denominator rule to legacy timeout rows on merge."""
+    if row.get("status") != "error" or row.get("reason_code") not in {"timeout", "timeout_partial"}:
+        return row
+    normalized = dict(row)
+    normalized["status"] = "fail"
+    normalized["passed"] = False
+    if normalized.get("points") is None:
+        normalized["points"] = 0
+    if normalized.get("score10") is None:
+        normalized["score10"] = 0.0
+    normalized["reason_code"] = "timeout_partial" if float(normalized.get("points") or 0) > 0 else "timeout"
+    return normalized
 
 
 def _key(row: dict) -> tuple:
@@ -64,27 +85,18 @@ def load(dirs: list[Path]) -> dict[tuple, dict]:
             if not isinstance(row, dict) or not row.get("channel") or not row.get("item"):
                 print(f"warn: {f}:{line[:80]} schema 无 channel/item，跳过", file=sys.stderr)
                 continue
+            row = _normalize_timeout(row)
             key = _key(row)
-            merged[key] = _prefer(merged[key], row) if key in merged else row
+            try:
+                merged[key] = _prefer(merged[key], row) if key in merged else row
+            except ValueError as exc:
+                print(f"error: {f}: {exc}", file=sys.stderr)
+                raise
     return merged
 
 
 def pass_at_k(rows: list[dict], k: int) -> float | None:
-    if k < 1:
-        raise ValueError("pass_at_k requires k >= 1")
-    grouped: dict[tuple[str, str | None], list[dict]] = {}
-    for row in rows:
-        grouped.setdefault((row["item"], row.get("lang")), []).append(row)
-    estimates = []
-    for samples in grouped.values():
-        judged = [r for r in samples if r.get("status") in {"pass", "fail"}]
-        n = len(judged)
-        if n < k:
-            continue
-        c = sum(r.get("passed") is True for r in judged)
-        estimate = 1.0 if c == n or n - c < k else 0.0 if c == 0 else 1.0 - math.comb(n - c, k) / math.comb(n, k)
-        estimates.append(estimate)
-    return round(sum(estimates) / len(estimates), 4) if estimates else None
+    return shared_pass_at_k(rows, k)[0]
 
 
 def bucket(rows: list[dict], pass_k: int = 1) -> dict:
@@ -94,28 +106,31 @@ def bucket(rows: list[dict], pass_k: int = 1) -> dict:
     errors = [r for r in rows if r["status"] == "error"]
     numeric = [r for r in judged if r.get("score10") is not None]
     mean = round(sum(float(r["score10"]) for r in numeric) / len(numeric), 4) if numeric else None
-    return {
+    shared = shared_summarize(rows, pass_k=pass_k)
+    result = {
         "judged": len(judged),
         "pass": len(passed),
-        "pass_at_1": pass_at_k(rows, 1),
-        "pass_at_k": pass_at_k(rows, pass_k),
+        "pass_at_1": shared["pass_at_1"],
+        "pass_at_k": shared["pass_at_k"],
         "mean_score10": mean,
         "missing": len(missing),
         "error": len(errors),
         "pending_review": sum(r.get("status") == "pending_review" for r in rows),
     }
+    if any(_domain(row.get("item")) == "engineering" for row in rows):
+        result["engineering"] = summarize_engineering(rows)
+    return result
 
 
 def _level(item_id: str) -> str:
-    item = ALL_BY_ID.get(item_id)
-    return getattr(item, "level", "unknown")
+    return "extreme" if item_id in ALL_BY_ID else "unknown"
 
 
 def _domain(item_id: str) -> str:
     item = ALL_BY_ID.get(item_id)
     if item is None:
         return "unknown"
-    return "coding" if getattr(item, "kind", None) == "coding" or getattr(item, "reference", None) else "reasoning"
+    return item.domain
 
 
 def _render(rows: list[dict], pass_k: int = 1) -> str:
@@ -132,10 +147,10 @@ def _render(rows: list[dict], pass_k: int = 1) -> str:
             b = bucket(sub)
             cells.append(f"{b['pass']}/{b['judged']}" if b["judged"] else "—")
         lines.append(f"| {ch} | " + " | ".join(cells) + " |")
-    lines += ["", "## 分域", "", "| channel | reasoning | coding |", "| --- | --- | --- |"]
+    lines += ["", "## 分域", "", "| channel | reasoning | coding | engineering |", "| --- | --- | --- | --- |"]
     for ch in channels:
         cells = []
-        for domain in ("reasoning", "coding"):
+        for domain in ("reasoning", "coding", "engineering"):
             b = bucket([r for r in rows if r["channel"] == ch and _domain(r["item"]) == domain])
             cells.append(f"{b['pass']}/{b['judged']}" if b["judged"] else "—")
         lines.append(f"| {ch} | " + " | ".join(cells) + " |")

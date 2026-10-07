@@ -31,7 +31,7 @@ def _as_endpoint(data: object, *, field: str, path: Path) -> Endpoint:
     if not isinstance(data, dict):
         raise ValueError(
             f"{path}: {field} 必须是映射，含 api_key_env / model；"
-            "base_url 可省略当 channel 带默认根路径"
+            "channel 自带默认根路径时，base_url 可省略"
         )
     try:
         api_key_env = str(data["api_key_env"])

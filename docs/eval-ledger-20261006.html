@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0f120d">
+<meta name="description" content="寸衡：2026-10-06 DeepSeek Flash 的编码、工程、推理成绩。三栏分开记，不合成总分。">
+<title>寸衡 · DeepSeek Flash · 2026-10-06</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preload" href="https://cdn.jsdelivr.net/fontsource/fonts/familjen-grotesk@5.2.8/latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@5.2.7/latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<script>document.documentElement.classList.add("js")</script>
+<style>
+@font-face {
+  font-family: "Familjen Grotesk"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/familjen-grotesk@5.2.8/latin-700-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+2000-206F, U+2212, U+2215;
+}
+@font-face {
+  font-family: "Plex Mono"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@5.2.7/latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+2000-206F, U+2212, U+2215;
+}
+@font-face {
+  font-family: "Plex Mono"; font-style: normal; font-weight: 500; font-display: swap;
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@5.2.7/latin-500-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+2000-206F, U+2212, U+2215;
+}
+@font-face {
+  font-family: "Noto Sans SC"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@5.2.8/chinese-simplified-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Noto Sans SC"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@5.2.8/chinese-simplified-700-normal.woff2") format("woff2");
+}
+
+:root {
+  --bg: #0f120d;
+  --raise: #151911;
+  --fg: #f2efe6;
+  --dim: #a7a391;
+  --faint: #6f6c5f;
+  --line: #2a2e24;
+  --line-2: #464b3c;
+  --mark: #dcf25a;
+  --mark-ink: #12160a;
+  --debt: #ff7a4f;
+  --nav: 3.75rem;
+  --gutter: clamp(1rem, 4vw, 3rem);
+  --num: "Familjen Grotesk", "Noto Sans SC", sans-serif;
+  --mono: "Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --ease: cubic-bezier(.2, .7, .1, 1);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: calc(var(--nav) + 1.5rem); scrollbar-color: var(--line-2) var(--bg); }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 400 1rem/1.6 "Noto Sans SC", "PingFang SC", sans-serif;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+::selection { background: var(--mark); color: var(--mark-ink); }
+:focus-visible { outline: 2px solid var(--mark); outline-offset: 3px; }
+a { color: inherit; }
+h1, h2, h3, p, ol, ul, dl, dd, figure { margin: 0; }
+ol, ul { padding: 0; list-style: none; }
+.wrap { width: min(1240px, 100% - 2 * var(--gutter)); margin-inline: auto; }
+.mono { font-family: var(--mono); }
+
+/* 导航 */
+.nav {
+  position: sticky; top: 0; z-index: 5; height: var(--nav);
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(12px) saturate(1.2); -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  border-bottom: 1px solid var(--line);
+}
+.nav .wrap { height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.brand { display: flex; align-items: baseline; gap: .6rem; text-decoration: none; white-space: nowrap; }
+.brand b { font: 700 1rem/1 var(--num); letter-spacing: -.02em; }
+.brand span { font: 400 .75rem/1 var(--mono); color: var(--dim); }
+.nav-links { display: flex; gap: clamp(.9rem, 2.5vw, 2rem); font: 400 .875rem/1 "Noto Sans SC", sans-serif; }
+.nav-links a { position: relative; text-decoration: none; color: var(--dim); padding: .4rem 0; transition: color .2s; }
+.nav-links a:hover { color: var(--fg); }
+.nav-links a[aria-current="true"] { color: var(--fg); }
+.nav-links a[aria-current="true"]::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -.15rem; height: 2px; background: var(--mark);
+}
+
+/* 首屏 */
+.hero {
+  display: grid; grid-template-columns: minmax(16rem, 5fr) minmax(0, 7fr); gap: 2.5rem clamp(2rem, 5vw, 4.5rem);
+  align-items: start; padding: 2.25rem 0 1.75rem;
+}
+.hero-copy { display: flex; flex-direction: column; gap: 1.25rem; }
+.proof { margin-top: 1.6rem; max-width: 26rem; }
+.proof .pips { height: 12px; }
+.proof .pips i.miss { border-color: var(--fg); }
+.proof figcaption { display: flex; justify-content: space-between; gap: 1rem; margin-top: .55rem; font: 400 .6875rem/1.4 var(--mono); color: var(--dim); }
+.proof figcaption b { color: var(--fg); font-weight: 500; }
+.eyebrow { font: 400 .75rem/1.5 var(--mono); color: var(--dim); letter-spacing: .02em; }
+.eyebrow b { color: var(--mark); font-weight: 500; }
+.hero h1 {
+  font: 700 clamp(2.6rem, 5.4vw, 5.25rem)/1.04 "Noto Sans SC", sans-serif; letter-spacing: -.035em;
+}
+.lede { margin-top: .85rem; max-width: 28em; color: var(--dim); font-size: 1rem; }
+.nowrap { white-space: nowrap; }
+.model {
+  margin-top: .4rem; padding-top: 1rem; border-top: 1px solid var(--line-2);
+  display: grid; gap: .85rem;
+}
+.model h2 { font: 700 1rem/1.3 "Noto Sans SC", sans-serif; letter-spacing: -.02em; }
+.model-name { font: 700 clamp(1.35rem, 2vw, 1.7rem)/1.15 var(--num); letter-spacing: -.03em; }
+.model-name span { display: block; margin-top: .35rem; font: 400 .75rem/1.4 var(--mono); color: var(--mark); letter-spacing: 0; }
+.specs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem 1.25rem; margin: 0; }
+.specs div { min-width: 0; }
+.specs dt { font: 400 .6875rem/1.3 var(--mono); color: var(--faint); margin-bottom: .2rem; }
+.specs dd { font-size: .875rem; color: var(--fg); overflow-wrap: anywhere; }
+.lede strong { color: var(--fg); font-weight: 400; }
+
+.books { margin: 0; padding: 0; list-style: none; }
+.book a {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name num" "rule num" "bar bar" "meta pass";
+  column-gap: 1rem; padding: 1rem 0 .95rem; border-bottom: 1px solid var(--line); text-decoration: none;
+}
+.book-name { grid-area: name; align-self: end; font-weight: 700; font-size: 1.125rem; }
+.book-rule { grid-area: rule; align-self: start; font: 400 .75rem/1.5 var(--mono); color: var(--dim); }
+.book-num {
+  grid-area: num; font: 700 clamp(3.4rem, 8.2vw, 7.4rem)/.84 var(--num); letter-spacing: -.055em;
+  font-variant-numeric: tabular-nums; transition: color .25s;
+}
+.book a:hover .book-num, .book a:focus-visible .book-num { color: var(--mark); }
+.book-bar { grid-area: bar; position: relative; height: 3px; margin: .9rem 0 .7rem; background: var(--line); }
+.book-bar i { position: absolute; inset: 0 auto 0 0; width: calc(var(--v) * 100%); background: var(--mark); transform-origin: left; }
+.book-bar.div::before { content: ""; position: absolute; left: 50%; top: -5px; bottom: -5px; width: 1px; background: var(--dim); }
+.book-bar.div::after { content: "0"; position: absolute; left: 50%; top: 9px; transform: translateX(-50%); font: 400 .625rem/1 var(--mono); color: var(--faint); }
+.book-bar.div { height: 3px; margin: .9rem 0 1.65rem; }
+.book-bar.div b { position: absolute; top: 10px; font: 400 .625rem/1 var(--mono); color: var(--faint); }
+.book-bar.div i { left: 50%; width: calc(var(--v) * 50%); }
+.book-meta { grid-area: meta; font: 400 .75rem/1.4 var(--mono); color: var(--dim); }
+.book-meta b { color: var(--fg); font-weight: 500; }
+.book-pass { grid-area: pass; display: flex; align-items: center; gap: .55rem; font: 400 .75rem/1.4 var(--mono); color: var(--dim); }
+.book-pass b { color: var(--fg); font-weight: 500; }
+.dots { display: inline-flex; gap: 3px; }
+.dots i { width: 7px; height: 7px; border: 1px solid var(--line-2); }
+.dots i.on { background: var(--mark); border-color: var(--mark); }
+
+/* 运行口径 */
+.facts {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.5rem 2rem;
+  padding: 1.6rem 0 0; border-top: 1px solid var(--line);
+}
+.facts dt { font: 400 .6875rem/1.4 var(--mono); color: var(--faint); text-transform: uppercase; letter-spacing: .08em; margin-bottom: .45rem; }
+.facts dd { font-size: .875rem; line-height: 1.65; color: var(--dim); }
+.facts dd b { color: var(--fg); font-weight: 400; }
+.facts code, .foot code { font: 400 .8em/1 var(--mono); color: var(--fg); }
+
+/* 分栏 */
+.sec { padding: clamp(5rem, 12vh, 8rem) 0 0; }
+.sec-head {
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 1.5rem clamp(2rem, 6vw, 6rem);
+  padding-bottom: 2rem; border-bottom: 1px solid var(--line-2);
+}
+.sec-index { font: 400 .75rem/1 var(--mono); color: var(--dim); }
+.sec-title { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-top: .9rem; }
+.sec h2 { font: 700 clamp(2.4rem, 4.6vw, 4rem)/1 "Noto Sans SC", sans-serif; letter-spacing: -.03em; }
+.sec-num { font: 700 clamp(2.4rem, 4.6vw, 4rem)/1 var(--num); letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+.sec-sub { margin-top: .9rem; font: 400 .75rem/1.6 var(--mono); color: var(--dim); }
+.sec-sub b { color: var(--fg); font-weight: 500; }
+.sec-notes { display: grid; gap: 1.4rem; align-content: end; }
+.sec-notes div { display: grid; gap: .35rem; }
+.sec-notes dt { font: 400 .6875rem/1.4 var(--mono); color: var(--faint); letter-spacing: .08em; }
+.sec-notes dd { color: var(--dim); max-width: 40em; }
+.sec-notes dd.story { color: var(--fg); }
+
+.legend { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; padding: 1rem 0; font: 400 .6875rem/1 var(--mono); color: var(--dim); border-bottom: 1px solid var(--line); }
+.legend span { display: inline-flex; align-items: center; gap: .5rem; }
+.legend i { display: inline-block; width: 14px; height: 8px; border: 1px solid var(--line-2); }
+.legend i.on { background: var(--mark); border-color: var(--mark); }
+.legend i.debt { background: var(--debt); border-color: var(--debt); }
+.legend i.void { border-style: dashed; border-color: var(--dim); }
+
+/* 逐题 */
+.row {
+  display: grid; grid-template-columns: minmax(13rem, 17rem) minmax(0, 1fr) 7.5rem;
+  grid-template-areas: "title strip score"; gap: 1rem clamp(1.5rem, 3vw, 3rem); align-items: center;
+  padding: 1.35rem 0; border-bottom: 1px solid var(--line);
+}
+.row-title { grid-area: title; }
+.row h3 { font-size: 1rem; font-weight: 400; line-height: 1.45; }
+.row-id { margin-top: .3rem; font: 400 .6875rem/1 var(--mono); color: var(--dim); }
+.strip { grid-area: strip; display: grid; grid-template-columns: repeat(var(--g), minmax(0, 1fr)); gap: .6rem; align-items: end; }
+.grp { display: grid; gap: .3rem; min-width: 0; }
+.grp-label { display: flex; align-items: baseline; gap: .4rem; min-width: 0; font-size: .8125rem; line-height: 1.3; color: var(--dim); white-space: nowrap; }
+.grp-name { overflow: hidden; text-overflow: ellipsis; }
+.grp-short .grp-name { color: var(--fg); }
+.grp-delta { font: 500 .6875rem/1 var(--mono); color: var(--fg); flex-shrink: 0; }
+.grp-short .pips i:not(.on) { border-color: var(--fg); }
+.grp-void .grp-delta { color: var(--dim); font-weight: 400; }
+.grp-id { font: 400 .625rem/1.2 var(--mono); color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pips { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; height: 14px; margin-top: .15rem; }
+.pips i { display: block; border: 1px solid var(--line-2); }
+.pips i.on { background: var(--mark); border-color: var(--mark); }
+.pips i.debt { background: var(--debt); border-color: var(--debt); }
+.pips i.void { border-style: dashed; border-color: var(--faint); }
+.row-score { grid-area: score; display: grid; justify-items: end; gap: .3rem; text-align: right; }
+.pct { font: 700 2.25rem/.9 var(--num); letter-spacing: -.045em; font-variant-numeric: tabular-nums; }
+.pct.neg { color: var(--debt); }
+.pts { font: 400 .6875rem/1.2 var(--mono); color: var(--dim); white-space: nowrap; }
+.tag { font-size: .6875rem; line-height: 1; padding: .3rem .45rem .32rem; border: 1px solid var(--line-2); color: var(--dim); white-space: nowrap; }
+.tag-pass { background: var(--mark); border-color: var(--mark); color: var(--mark-ink); }
+.tag-void { border-style: dashed; color: var(--fg); }
+.row-pass .grp-label { color: var(--faint); }
+
+.ledger { grid-area: strip; display: grid; gap: .7rem; }
+.lrow { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) 3.4rem; align-items: center; gap: .9rem; }
+.lk { font-size: .8125rem; color: var(--dim); }
+.lv { font: 700 1.25rem/1 var(--num); letter-spacing: -.03em; text-align: right; font-variant-numeric: tabular-nums; }
+.lv small { font: 400 .6875rem/1 var(--mono); color: var(--faint); letter-spacing: 0; margin-left: .1rem; }
+.lrow .pips { margin: 0; }
+.lrow-debt .lv { color: var(--debt); }
+
+.mech { margin-top: 2.6rem; }
+.mech:first-child { margin-top: 1.2rem; }
+.mech-head {
+  display: flex; justify-content: space-between; gap: 1rem; padding-bottom: .65rem; border-bottom: 1px solid var(--line-2);
+  font: 400 .75rem/1.4 var(--mono); color: var(--dim);
+}
+.mech-head span:first-child { font: 700 .9375rem/1.4 "Noto Sans SC", sans-serif; color: var(--fg); }
+
+/* 页脚 */
+.foot { margin-top: clamp(4rem, 10vh, 6rem); padding: 0 0 3rem; }
+.info {
+  margin: 0; max-width: 62ch; padding: .85rem 1rem;
+  border: 1px solid var(--line-2); color: var(--dim); font-size: .875rem;
+}
+.info b { color: var(--fg); font-weight: 500; margin-right: .35rem; }
+.path { word-break: break-all; }
+
+/* 动效：只做加载时的点阵填充，内容本身不依赖脚本 */
+@media (prefers-reduced-motion: no-preference) {
+  .js .book-bar i { transform: scaleX(0); transition: transform 1.1s var(--ease) .15s; }
+  .js.ready .book-bar i { transform: none; }
+  .js .row .pips i.on, .js .row .pips i.debt { transform: scaleY(.15); opacity: .2; transition: transform .5s var(--ease), opacity .5s var(--ease); transition-delay: calc(var(--i, 0) * 18ms); }
+  .js .row.in .pips i.on, .js .row.in .pips i.debt { transform: none; opacity: 1; }
+}
+
+@media (max-width: 960px) {
+  .hero, .sec-head, .foot .wrap { grid-template-columns: minmax(0, 1fr); }
+  .hero { align-items: start; }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title score" "strip strip"; align-items: start; }
+  .row-score { grid-template-columns: auto; }
+}
+@media (max-width: 600px) {
+  :root { --nav: 3.25rem; }
+  .brand span { display: none; }
+  .hero { padding: 1.25rem 0 1.4rem; gap: 1.4rem; }
+  .hero-copy { gap: .9rem; }
+  .specs { grid-template-columns: minmax(0, 1fr); }
+  .proof { margin-top: 1.1rem; }
+  .proof .pips { height: 9px; }
+  .hero h1 { font-size: clamp(2.2rem, 10.5vw, 2.8rem); }
+  .lede { margin-top: .9rem; font-size: .95rem; }
+  .book a { padding: .7rem 0 .65rem; }
+  .book-num { font-size: clamp(3rem, 15.5vw, 3.75rem); }
+  .book-bar { margin: .6rem 0 .5rem; }
+  .book-meta, .book-pass { font-size: .6875rem; }
+  .facts { grid-template-columns: minmax(0, 1fr); gap: 1.1rem; }
+  .row { padding: 1.1rem 0 1.2rem; gap: .85rem 1rem; }
+  .strip { gap: .4rem; }
+  .grp-id { display: none; }
+  .grp-label { font-size: .6875rem; flex-direction: column; gap: .2rem; align-items: start; }
+  .grp-delta { font-size: .625rem; }
+  .pips { height: 10px; gap: 1.5px; }
+  .pct { font-size: 1.875rem; }
+  .row-score { grid-template-columns: auto auto; align-items: center; column-gap: .5rem; row-gap: .35rem; }
+  .row-score .pct { grid-column: 1 / -1; justify-self: end; }
+  .lrow { grid-template-columns: 2.1rem minmax(0, 1fr) 2.6rem; gap: .55rem; }
+  .lv { font-size: 1.05rem; }
+  .lv small { display: none; }
+  .mech-head { flex-direction: column; gap: .15rem; }
+}
+@media (prefers-reduced-transparency: reduce) { .nav { background: var(--bg); backdrop-filter: none; } }
+@media print {
+  :root { --bg: #fff; --fg: #111; --dim: #444; --faint: #777; --line: #ccc; --line-2: #999; --mark: #111; --mark-ink: #fff; --debt: #b3261e; }
+  .nav { position: static; }
+  .sec { break-inside: avoid-page; }
+}
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><b>寸衡</b><span>model-lens · 2026-10-06</span></a>
+    <nav class="nav-links" aria-label="三栏">
+      <a href="#coding">编码</a><a href="#reasoning">推理</a><a href="#engineering">工程</a>
+      <a href="#method">说明</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap">
+    <div class="hero">
+      <div class="hero-copy">
+        <div>
+          <h1>寸衡</h1>
+          <p class="lede">DeepSeek Flash 的一次成绩。三栏按得分从高到低<span class="nowrap">排列</span>。每题 20 点，满点才记通过。分开记，不相加。</p>
+        </div>
+        <section class="model" aria-label="被测模型">
+          <h2>被测模型</h2>
+          <p class="model-name">deepseek-flash<span>思考强度 high</span></p>
+          <dl class="specs">
+            <div><dt>温度</dt><dd>0.0</dd></div>
+            <div><dt>输出上限</dt><dd>384000 tokens</dd></div>
+            <div><dt>流式</dt><dd>关</dd></div>
+            <div><dt>采样</dt><dd>每题 1 次</dd></div>
+            <div><dt>并发</dt><dd>8</dd></div>
+            <div><dt>超时 / 重试</dt><dd>900 秒 / 3 次</dd></div>
+            <div><dt>端点</dt><dd>http://ai.booster.woa.com/v1</dd></div>
+            <div><dt>编码语言</dt><dd>python</dd></div>
+          </dl>
+        </section>
+      </div>
+      <ol class="books">
+        <li class="book"><a href="#coding"><span class="book-name">编码</span><span class="book-rule">隐藏测试 · 满点通过</span><span class="book-num">97.5</span><span class="book-bar" style="--v:0.975"><i></i></span><span class="book-meta"><b>156</b> / 160 点</span><span class="book-pass"><span class="dots" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span>通过 <b>5/8</b></span></a></li><li class="book"><a href="#reasoning"><span class="book-name">推理</span><span class="book-rule">字段精确匹配 · 满点通过</span><span class="book-num">76.9</span><span class="book-bar" style="--v:0.76875"><i></i></span><span class="book-meta"><b>123</b> / 160 点</span><span class="book-pass"><span class="dots" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></span>通过 <b>4/8</b></span></a></li><li class="book"><a href="#engineering"><span class="book-name">工程</span><span class="book-rule">净分 = 义务 − 禁项</span><span class="book-num">15.0</span><span class="book-bar div" style="--v:0.15"><i></i><b style="left:0">−100</b><b style="right:0">100</b></span><span class="book-meta">义务 <b>53.3</b> · 禁项 <b>38.3</b></span><span class="book-pass"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>通过 <b>0/6</b></span></a></li>
+      </ol>
+    </div>
+
+    <dl class="facts" aria-label="这次运行">
+      <div><dt>运行</dt><dd>2026-10-06 15:10。编码和推理两份请求记录里的模型参数一致。回包模型都是 deepseek-flash。</dd></div>
+      <div><dt>采样</dt><dd>每题只跑 <b>1 次</b>。分数描述这一次的结果，不代表稳定水平。</dd></div>
+      <div><dt>分母</dt><dd>大号是该栏满分上的百分数，从高到低是编码 156/160、推理 123/160、工程净分 18/120。工程净分可以为负。</dd></div>
+      <div><dt>缺席</dt><dd>space-bunny-free 在 14:58 那次全部返回 <code>HTTP 400 Model is unavailable</code>，15:10 这次没有排它，所以没有成绩。</dd></div>
+    </dl>
+  </div>
+
+  <section class="sec" id="coding" aria-labelledby="coding-h"><div class="wrap"><header class="sec-head"><div><p class="sec-index">01 / 03</p><div class="sec-title"><h2 id="coding-h">编码</h2><span class="sec-num">97.5</span></div><p class="sec-sub"><b>156</b> / 160 点 · 通过 <b>5/8</b> · Python</p></div><dl class="sec-notes"><div><dt>怎么记</dt><dd>模型交出 Python。沙箱不联网，只跑隐藏测试。每题 5 个小组，每组 4 点，共 20 点。20 点都拿到才算通过。少 1 点就是未通过，已经拿到的点仍然计入得分。</dd></div><div><dt>这次</dt><dd class="story">8 题的 Python 都跑完了隐藏测试。160 点拿到 156 点，得分 97.5。通过要 20 点全拿。没拿满的是：CP-04 在依赖顺序、冲突检测各差 1 点；CP-07 在稳定优先级差 1 点；CP-08 在列表变更差 1 点。因此 8 题里通过 5 题。</dd></div></dl></header><p class="legend" aria-hidden="true"><span><i class="on"></i>拿到的点</span><span><i></i>没拿到</span></p><ol class="mechs"><li class="mech"><p class="mech-head"><span>账号权限</span><span>1 题 · 20 / 20 点 · 通过 1/1</span></p><ol class="rows"><li class="row row-pass"><div class="row-title"><h3>权限判定</h3><p class="row-id">CP-03 · 153 秒</p></div><div class="strip" style="--g:5" role="img" aria-label="角色继承 4/4，拒绝优先 4/4，通配优先 4/4，时间窗 4/4，动态规则 4/4"><div class="grp grp-full" style="--n:4" title="inheritance 4/4"><span class="grp-label"><span class="grp-name">角色继承</span></span><span class="grp-id">inheritance</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="deny_precedence 4/4"><span class="grp-label"><span class="grp-name">拒绝优先</span></span><span class="grp-id">deny_precedence</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="wildcard_specificity 4/4"><span class="grp-label"><span class="grp-name">通配优先</span></span><span class="grp-id">wildcard_specificity</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="time_window 4/4"><span class="grp-label"><span class="grp-name">时间窗</span></span><span class="grp-id">time_window</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="dynamic_rules 4/4"><span class="grp-label"><span class="grp-name">动态规则</span></span><span class="grp-id">dynamic_rules</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div></div><div class="row-score"><span class="pct">100</span><span class="pts">20 / 20 点</span><span class="tag tag-pass">通过</span></div></li></ol></li><li class="mech"><p class="mech-head"><span>资金结算</span><span>1 题 · 20 / 20 点 · 通过 1/1</span></p><ol class="rows"><li class="row row-pass"><div class="row-title"><h3>批量结算</h3><p class="row-id">CP-05 · 284 秒</p></div><div class="strip" style="--g:5" role="img" aria-label="整批生效 4/4，重复编号 4/4，手续费记账 4/4，冲正 4/4，余额约束 4/4"><div class="grp grp-full" style="--n:4" title="batch_atomicity 4/4"><span class="grp-label"><span class="grp-name">整批生效</span></span><span class="grp-id">batch_atomicity</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="duplicate_ids 4/4"><span class="grp-label"><span class="grp-name">重复编号</span></span><span class="grp-id">duplicate_ids</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="fee_accounting 4/4"><span class="grp-label"><span class="grp-name">手续费记账</span></span><span class="grp-id">fee_accounting</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="reversal 4/4"><span class="grp-label"><span class="grp-name">冲正</span></span><span class="grp-id">reversal</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="balance_contract 4/4"><span class="grp-label"><span class="grp-name">余额约束</span></span><span class="grp-id">balance_contract</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div></div><div class="row-score"><span class="pct">100</span><span class="pts">20 / 20 点</span><span class="tag tag-pass">通过</span></div></li></ol></li><li class="mech"><p class="mech-head"><span>履约配送</span><span>1 题 · 20 / 20 点 · 通过 1/1</span></p><ol class="rows"><li class="row row-pass"><div class="row-title"><h3>订单处理</h3><p class="row-id">CP-01 · 260 秒</p></div><div class="strip" style="--g:5" role="img" aria-label="幂等 4/4，原子预占 4/4，状态机 4/4，补偿 4/4，历史恢复 4/4"><div class="grp grp-full" style="--n:4" title="idempotency 4/4"><span class="grp-label"><span class="grp-name">幂等</span></span><span class="grp-id">idempotency</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="atomic_reserve 4/4"><span class="grp-label"><span class="grp-name">原子预占</span></span><span class="grp-id">atomic_reserve</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="state_machine 4/4"><span class="grp-label"><span class="grp-name">状态机</span></span><span class="grp-id">state_machine</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="compensation 4/4"><span class="grp-label"><span class="grp-name">补偿</span></span><span class="grp-id">compensation</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="history_restore 4/4"><span class="grp-label"><span class="grp-name">历史恢复</span></span><span class="grp-id">history_restore</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div></div><div class="row-score"><span class="pct">100</span><span class="pts">20 / 20 点</span><span class="tag tag-pass">通过</span></div></li></ol></li><li class="mech"><p class="mech-head"><span>调度排程</span><span>2 题 · 39 / 40 点 · 通过 1/2</span></p><ol class="rows"><li class="row row-pass"><div class="row-title"><h3>任务排队</h3><p class="row-id">CP-02 · 245 秒</p></div><div class="strip" style="--g:5" role="img" aria-label="优先级 4/4，租约 4/4，迟到回执 4/4，重试与死信 4/4，取消释放 4/4"><div class="grp grp-full" style="--n:4" title="priority 4/4"><span class="grp-label"><span class="grp-name">优先级</span></span><span class="grp-id">priority</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="lease 4/4"><span class="grp-label"><span class="grp-name">租约</span></span><span class="grp-id">lease</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="stale_ack 4/4"><span class="grp-label"><span class="grp-name">迟到回执</span></span><span class="grp-id">stale_ack</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="retry_dead 4/4"><span class="grp-label"><span class="grp-name">重试与死信</span></span><span class="grp-id">retry_dead</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="cancel_workers 4/4"><span class="grp-label"><span class="grp-name">取消释放</span></span><span class="grp-id">cancel_workers</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div></div><div class="row-score"><span class="pct">100</span><span class="pts">20 / 20 点</span><span class="tag tag-pass">通过</span></div></li><li class="row"><div class="row-title"><h3>资源调度</h3><p class="row-id">CP-07 · 412 秒</p></div><div class="strip" style="--g:5" role="img" aria-label="依赖释放 4/4，资源容量 4/4，稳定优先级 3/4，取消边界 4/4，截止结果 4/4"><div class="grp grp-full" style="--n:4" title="dependency_release 4/4"><span class="grp-label"><span class="grp-name">依赖释放</span></span><span class="grp-id">dependency_release</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="resource_capacity 4/4"><span class="grp-label"><span class="grp-name">资源容量</span></span><span class="grp-id">resource_capacity</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-short" style="--n:4" title="stable_priority 3/4"><span class="grp-label"><span class="grp-name">稳定优先级</span><span class="grp-delta">差 1</span></span><span class="grp-id">stable_priority</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i></i></span></div><div class="grp grp-full" style="--n:4" title="cancel_boundary 4/4"><span class="grp-label"><span class="grp-name">取消边界</span></span><span class="grp-id">cancel_boundary</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="deadline_output 4/4"><span class="grp-label"><span class="grp-name">截止结果</span></span><span class="grp-id">deadline_output</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div></div><div class="row-score"><span class="pct">95</span><span class="pts">19 / 20 点</span><span class="tag">未通过</span></div></li></ol></li><li class="mech"><p class="mech-head"><span>配置发布</span><span>1 题 · 18 / 20 点 · 通过 0/1</span></p><ol class="rows"><li class="row"><div class="row-title"><h3>环境发布</h3><p class="row-id">CP-04 · 350 秒</p></div><div class="strip" style="--g:5" role="img" aria-label="环境覆盖 4/4，依赖顺序 3/4，回滚过滤 4/4，冲突检测 3/4，原子结果 4/4"><div class="grp grp-full" style="--n:4" title="overlay 4/4"><span class="grp-label"><span class="grp-name">环境覆盖</span></span><span class="grp-id">overlay</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-short" style="--n:4" title="dependency_order 3/4"><span class="grp-label"><span class="grp-name">依赖顺序</span><span class="grp-delta">差 1</span></span><span class="grp-id">dependency_order</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i></i></span></div><div class="grp grp-full" style="--n:4" title="rollback_filter 4/4"><span class="grp-label"><span class="grp-name">回滚过滤</span></span><span class="grp-id">rollback_filter</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-short" style="--n:4" title="conflict_detection 3/4"><span class="grp-label"><span class="grp-name">冲突检测</span><span class="grp-delta">差 1</span></span><span class="grp-id">conflict_detection</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i></i></span></div><div class="grp grp-full" style="--n:4" title="atomic_result 4/4"><span class="grp-label"><span class="grp-name">原子结果</span></span><span class="grp-id">atomic_result</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div></div><div class="row-score"><span class="pct">90</span><span class="pts">18 / 20 点</span><span class="tag">未通过</span></div></li></ol></li><li class="mech"><p class="mech-head"><span>单据处理</span><span>2 题 · 39 / 40 点 · 通过 1/2</span></p><ol class="rows"><li class="row row-pass"><div class="row-title"><h3>事件归集</h3><p class="row-id">CP-06 · 288 秒</p></div><div class="strip" style="--g:5" role="img" aria-label="去重 4/4，窗口边界 4/4，迟到事件 4/4，撤回 4/4，快照顺序 4/4"><div class="grp grp-full" style="--n:4" title="dedup 4/4"><span class="grp-label"><span class="grp-name">去重</span></span><span class="grp-id">dedup</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="half_open_window 4/4"><span class="grp-label"><span class="grp-name">窗口边界</span></span><span class="grp-id">half_open_window</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="late_events 4/4"><span class="grp-label"><span class="grp-name">迟到事件</span></span><span class="grp-id">late_events</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="retraction 4/4"><span class="grp-label"><span class="grp-name">撤回</span></span><span class="grp-id">retraction</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="snapshot_order 4/4"><span class="grp-label"><span class="grp-name">快照顺序</span></span><span class="grp-id">snapshot_order</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div></div><div class="row-score"><span class="pct">100</span><span class="pts">20 / 20 点</span><span class="tag tag-pass">通过</span></div></li><li class="row"><div class="row-title"><h3>规则执行</h3><p class="row-id">CP-08 · 256 秒</p></div><div class="strip" style="--g:5" role="img" aria-label="组合条件 4/4，阶段优先级 4/4，写冲突 4/4，列表变更 3/4，停止边界 4/4"><div class="grp grp-full" style="--n:4" title="nested_predicates 4/4"><span class="grp-label"><span class="grp-name">组合条件</span></span><span class="grp-id">nested_predicates</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="phase_priority 4/4"><span class="grp-label"><span class="grp-name">阶段优先级</span></span><span class="grp-id">phase_priority</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="write_conflict 4/4"><span class="grp-label"><span class="grp-name">写冲突</span></span><span class="grp-id">write_conflict</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-short" style="--n:4" title="list_actions 3/4"><span class="grp-label"><span class="grp-name">列表变更</span><span class="grp-delta">差 1</span></span><span class="grp-id">list_actions</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i></i></span></div><div class="grp grp-full" style="--n:4" title="stop_boundary 4/4"><span class="grp-label"><span class="grp-name">停止边界</span></span><span class="grp-id">stop_boundary</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div></div><div class="row-score"><span class="pct">95</span><span class="pts">19 / 20 点</span><span class="tag">未通过</span></div></li></ol></li></ol></div></section><section class="sec" id="reasoning" aria-labelledby="reasoning-h"><div class="wrap"><header class="sec-head"><div><p class="sec-index">02 / 03</p><div class="sec-title"><h2 id="reasoning-h">推理</h2><span class="sec-num">76.9</span></div><p class="sec-sub"><b>123</b> / 160 点 · 通过 <b>4/8</b> · 超时 <b>1</b></p></div><dl class="sec-notes"><div><dt>怎么记</dt><dd>每题给出业务规则和约 280 行日志，场景是路口、门诊、外卖、水果、换乘。模型只交一个 JSON。字段和参考答案一致，才拿到该字段的分数，没有部分分。20 点都拿到才算通过。超时记 0 分，仍算进这栏的分母。</dd></div><div><dt>这次</dt><dd class="story">交上来的 7 题里，忽略噪声和重复记录都对了。没拿到的分都在要推完整条时间线才算得出的字段上：NX-01 的等待时长，NX-05 的完成时间和迟到单数，NX-06 的完成时间。水果进销（NX-07）在 900 秒内没有返回，四个字段记 0 分，仍算进分母。</dd></div></dl></header><p class="legend" aria-hidden="true"><span><i class="on"></i>拿到的点</span><span><i></i>没拿到</span><span><i class="void"></i>未返回</span></p><ol class="mechs"><li class="mech"><p class="mech-head"><span>库存供给</span><span>1 题 · 0 / 20 点 · 通过 0/1</span></p><ol class="rows"><li class="row row-void"><div class="row-title"><h3>水果进销</h3><p class="row-id">NX-07 · 900 秒（上限）</p></div><div class="strip" style="--g:4" role="img" aria-label="全部字段未返回"><div class="grp grp-void" style="--n:5" title="profit 0/5"><span class="grp-label"><span class="grp-name">销售利润</span><span class="grp-delta">未返回</span></span><span class="grp-id">profit</span><span class="pips" aria-hidden="true"><i class="void"></i><i class="void"></i><i class="void"></i><i class="void"></i><i class="void"></i></span></div><div class="grp grp-void" style="--n:5" title="spoiled 0/5"><span class="grp-label"><span class="grp-name">损耗数量</span><span class="grp-delta">未返回</span></span><span class="grp-id">spoiled</span><span class="pips" aria-hidden="true"><i class="void"></i><i class="void"></i><i class="void"></i><i class="void"></i><i class="void"></i></span></div><div class="grp grp-void" style="--n:5" title="ignored 0/5"><span class="grp-label"><span class="grp-name">忽略噪声</span><span class="grp-delta">未返回</span></span><span class="grp-id">ignored</span><span class="pips" aria-hidden="true"><i class="void"></i><i class="void"></i><i class="void"></i><i class="void"></i><i class="void"></i></span></div><div class="grp grp-void" style="--n:5" title="dup 0/5"><span class="grp-label"><span class="grp-name">重复记录</span><span class="grp-delta">未返回</span></span><span class="grp-id">dup</span><span class="pips" aria-hidden="true"><i class="void"></i><i class="void"></i><i class="void"></i><i class="void"></i><i class="void"></i></span></div></div><div class="row-score"><span class="pct">0</span><span class="pts">0 / 20 点</span><span class="tag tag-void">超时</span></div></li></ol></li><li class="mech"><p class="mech-head"><span>履约配送</span><span>2 题 · 28 / 40 点 · 通过 0/2</span></p><ol class="rows"><li class="row"><div class="row-title"><h3>外卖派送</h3><p class="row-id">NX-05 · 316 秒</p></div><div class="strip" style="--g:5" role="img" aria-label="完成时间 0/4，迟到单数 0/4，出行方式 4/4，忽略噪声 4/4，重复记录 4/4"><div class="grp grp-short" style="--n:4" title="finish 0/4"><span class="grp-label"><span class="grp-name">完成时间</span><span class="grp-delta">差 4</span></span><span class="grp-id">finish</span><span class="pips" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div><div class="grp grp-short" style="--n:4" title="late 0/4"><span class="grp-label"><span class="grp-name">迟到单数</span><span class="grp-delta">差 4</span></span><span class="grp-id">late</span><span class="pips" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div><div class="grp grp-full" style="--n:4" title="mode 4/4"><span class="grp-label"><span class="grp-name">出行方式</span></span><span class="grp-id">mode</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="ignored 4/4"><span class="grp-label"><span class="grp-name">忽略噪声</span></span><span class="grp-id">ignored</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="dup 4/4"><span class="grp-label"><span class="grp-name">重复记录</span></span><span class="grp-id">dup</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div></div><div class="row-score"><span class="pct">60</span><span class="pts">12 / 20 点</span><span class="tag">未通过</span></div></li><li class="row"><div class="row-title"><h3>外卖派送</h3><p class="row-id">NX-06 · 343 秒</p></div><div class="strip" style="--g:5" role="img" aria-label="完成时间 0/4，迟到单数 4/4，出行方式 4/4，忽略噪声 4/4，重复记录 4/4"><div class="grp grp-short" style="--n:4" title="finish 0/4"><span class="grp-label"><span class="grp-name">完成时间</span><span class="grp-delta">差 4</span></span><span class="grp-id">finish</span><span class="pips" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div><div class="grp grp-full" style="--n:4" title="late 4/4"><span class="grp-label"><span class="grp-name">迟到单数</span></span><span class="grp-id">late</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="mode 4/4"><span class="grp-label"><span class="grp-name">出行方式</span></span><span class="grp-id">mode</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="ignored 4/4"><span class="grp-label"><span class="grp-name">忽略噪声</span></span><span class="grp-id">ignored</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div><div class="grp grp-full" style="--n:4" title="dup 4/4"><span class="grp-label"><span class="grp-name">重复记录</span></span><span class="grp-id">dup</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i></span></div></div><div class="row-score"><span class="pct">80</span><span class="pts">16 / 20 点</span><span class="tag">未通过</span></div></li></ol></li><li class="mech"><p class="mech-head"><span>调度排程</span><span>2 题 · 35 / 40 点 · 通过 1/2</span></p><ol class="rows"><li class="row"><div class="row-title"><h3>路口放行</h3><p class="row-id">NX-01 · 413 秒</p></div><div class="strip" style="--g:4" role="img" aria-label="等待时长 0/5，优先放行 5/5，忽略噪声 5/5，重复记录 5/5"><div class="grp grp-short" style="--n:5" title="wait 0/5"><span class="grp-label"><span class="grp-name">等待时长</span><span class="grp-delta">差 5</span></span><span class="grp-id">wait</span><span class="pips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></div><div class="grp grp-full" style="--n:5" title="priority 5/5"><span class="grp-label"><span class="grp-name">优先放行</span></span><span class="grp-id">priority</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div><div class="grp grp-full" style="--n:5" title="ignored 5/5"><span class="grp-label"><span class="grp-name">忽略噪声</span></span><span class="grp-id">ignored</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div><div class="grp grp-full" style="--n:5" title="dup 5/5"><span class="grp-label"><span class="grp-name">重复记录</span></span><span class="grp-id">dup</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div></div><div class="row-score"><span class="pct">75</span><span class="pts">15 / 20 点</span><span class="tag">未通过</span></div></li><li class="row row-pass"><div class="row-title"><h3>路口放行</h3><p class="row-id">NX-02 · 456 秒</p></div><div class="strip" style="--g:4" role="img" aria-label="等待时长 5/5，优先放行 5/5，忽略噪声 5/5，重复记录 5/5"><div class="grp grp-full" style="--n:5" title="wait 5/5"><span class="grp-label"><span class="grp-name">等待时长</span></span><span class="grp-id">wait</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div><div class="grp grp-full" style="--n:5" title="priority 5/5"><span class="grp-label"><span class="grp-name">优先放行</span></span><span class="grp-id">priority</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div><div class="grp grp-full" style="--n:5" title="ignored 5/5"><span class="grp-label"><span class="grp-name">忽略噪声</span></span><span class="grp-id">ignored</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div><div class="grp grp-full" style="--n:5" title="dup 5/5"><span class="grp-label"><span class="grp-name">重复记录</span></span><span class="grp-id">dup</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div></div><div class="row-score"><span class="pct">100</span><span class="pts">20 / 20 点</span><span class="tag tag-pass">通过</span></div></li></ol></li><li class="mech"><p class="mech-head"><span>就诊安排</span><span>2 题 · 40 / 40 点 · 通过 2/2</span></p><ol class="rows"><li class="row row-pass"><div class="row-title"><h3>门诊接诊</h3><p class="row-id">NX-03 · 303 秒</p></div><div class="strip" style="--g:4" role="img" aria-label="等待时长 5/5，接诊人数 5/5，忽略噪声 5/5，重复记录 5/5"><div class="grp grp-full" style="--n:5" title="wait 5/5"><span class="grp-label"><span class="grp-name">等待时长</span></span><span class="grp-id">wait</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div><div class="grp grp-full" style="--n:5" title="seen 5/5"><span class="grp-label"><span class="grp-name">接诊人数</span></span><span class="grp-id">seen</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div><div class="grp grp-full" style="--n:5" title="ignored 5/5"><span class="grp-label"><span class="grp-name">忽略噪声</span></span><span class="grp-id">ignored</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div><div class="grp grp-full" style="--n:5" title="dup 5/5"><span class="grp-label"><span class="grp-name">重复记录</span></span><span class="grp-id">dup</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div></div><div class="row-score"><span class="pct">100</span><span class="pts">20 / 20 点</span><span class="tag tag-pass">通过</span></div></li><li class="row row-pass"><div class="row-title"><h3>门诊接诊</h3><p class="row-id">NX-04 · 286 秒</p></div><div class="strip" style="--g:4" role="img" aria-label="等待时长 5/5，接诊人数 5/5，忽略噪声 5/5，重复记录 5/5"><div class="grp grp-full" style="--n:5" title="wait 5/5"><span class="grp-label"><span class="grp-name">等待时长</span></span><span class="grp-id">wait</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div><div class="grp grp-full" style="--n:5" title="seen 5/5"><span class="grp-label"><span class="grp-name">接诊人数</span></span><span class="grp-id">seen</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div><div class="grp grp-full" style="--n:5" title="ignored 5/5"><span class="grp-label"><span class="grp-name">忽略噪声</span></span><span class="grp-id">ignored</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div><div class="grp grp-full" style="--n:5" title="dup 5/5"><span class="grp-label"><span class="grp-name">重复记录</span></span><span class="grp-id">dup</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div></div><div class="row-score"><span class="pct">100</span><span class="pts">20 / 20 点</span><span class="tag tag-pass">通过</span></div></li></ol></li><li class="mech"><p class="mech-head"><span>出行安排</span><span>1 题 · 20 / 20 点 · 通过 1/1</span></p><ol class="rows"><li class="row row-pass"><div class="row-title"><h3>换乘选择</h3><p class="row-id">NX-08 · 227 秒</p></div><div class="strip" style="--g:4" role="img" aria-label="到达时间 5/5，行程费用 5/5，忽略噪声 5/5，重复记录 5/5"><div class="grp grp-full" style="--n:5" title="arrival 5/5"><span class="grp-label"><span class="grp-name">到达时间</span></span><span class="grp-id">arrival</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div><div class="grp grp-full" style="--n:5" title="cost 5/5"><span class="grp-label"><span class="grp-name">行程费用</span></span><span class="grp-id">cost</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div><div class="grp grp-full" style="--n:5" title="ignored 5/5"><span class="grp-label"><span class="grp-name">忽略噪声</span></span><span class="grp-id">ignored</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div><div class="grp grp-full" style="--n:5" title="dup 5/5"><span class="grp-label"><span class="grp-name">重复记录</span></span><span class="grp-id">dup</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i></span></div></div><div class="row-score"><span class="pct">100</span><span class="pts">20 / 20 点</span><span class="tag tag-pass">通过</span></div></li></ol></li></ol></div></section><section class="sec" id="engineering" aria-labelledby="engineering-h"><div class="wrap"><header class="sec-head"><div><p class="sec-index">03 / 03</p><div class="sec-title"><h2 id="engineering-h">工程</h2><span class="sec-num">15.0</span></div><p class="sec-sub">义务 <b>64</b>/120（53.3）· 禁项 <b>46</b>/120（38.3）· 净分 <b>18</b>/120</p></div><dl class="sec-notes"><div><dt>怎么记</dt><dd>题面只写业务需求和事件格式，例如做一套能用的注册和登录。评分器运行模型写的 solve()，对照隐藏场景。做到的行为记义务，每条 1 点。不该出现却出现的行为记禁项，每条扣 1 点。净分是义务减去禁项。净分满 20 点才算通过。</dd></div><div><dt>这次</dt><dd class="story">6 题一共做到 64 条义务，踩中 46 条禁项，没有一题通过。最接近的是配置发布，义务 18 条，禁项 2 条。库存预占只做到 3 条义务，踩中 8 条禁项，净分 −5 点。</dd></div></dl></header><p class="legend" aria-hidden="true"><span><i class="on"></i>做到的义务</span><span><i class="debt"></i>踩中的禁项</span><span><i></i>没发生</span></p><ol class="mechs"><li class="mech"><p class="mech-head"><span>账号权限</span><span>1 题 · 1 / 20 点 · 通过 0/1</span></p><ol class="rows"><li class="row row-eng"><div class="row-title"><h3>注册登录</h3><p class="row-id">E-01 · 180 秒</p></div><div class="ledger" role="img" aria-label="义务 10/20，禁项 9/20"><div class="lrow"><span class="lk">义务</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i><i class="on" style="--i:5"></i><i class="on" style="--i:6"></i><i class="on" style="--i:7"></i><i class="on" style="--i:8"></i><i class="on" style="--i:9"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="lv">10<small>/20</small></span></div><div class="lrow lrow-debt"><span class="lk">禁项</span><span class="pips" aria-hidden="true"><i class="debt" style="--i:0"></i><i class="debt" style="--i:1"></i><i class="debt" style="--i:2"></i><i class="debt" style="--i:3"></i><i class="debt" style="--i:4"></i><i class="debt" style="--i:5"></i><i class="debt" style="--i:6"></i><i class="debt" style="--i:7"></i><i class="debt" style="--i:8"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="lv">9<small>/20</small></span></div></div><div class="row-score"><span class="pct">5</span><span class="pts">10 − 9 = 1 点</span><span class="tag">未通过</span></div></li></ol></li><li class="mech"><p class="mech-head"><span>资金结算</span><span>1 题 · 2 / 20 点 · 通过 0/1</span></p><ol class="rows"><li class="row row-eng"><div class="row-title"><h3>支付通知</h3><p class="row-id">E-02 · 215 秒</p></div><div class="ledger" role="img" aria-label="义务 11/20，禁项 9/20"><div class="lrow"><span class="lk">义务</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i><i class="on" style="--i:5"></i><i class="on" style="--i:6"></i><i class="on" style="--i:7"></i><i class="on" style="--i:8"></i><i class="on" style="--i:9"></i><i class="on" style="--i:10"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="lv">11<small>/20</small></span></div><div class="lrow lrow-debt"><span class="lk">禁项</span><span class="pips" aria-hidden="true"><i class="debt" style="--i:0"></i><i class="debt" style="--i:1"></i><i class="debt" style="--i:2"></i><i class="debt" style="--i:3"></i><i class="debt" style="--i:4"></i><i class="debt" style="--i:5"></i><i class="debt" style="--i:6"></i><i class="debt" style="--i:7"></i><i class="debt" style="--i:8"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="lv">9<small>/20</small></span></div></div><div class="row-score"><span class="pct">10</span><span class="pts">11 − 9 = 2 点</span><span class="tag">未通过</span></div></li></ol></li><li class="mech"><p class="mech-head"><span>库存供给</span><span>1 题 · −5 / 20 点 · 通过 0/1</span></p><ol class="rows"><li class="row row-eng"><div class="row-title"><h3>库存预占</h3><p class="row-id">E-03 · 151 秒</p></div><div class="ledger" role="img" aria-label="义务 3/20，禁项 8/20"><div class="lrow"><span class="lk">义务</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="lv">3<small>/20</small></span></div><div class="lrow lrow-debt"><span class="lk">禁项</span><span class="pips" aria-hidden="true"><i class="debt" style="--i:0"></i><i class="debt" style="--i:1"></i><i class="debt" style="--i:2"></i><i class="debt" style="--i:3"></i><i class="debt" style="--i:4"></i><i class="debt" style="--i:5"></i><i class="debt" style="--i:6"></i><i class="debt" style="--i:7"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="lv">8<small>/20</small></span></div></div><div class="row-score"><span class="pct neg">−25</span><span class="pts">3 − 8 = −5 点</span><span class="tag">未通过</span></div></li></ol></li><li class="mech"><p class="mech-head"><span>调度排程</span><span>1 题 · −2 / 20 点 · 通过 0/1</span></p><ol class="rows"><li class="row row-eng"><div class="row-title"><h3>任务执行</h3><p class="row-id">E-05 · 274 秒</p></div><div class="ledger" role="img" aria-label="义务 9/20，禁项 11/20"><div class="lrow"><span class="lk">义务</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i><i class="on" style="--i:5"></i><i class="on" style="--i:6"></i><i class="on" style="--i:7"></i><i class="on" style="--i:8"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="lv">9<small>/20</small></span></div><div class="lrow lrow-debt"><span class="lk">禁项</span><span class="pips" aria-hidden="true"><i class="debt" style="--i:0"></i><i class="debt" style="--i:1"></i><i class="debt" style="--i:2"></i><i class="debt" style="--i:3"></i><i class="debt" style="--i:4"></i><i class="debt" style="--i:5"></i><i class="debt" style="--i:6"></i><i class="debt" style="--i:7"></i><i class="debt" style="--i:8"></i><i class="debt" style="--i:9"></i><i class="debt" style="--i:10"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="lv">11<small>/20</small></span></div></div><div class="row-score"><span class="pct neg">−10</span><span class="pts">9 − 11 = −2 点</span><span class="tag">未通过</span></div></li></ol></li><li class="mech"><p class="mech-head"><span>配置发布</span><span>1 题 · 16 / 20 点 · 通过 0/1</span></p><ol class="rows"><li class="row row-eng"><div class="row-title"><h3>配置发布</h3><p class="row-id">E-06 · 218 秒</p></div><div class="ledger" role="img" aria-label="义务 18/20，禁项 2/20"><div class="lrow"><span class="lk">义务</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i><i class="on" style="--i:5"></i><i class="on" style="--i:6"></i><i class="on" style="--i:7"></i><i class="on" style="--i:8"></i><i class="on" style="--i:9"></i><i class="on" style="--i:10"></i><i class="on" style="--i:11"></i><i class="on" style="--i:12"></i><i class="on" style="--i:13"></i><i class="on" style="--i:14"></i><i class="on" style="--i:15"></i><i class="on" style="--i:16"></i><i class="on" style="--i:17"></i><i></i><i></i></span><span class="lv">18<small>/20</small></span></div><div class="lrow lrow-debt"><span class="lk">禁项</span><span class="pips" aria-hidden="true"><i class="debt" style="--i:0"></i><i class="debt" style="--i:1"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="lv">2<small>/20</small></span></div></div><div class="row-score"><span class="pct">80</span><span class="pts">18 − 2 = 16 点</span><span class="tag">未通过</span></div></li></ol></li><li class="mech"><p class="mech-head"><span>单据处理</span><span>1 题 · 6 / 20 点 · 通过 0/1</span></p><ol class="rows"><li class="row row-eng"><div class="row-title"><h3>文档归档</h3><p class="row-id">E-04 · 225 秒</p></div><div class="ledger" role="img" aria-label="义务 13/20，禁项 7/20"><div class="lrow"><span class="lk">义务</span><span class="pips" aria-hidden="true"><i class="on" style="--i:0"></i><i class="on" style="--i:1"></i><i class="on" style="--i:2"></i><i class="on" style="--i:3"></i><i class="on" style="--i:4"></i><i class="on" style="--i:5"></i><i class="on" style="--i:6"></i><i class="on" style="--i:7"></i><i class="on" style="--i:8"></i><i class="on" style="--i:9"></i><i class="on" style="--i:10"></i><i class="on" style="--i:11"></i><i class="on" style="--i:12"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="lv">13<small>/20</small></span></div><div class="lrow lrow-debt"><span class="lk">禁项</span><span class="pips" aria-hidden="true"><i class="debt" style="--i:0"></i><i class="debt" style="--i:1"></i><i class="debt" style="--i:2"></i><i class="debt" style="--i:3"></i><i class="debt" style="--i:4"></i><i class="debt" style="--i:5"></i><i class="debt" style="--i:6"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="lv">7<small>/20</small></span></div></div><div class="row-score"><span class="pct">30</span><span class="pts">13 − 7 = 6 点</span><span class="tag">未通过</span></div></li></ol></li></ol></div></section>
+</main>
+
+<footer class="foot" id="method">
+  <div class="wrap">
+    <p class="info"><b>说明</b>三栏分开比较，没有总分。这次是编码 8 题、工程 6 题、推理 8 题。工程题库只有这 6 题，凑不满每栏 10 题。这是旧题库的一次记录，不作能力结论。</p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const root = document.documentElement;
+  requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add("ready")));
+  const links = [...document.querySelectorAll(".nav-links a")];
+  const targets = links.map((a) => document.querySelector(a.getAttribute("href"))).filter(Boolean);
+  if (!("IntersectionObserver" in window)) {
+    document.querySelectorAll(".row").forEach((row) => row.classList.add("in"));
+    return;
+  }
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      links.forEach((a) => a.setAttribute("aria-current", String(a.getAttribute("href") === "#" + entry.target.id)));
+    });
+  }, { rootMargin: "-35% 0px -55% 0px" });
+  targets.forEach((t) => spy.observe(t));
+  const reveal = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add("in");
+      reveal.unobserve(entry.target);
+    });
+  }, { rootMargin: "0px 0px -8% 0px" });
+  document.querySelectorAll(".row").forEach((row) => reveal.observe(row));
+})();
+</script>
+</body>
+</html>

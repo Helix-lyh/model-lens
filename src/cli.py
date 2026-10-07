@@ -387,7 +387,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--timeout",
         type=float,
         default=BANK_TIMEOUT_S,
-        help=f"单次请求超时秒，默认 {BANK_TIMEOUT_S:.0f}；家族栏同一客户端",
+        help=f"单次请求超时秒，默认 {BANK_TIMEOUT_S:.0f}；audit 的家族栏复用同一客户端",
     )
     _add_concurrency(p_audit, family_base=True)
     p_audit.set_defaults(func=_cmd_audit)

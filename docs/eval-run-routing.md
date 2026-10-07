@@ -27,13 +27,12 @@
 - n=2 的单轮 CP 结论不要当稳定能力值：CP-06 题面与金标准两轮都没变，v07 轮次两次都只有 5/20，v08 轮次两次都 20/20。同题跨轮翻转说明单轮 n=2 的方差足以盖过一档难度差。
 - 基础设施重试不新增 sample；`solve_within_k` / `repair` 是带反馈修复轮，不能并入 pass@k。
 - `temperature=0`，`reasoning_effort=high`（四渠道统一）。
-- 编程题当前只跑一种语言（Python）以控费；`model_prompt(item, lang)` 里 `lang` 只对编程题生效。
-- CP-01..CP-08 属于 `challenge_coding` 的校准题，入口固定为 Python `solve(data)`；`run_eval --items CP-01` 与 `challenge_live --kind coding --items CP-01` 都会执行 `score_saved`，不再标成待审。
+- 活跃编程题是 CP-09..CP-18，每题一种语言：4 道 Python、3 道 Go、3 道 TypeScript。入口是 `run_eval.py`。
 - 每渠道并发 2，四渠道并行。`--samples` 会增加模型请求数，`--pass-at` 必须满足 `1 <= k <= samples`。
 - 校准实测（2026-09-25，v08，官方 `deepseek-chat` 路由，回包 `model=deepseek-flash`，`--samples 2 --pass-at 2`）：CP 8 题 pass@1=0.625、pass@2=0.625；目录题 16 题 pass@1=0.969、pass@2=1.0；全 24 题 pass@1=0.854、pass@2=0.875。回包模型已经是 `deepseek-flash`，不把 booster 密钥当成另一条能力总体。0.625 高于 30%–50%，v09 改为加写进题面的反常规规则；v09 尚未有同口径实测。
-- 两阶段：先 `--phase quick`（easy+medium），再 `--phase hard`（hard+extreme）。
+- 两阶段：`--phase quick` 跑 CP-09、E-07、NX-09；`--phase hard` 跑活跃 30 题。编码、工程、推理三栏分开计百分数。
 - missing（抽不出代码围栏 / 本机缺工具链）不进分母，单独报数。
-- 每条请求在题面前加入独立随机盐；结果行记录 `salt`、基础题面哈希和加盐题面哈希。HTTP 单次超时或墙钟耗时超过 `--timeout` 记 `error/timeout`，截断回包（`finish_reason=length`）记 `error/response_truncated`，两者都不进能力分母。
+- 每条请求在题面前加入独立随机盐；结果行记录 `salt`、基础题面哈希和加盐题面哈希。超时统一记 `fail/timeout` 并以 0 分进入能力分母；已有可解析阶段时记 `fail/timeout_partial` 并保留阶段分。非超时请求错误仍记 `error`，截断回包（`finish_reason=length`）仍记 `error/response_truncated`。
 - `run_eval` 按题完成立即追加并 `fsync` `results.jsonl`；单题/渠道异常会保留带 `item`、`lang` 的错误行。渠道初始化或 worker 异常会在汇总后以退出码 1 暴露。
 
 ## 跑法
@@ -58,14 +57,13 @@ export DEEPSEEK_API_KEY=...   # 只从环境变量读，不落盘
 # 备用：grok 改走本机 Grok CLI OIDC 代理
 .venv/bin/python cursor_workspace/build_scripts/run_eval_20260925.py --phase quick --models grok-4.6,grok-4.7 --grok-cli-proxy
 
-# CP 校准（只跑 Python；题号可重复但会稳定去重）
-.venv/bin/python cursor_workspace/build_scripts/run_eval_20260925.py --phase quick --items CP-01,CP-01 --models deepseek-flash
-.venv/bin/python -m eval_bank_20260925.challenge_live --kind coding --items CP-01 --base-url "$BOOSTER_BASE_URL"
+# 只跑指定活跃题（重复题号会稳定去重）
+.venv/bin/python cursor_workspace/build_scripts/run_eval.py --phase hard --items CP-09,CP-09 --models deepseek-flash
 
 # 合并重跑：有效 pass/fail 不会被后一次 error/missing 覆盖；--out 可落盘合并物
 .venv/bin/python cursor_workspace/build_scripts/merge_eval_20260925.py out/eval-...-quick out/eval-...-retry --out out/eval-merged
 ```
 
-结果落在 `out/eval-20260925-<stamp>-<phase>/`：`summary.md` / `summary.json`（分渠道、分难度、分域 pass@1/pass@k）、`results.jsonl`（逐题，增量落盘，含 `sample`）、`<channel>/<item>[_<lang>][-s<sample>].txt`（原始响应）、`<channel>/requests.jsonl`（含 usage 的落盘记录）。CP 校准结果沿用同一逐题 schema，`pending_review` 只保留给未接评分器的外部结果，不代表 CP。
+结果落在 `out/eval-20261008-<stamp>-<phase>/`：`summary.md` / `summary.json`（分渠道、分难度、分域 pass@1/pass@k）、`results.jsonl`（逐题，增量落盘，含 `sample`）、`<channel>/<item>[_<lang>][-s<sample>].txt`（原始响应）、`<channel>/requests.jsonl`（含 usage 的落盘记录）。CP 校准结果沿用同一逐题 schema，`pending_review` 只保留给未接评分器的外部结果，不代表 CP。
 
 `--grok-cli-proxy` 显式切回 CLI 代理；不带该开关且给了 `--grok-base` 时走网关。

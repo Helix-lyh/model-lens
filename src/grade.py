@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -386,14 +387,16 @@ def _forbidden_grade(code: str, lang: str, text: str) -> SampleGrade | None:
 
 
 def _run_lang_sandbox(
-    lang: str, code: str, tests_path: Path, *, result_marker: str | None = None
+    lang: str, code: str, tests_path: Path, *, result_marker: str | None = None,
+    runtime: dict[str, str] | None = None, timeout_s: float | None = None,
 ) -> tuple[GradeStatus, str]:
     if lang == "python":
-        return run_python_sandbox(code, tests_path, result_marker=result_marker)
+        extra = {"timeout_s": timeout_s} if timeout_s is not None else {}
+        return run_python_sandbox(code, tests_path, result_marker=result_marker, runtime=runtime, **extra)
     if lang == "go":
-        return run_go_sandbox(code, tests_path, result_marker=result_marker)
+        return run_go_sandbox(code, tests_path, result_marker=result_marker, runtime=runtime)
     if lang == "typescript":
-        return run_ts_sandbox(code, tests_path, result_marker=result_marker)
+        return run_ts_sandbox(code, tests_path, result_marker=result_marker, runtime=runtime)
     return "error", f"unsupported language {lang!r}"
 
 
@@ -450,6 +453,8 @@ def _grade_code(question: Question, text: str, *, repo_root: Path) -> SampleGrad
     status, detail = _run_lang_sandbox(
         lang, code, tests,
         result_marker=str(question.grader.get("result_marker") or "") or None,
+        runtime=question.grader.get("runtime_env"),
+        timeout_s=question.grader.get("timeout_s"),
     )
     return _code_sample_grade(status, detail, text)
 
@@ -479,6 +484,7 @@ def run_python_sandbox(
     timeout_s: float = 8.0,
     payload: str | None = None,
     result_marker: str | None = None,
+    runtime: dict[str, str] | None = None,
 ) -> tuple[GradeStatus, str]:
     with tempfile.TemporaryDirectory(prefix="mlens-") as tmp:
         root = Path(tmp)
@@ -495,6 +501,8 @@ def run_python_sandbox(
             encoding="utf-8",
         )
         env = _sandbox_env(root)
+        if runtime and runtime.get("python_path"):
+            env["PYTHONPATH"] = os.pathsep.join((env["PYTHONPATH"], runtime["python_path"]))
         try:
             proc = subprocess.run(
                 [sys.executable, "-s", str(root / "boot.py")],
@@ -511,7 +519,7 @@ def run_python_sandbox(
 
 def run_go_sandbox(
     code: str, tests_path: Path, *, timeout_s: float = 15.0,
-    result_marker: str | None = None,
+    result_marker: str | None = None, runtime: dict[str, str] | None = None,
 ) -> tuple[GradeStatus, str]:
     tools = discover()
     if tools.missing_for("go"):
@@ -521,7 +529,11 @@ def run_go_sandbox(
     cache = ensure_cache_dirs()
     with tempfile.TemporaryDirectory(prefix="mlens-go-") as tmp:
         root = Path(tmp)
-        (root / "go.mod").write_text("module solution\n\ngo 1.20\n", encoding="utf-8")
+        if runtime and runtime.get("go_modfile") and runtime.get("go_sumfile"):
+            shutil.copy2(runtime["go_modfile"], root / "go.mod")
+            shutil.copy2(runtime["go_sumfile"], root / "go.sum")
+        else:
+            (root / "go.mod").write_text("module solution\n\ngo 1.20\n", encoding="utf-8")
         (root / "solution.go").write_text(code.rstrip() + "\n", encoding="utf-8")
         dest = root / tests_path.name
         if not dest.name.endswith("_test.go"):
@@ -533,8 +545,8 @@ def run_go_sandbox(
         env["GOSUMDB"] = "off"
         env["GOTOOLCHAIN"] = "local"
         env["GOCACHE"] = str(cache / "gocache")
-        env["GOMODCACHE"] = str(root / ".gomodcache")
-        env["GOFLAGS"] = "-mod=mod"
+        env["GOMODCACHE"] = runtime.get("go_modcache", str(root / ".gomodcache")) if runtime else str(root / ".gomodcache")
+        env["GOFLAGS"] = "-mod=readonly" if runtime else "-mod=mod"
         env["CGO_ENABLED"] = "0"
         try:
             proc = subprocess.run(
@@ -568,7 +580,7 @@ _TSCONFIG = """{
 
 def run_ts_sandbox(
     code: str, tests_path: Path, *, timeout_s: float = 45.0,
-    result_marker: str | None = None,
+    result_marker: str | None = None, runtime: dict[str, str] | None = None,
 ) -> tuple[GradeStatus, str]:
     tools = discover()
     missing = tools.missing_for("typescript")
@@ -582,6 +594,11 @@ def run_ts_sandbox(
         (root / "tsconfig.json").write_text(_TSCONFIG, encoding="utf-8")
         (root / "solution.ts").write_text(code.rstrip() + "\n", encoding="utf-8")
         (root / "run_test.ts").write_text(tests_path.read_text(encoding="utf-8"), encoding="utf-8")
+        if runtime and runtime.get("node_modules"):
+            try:
+                os.symlink(runtime["node_modules"], root / "node_modules", target_is_directory=True)
+            except OSError:
+                shutil.copytree(runtime["node_modules"], root / "node_modules")
         compile_env = _toolchain_env(root)
         compile_env["PATH"] = str(Path(node).parent) + os.pathsep + compile_env.get("PATH", "")
         try:

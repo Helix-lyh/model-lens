@@ -202,7 +202,7 @@ def _render_shell_appendix(payload: dict[str, Any]) -> list[str]:
     lines = [
         "### 壳 / 适配器（不进 F/I/D）",
         "",
-        "- 对照词表只当本地计数器。不能证明是同一条权重。",
+        "- 本地词表只用来数 token，不能证明线上模型用的是这份词表对应的权重。",
         "",
     ]
     if isinstance(wrapper, dict):
@@ -313,7 +313,7 @@ def _render_bank_bars(bank: Any, bank_ref: Any) -> list[str]:
     lines = [
         f"- 版本：{_fmt_bank_versions(bank)}",
         f"- 模式：{_fmt_bank_mode(bank)}，原始题 {bank.get('raw_question_count') or _raw_count(bank)} 道，展开题 {bank.get('expanded_question_count') or bank.get('n_questions') or len(bank.get('questions') or [])} 道",
-        f"- 编码题：raw cluster {bank.get('coding_cluster_count') or '—'}，语言变体 {bank.get('coding_variant_count') or '—'}；主统计按 raw cluster 等权（一题一票，不因三语展开加权）；三语言 missing 不进分母、不记 0 分",
+        f"- 编码题：raw cluster {bank.get('coding_cluster_count') or '—'}，语言变体 {bank.get('coding_variant_count') or '—'}；主统计以原始题（raw cluster）为单位等权（一题一票，不因三语展开而加权）；记 missing 的语言不进分母，也不记 0 分",
         f"- 编码题可用语言口径：{_fmt_coding_stats(bank.get('coding_available'))}；三语齐全口径：{_fmt_coding_stats(bank.get('coding_strict'))}",
         f"- raw 难度矩阵：{_fmt_raw_matrix(bank)}",
         f"- 分域通过率（temperature=0，missing 不进分母）：{_fmt_domain_rates(bank)}",
@@ -328,7 +328,7 @@ def _render_bank_bars(bank: Any, bank_ref: Any) -> list[str]:
     alarm = bank.get("knowledge_alarm")
     if alarm:
         lines.append(f"- 知识冒烟：{alarm}")
-    lines.append("- 编码抽不出代码或本机缺工具链记 missing，不中断整场，不进 D 分母")
+    lines.append("- 编码题抽不出代码、本机缺工具链，或请求没成功时记 missing，不中断本场，也不进 D 分母")
     lines.append("")
     return lines
 
