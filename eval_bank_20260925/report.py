@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from eval_bank_20260925.evaluation import aggregate_groups, is_judged, summarize, summarize_engineering
+from eval_bank_20260925.next_reasoning import reasoning_group_maxes
 
 
 def _stage_text(row: dict[str, Any]) -> str:
@@ -70,6 +71,55 @@ def _domain(row: dict[str, Any]) -> str:
     return "reasoning"
 
 
+def _with_groups(row: dict[str, Any], groups: list[dict[str, Any]]) -> dict[str, Any]:
+    return {**row, "groups": [dict(group) for group in groups]}
+
+
+def _number(value: Any) -> bool:
+    return type(value) in (int, float)
+
+
+def _engineering_groups(row: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """没测到是满分里尚未观测的部分。缺这三项的已判行不补 0。"""
+    positive = row.get("positive_points")
+    negative = row.get("negative_points")
+    total = row.get("points_total")
+    if not all(_number(value) for value in (positive, negative, total)):
+        return None
+    return [
+        {"name": "得分点", "points": positive, "max": total},
+        {"name": "扣分点", "points": negative, "max": total},
+        {"name": "没测到", "points": total - positive - negative, "max": total},
+    ]
+
+
+def _rows_for_group_table(domain: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """已判但没有可用 groups 时补满分，避免 0 分题把分组百分比抬高。"""
+    prepared: list[dict[str, Any]] = []
+    coding_zeros = [{"name": f"g{index}", "points": 0, "max": 4} for index in range(1, 6)]
+    for row in rows:
+        if not is_judged(row):
+            continue
+        if domain == "engineering":
+            groups = _engineering_groups(row)
+            prepared.append(_with_groups(row, groups) if groups is not None else row)
+            continue
+        if aggregate_groups([row]):
+            prepared.append(row)
+            continue
+        if domain == "coding":
+            prepared.append(_with_groups(row, coding_zeros))
+        elif domain == "reasoning":
+            bounds = reasoning_group_maxes(row.get("item"))
+            if bounds:
+                prepared.append(_with_groups(row, [{"name": name, "points": 0, "max": maximum} for name, maximum in bounds]))
+            else:
+                prepared.append(row)
+        else:
+            prepared.append(row)
+    return prepared
+
+
 def render_markdown(meta: dict[str, Any], rows: list[dict[str, Any]]) -> str:
     lines = [
         f"# 评测报告 · {meta.get('experiment_id') or ''} · 版本 {meta.get('bank_version') or '20261008'}",
@@ -124,13 +174,13 @@ def render_markdown(meta: dict[str, Any], rows: list[dict[str, Any]]) -> str:
         "",
         "## 分组累计",
         "",
-        "分组只在同一题库与版本内累计；工程题使用正分、负分、净分账。",
+        "分组只在同一题库与版本内累计。已判但没有可用分组的编码、推理按 0 分计入原分组满分；工程题使用得分点、扣分点、没测到。",
         "",
         "| 栏目 | 题库 | 版本 | 分组 | 得分 | 满分 | 百分比 |",
         "| --- | --- | --- | --- | ---: | ---: | ---: |",
     ]
     for domain, domain_rows in by_domain.items():
-        for group in aggregate_groups([row for row in domain_rows if is_judged(row)]):
+        for group in aggregate_groups(_rows_for_group_table(domain, domain_rows)):
             lines.append(
                 f"| {domain} | {group['bank_id']} | {group['bank_version']} | {group['name']} | "
                 f"{group['points']:g} | {group['max']:g} | {group['percent']}% |"

@@ -29,6 +29,20 @@ def test_next_reasoning_is_mechanical_and_partial():
     assert result["passed"] is False
 
 
+def test_nx12_tie_uses_id_order_and_nx16_is_not_copying_demand():
+    route = reference_answer("NX-12")
+    assert route["route"] == ["A", "B", "C"]
+    assert route["total"] == 19
+    old = dict(route, route=["B", "A", "C"], arrivals=[["B", 5], ["A", 13], ["C", 19]], late=["A", "C"])
+    assert score_reasoning("NX-12", json.dumps(old))["points"] == 4
+    stock = reference_answer("NX-16")
+    assert stock["buy"] == [8, 0, 4]
+    copied = dict(stock, buy=[4, 6, 4], sold=[4, 6, 4], profit=56)
+    assert score_reasoning("NX-16", json.dumps(copied))["points"] < 20
+    locks = dict(reference_answer("NX-11"), locks=[{"order": "O1", "batch": "A", "qty": 3}, {"order": "O2", "batch": "B", "qty": 3}])
+    assert score_reasoning("NX-11", json.dumps(locks))["points"] == 20
+
+
 def test_next_reasoning_prompt_has_json_contract_and_business_facts():
     prompt = render_reasoning_prompt("NX-17")
     assert "只输出一个 JSON 对象" in prompt

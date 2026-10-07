@@ -33,9 +33,35 @@ def _orders(value):
     return found
 
 
+def _snapshot_sort_key(value):
+    text = str(value)
+    if text.isdigit():
+        return 0, int(text)
+    return 1, text
+
+
+def _cp09_snapshots(value):
+    if isinstance(value, dict):
+        pairs = list(value.items())
+    elif isinstance(value, list):
+        pairs = []
+        for index, body in enumerate(value):
+            if isinstance(body, dict):
+                pairs.append((body.get("id", body.get("snapshot", index)), body))
+    else:
+        pairs = []
+    rows = []
+    for ident, body in pairs:
+        if not isinstance(body, dict) or ("quota" not in body and "orders" not in body):
+            continue
+        rows.append({"id": str(ident), "quota": body.get("quota"), "orders": _orders(body.get("orders"))})
+    rows.sort(key=lambda row: _snapshot_sort_key(row["id"]))
+    return rows
+
+
 def cp09(output):
     data = _as_output(output)
-    return {"quota": data.get("quota"), "orders": _orders(data.get("orders"))}
+    return {"quota": data.get("quota"), "orders": _orders(data.get("orders")), "snapshots": _cp09_snapshots(data.get("snapshots"))}
 
 
 def cp10(output):
@@ -67,11 +93,39 @@ def _config_maps(output):
             maps.append({item.get("key"): item.get("value") for item in read if isinstance(item, dict) and item.get("key") is not None})
         elif isinstance(read, dict) and read.get("key") is not None:
             maps.append({read["key"]: read.get("value")})
+        elif isinstance(read, dict):
+            maps.append(dict(read))
     return maps
 
 
 def cp11(output):
     return {"reads": _config_maps(output)}
+
+
+def _edge_snapshot(value):
+    rows = value.get("edges") if isinstance(value, dict) and "edges" in value else value
+    if not isinstance(rows, list):
+        return None
+    found = []
+    for row in rows:
+        if isinstance(row, dict):
+            found.append((row.get("tenant"), row.get("from"), row.get("to")))
+        elif isinstance(row, (list, tuple)) and len(row) >= 3 and not isinstance(row[0], (list, dict)):
+            found.append((row[0], row[1], row[2]))
+        else:
+            return None
+    return sorted(found)
+
+
+def _relation_snapshots(value):
+    if isinstance(value, dict):
+        return [_edge_snapshot(value[key]) for key in sorted(value, key=_snapshot_sort_key)]
+    if not isinstance(value, list):
+        return []
+    flat = value and all(isinstance(item, dict) and "edges" not in item and ("from" in item or "to" in item) for item in value)
+    if flat:
+        return [_edge_snapshot(value)]
+    return [_edge_snapshot(item) for item in value]
 
 
 def cp12(output):
@@ -81,7 +135,7 @@ def cp12(output):
     for row in _rows(data.get("edges")):
         if isinstance(row, dict):
             edges.append((row.get("tenant"), row.get("from"), row.get("to")))
-    return {"roots": roots, "edges": edges}
+    return {"roots": roots, "edges": edges, "snapshots": _relation_snapshots(data.get("snapshots"))}
 
 
 def _hold_rows(holds):
@@ -112,15 +166,26 @@ def cp13(output):
     ]
 
 
+def _sum_qty(batches, field):
+    total = 0
+    saw = False
+    for batch in batches:
+        if not isinstance(batch, dict) or isinstance(batch.get(field), bool) or not isinstance(batch.get(field), (int, float)):
+            return None
+        saw = True
+        total += batch[field]
+    return total if saw else None
+
+
 def cp14(output):
     data = _as_output(output)
     reads = []
     for row in _rows(data.get("reads")):
         if not isinstance(row, dict):
             continue
-        if isinstance(row.get("batches"), list):
-            free = sum((batch.get("free") or 0) for batch in row["batches"] if isinstance(batch, dict))
-            locked = sum((batch.get("locked") or 0) for batch in row["batches"] if isinstance(batch, dict))
+        if isinstance(row.get("batches"), list) and row["batches"]:
+            free = _sum_qty(row["batches"], "free")
+            locked = _sum_qty(row["batches"], "locked")
         else:
             free, locked = row.get("free"), row.get("locked")
         reads.append({"sku": row.get("sku"), "free": free, "locked": locked})
@@ -167,12 +232,16 @@ def cp17(output):
     data = _as_output(output)
     rows = _rows(data.get("reads"))
     facts = []
-    seen_miss = set()
+    seen = set()
+    raw = data.get("reads")
+    if isinstance(raw, dict):
+        rows = []
+        for key, value in raw.items():
+            if isinstance(value, dict):
+                rows.append({"key": key, **value})
+            elif value is None:
+                rows.append({"key": key, "value": None, "miss": True})
     for row in rows:
-        if isinstance(row, str):
-            facts.append(_miss_row(row))
-            seen_miss.add(row)
-            continue
         if not isinstance(row, dict):
             continue
         value = row.get("value")
@@ -180,19 +249,27 @@ def cp17(output):
         if miss is None:
             miss = value is None
         miss = bool(miss)
-        facts.append({"key": row.get("key"), "miss": miss, "value": None if miss else value})
-        if miss:
-            seen_miss.add(row.get("key"))
-    extra = data.get("miss")
-    if isinstance(extra, str):
-        extra = [extra]
-    if isinstance(extra, list):
-        for item in extra:
-            key = item if isinstance(item, str) else item.get("key") if isinstance(item, dict) else None
-            if key is None or key in seen_miss:
+        if miss and value is not None:
+            facts.append({"key": row.get("key"), "miss": True, "value": value})
+        elif miss:
+            facts.append(_miss_row(row.get("key")))
+        else:
+            facts.append({"key": row.get("key"), "miss": False, "value": value})
+        if row.get("key") is not None:
+            seen.add(row.get("key"))
+    miss = data.get("miss")
+    if isinstance(miss, dict):
+        for event_id, key in miss.items():
+            if not isinstance(key, str) or key in seen:
                 continue
-            facts.append(_miss_row(key))
-            seen_miss.add(key)
+            leaked = None
+            if isinstance(raw, dict):
+                for slot in (event_id, key):
+                    if slot in raw and not isinstance(raw[slot], dict) and raw[slot] is not None:
+                        leaked = raw[slot]
+                        break
+            facts.append({"key": key, "miss": True, "value": leaked} if leaked is not None else _miss_row(key))
+            seen.add(key)
     return facts
 
 
@@ -205,10 +282,16 @@ def cp18(output):
         for value in data.values():
             if isinstance(value, dict) and any(key in value for key in ("state", "price", "ticket", "refund")):
                 rows.append(value)
-    return [
+    found = [
         {"ticket": row.get("ticket"), "state": row.get("state"), "price": row.get("price"), "refund": row.get("refund", 0)}
         for row in rows if isinstance(row, dict)
     ]
+    def _num(value):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return (1, str(value))
+        return (0, value)
+
+    return sorted(found, key=lambda row: (str(row["ticket"]), str(row["state"]), _num(row["price"]), _num(row["refund"])))
 
 
 FACTS = {

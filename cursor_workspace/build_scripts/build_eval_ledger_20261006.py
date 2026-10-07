@@ -28,24 +28,39 @@ from cursor_workspace.build_scripts.ledger_common import (  # noqa: E402
 )
 
 
+def _json_lines(path: Path) -> list[dict]:
+    rows = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return rows
+
+
 def load_rows(path: Path) -> list[dict]:
-    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    rows = [row for row in rows if row.get("channel") == CHANNEL]
+    rows = [row for row in _json_lines(path) if row.get("channel") == CHANNEL]
     return sorted(rows, key=lambda row: row["item"])
 
 
 def _single_model_run() -> Path:
-    """台账页只收单模型完整场。多模型场交给对比页，避免最新一场把这里盖掉。"""
+    """台账页只展示 deepseek-flash。多模型场里这一栏 30 题都已判完，就用最新一场。"""
     found = []
     for path in sorted((ROOT / "out").glob("eval-20261008-*-hard")):
         meta_path, results = path / "meta.json", path / "results.jsonl"
         if not meta_path.is_file() or not results.is_file():
             continue
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        if meta.get("models") == [CHANNEL] and meta.get("bank_version") == "20261008":
+        if meta.get("bank_version") != "20261008" or CHANNEL not in (meta.get("models") or []):
+            continue
+        rows = _json_lines(results)
+        mine = [row for row in rows if row.get("channel") == CHANNEL and row.get("status") in {"pass", "fail"}]
+        if len(mine) == 30 and len({row["item"] for row in mine}) == 30:
             found.append(path)
     if not found:
-        raise SystemExit(f"没有单模型 {CHANNEL} 的 20261008 hard 成绩")
+        raise SystemExit(f"没有 {CHANNEL} 已判完 30 题的 20261008 hard 成绩")
     return found[-1]
 
 
@@ -58,7 +73,7 @@ nx = [row for row in rows if row["item"].startswith("NX-")]
 coding_meta = json.loads((RUN / "meta.json").read_text(encoding="utf-8"))
 
 assert coding_meta["bank_version"] == "20261008"
-assert coding_meta["models"] == [CHANNEL]
+assert CHANNEL in coding_meta["models"]
 assert len(coding) == len(engineering) == len(nx) == 10
 assert {row["item"] for row in rows} == set(ITEM_FACE)
 assert all(row.get("points_total") == LEDGER for row in rows)

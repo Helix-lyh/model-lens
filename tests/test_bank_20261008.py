@@ -106,3 +106,54 @@ def test_stage_and_final_scores_use_percent():
     assert "30.0（6/20）" in text
     assert "residue_min 100.0（6/6）" in text
     assert "没有跨栏总分" in text
+    assert f"| reasoning | business-reasoning | {ACTIVE_VERSION} | residue_min | 6 | 6 | 100.0% |" in text
+    assert f"| reasoning | business-reasoning | {ACTIVE_VERSION} | served | 0 | 10 |" not in text
+
+
+def test_group_table_counts_judged_zeros_without_groups():
+    from eval_bank_20260925.evaluation import aggregate_groups
+
+    def row(item: str, status: str, **extra):
+        if item.startswith("CP-"):
+            bank_id = "business-coding"
+        elif item.startswith("E-"):
+            bank_id = "business-engineering"
+        else:
+            bank_id = "business-reasoning"
+        base = {
+            "bank_id": bank_id,
+            "bank_version": ACTIVE_VERSION,
+            "channel": "stub",
+            "item": item,
+            "status": status,
+            "passed": False if status == "fail" else None,
+        }
+        base.update(extra)
+        return base
+
+    coding = row("CP-09", "fail", points=0, points_total=20, score10=0, score_percent=0)
+    engineering = row(
+        "E-01", "fail", points=0, points_total=20, positive_points=0, negative_points=0,
+        net_points=0, score_percent=0,
+    )
+    assert aggregate_groups([coding, engineering]) == []
+    text = render_markdown({"experiment_id": "t", "phase": "hard", "langs": ["python"], "samples": 1}, [
+        coding,
+        row("CP-10", "missing"),
+        row("CP-11", "error"),
+        row("CP-12", "pending_review"),
+        engineering,
+        row("E-02", "fail", points=0),
+        row("NX-09", "fail", points=0, points_total=20, score10=0, groups=[]),
+        row("NX-10", "fail", points=12, points_total=20, score10=6, groups=[{"name": "assign", "points": 12, "max": 12}]),
+    ])
+    for name in ("g1", "g2", "g3", "g4", "g5"):
+        assert f"| coding | business-coding | {ACTIVE_VERSION} | {name} | 0 | 4 | 0.0% |" in text
+    assert f"| engineering | business-engineering | {ACTIVE_VERSION} | 没测到 | 20 | 20 | 100.0% |" in text
+    assert f"| engineering | business-engineering | {ACTIVE_VERSION} | 得分点 | 0 | 20 | 0.0% |" in text
+    assert f"| engineering | business-engineering | {ACTIVE_VERSION} | 扣分点 | 0 | 20 | 0.0% |" in text
+    assert text.count("| 没测到 |") == 1
+    assert f"| reasoning | business-reasoning | {ACTIVE_VERSION} | served | 0 | 10 | 0.0% |" in text
+    assert f"| reasoning | business-reasoning | {ACTIVE_VERSION} | assign | 12 | 12 | 100.0% |" in text
+    assert f"| reasoning | business-reasoning | {ACTIVE_VERSION} | rejected | 0 | 3 |" not in text
+    assert "g1 0.0（0/4）" not in text
