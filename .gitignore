@@ -18,4 +18,5 @@ catalog/tokenizers/*
 targets.local.yaml
 .claude/
 .gitnexus/
+.idea/
 .DS_Store
