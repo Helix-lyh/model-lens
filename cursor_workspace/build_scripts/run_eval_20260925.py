@@ -19,6 +19,7 @@ import hashlib
 import json
 import os
 import secrets
+import subprocess
 import sys
 import threading
 from collections import defaultdict
@@ -398,6 +399,25 @@ def write_summary(out_dir: Path, summary: dict[str, Any], rows: list[dict[str, A
     (out_dir / "summary.md").write_text(render_markdown({**meta, "bank_version": "20261008"}, rows), encoding="utf-8")
 
 
+def publish_reports(out_dir: Path, channels: list[str]) -> None:
+    """评测结束就生成页面。单模型页看 deepseek-flash；两个及以上模型再出对比页。"""
+    root = Path(__file__).resolve().parents[2]
+    scripts = root / "cursor_workspace" / "build_scripts"
+    commands = [(
+        [sys.executable, str(scripts / "build_eval_ledger_20261006.py")],
+        "单模型页",
+    )]
+    if len(channels) >= 2:
+        commands.append((
+            [sys.executable, str(scripts / "build_eval_matrix.py"), "--run", str(out_dir)],
+            "对比页",
+        ))
+    for command, label in commands:
+        completed = subprocess.run(command, cwd=root, check=False)
+        if completed.returncode != 0:
+            print(f"{label}未生成，退出码 {completed.returncode}", file=sys.stderr)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--phase", choices=("quick", "hard"), required=True)
@@ -534,6 +554,7 @@ def main() -> int:
     summary = summarize(rows, names, args.pass_k)
     write_summary(out_dir, summary, rows, meta)
     print(f"\n完成：{out_dir}/summary.md")
+    publish_reports(out_dir, names)
     for name, entry in summary.items():
         for domain in ("coding", "engineering", "reasoning"):
             if domain not in entry:

@@ -577,7 +577,8 @@ for group in groups:
             if doc is not None:
                 try:
                     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                        got = solve(adapt_input(copy.deepcopy(data), doc))
+                        # 题面规定入口收到的是角色名。describe() 只用来把输出映回角色，不改写输入。
+                        got = solve(copy.deepcopy(data))
                     encoded = json.dumps(got, ensure_ascii=True, separators=(",", ":"))
                 except BaseException:
                     encoded = "null"
@@ -631,6 +632,7 @@ for group in groups:
             "  for k, v := range actions { values[k] = v }\n"
             "  for k, v := range states { values[k] = v }\n"
             "  same := !bad && identity(keys) && identity(actions) && identity(states)\n"
+            "  _ = same\n"
             "  compact, err := json.Marshal(doc)\n"
             "  if err != nil { compact = []byte(\"null\") }\n"
             "  fmt.Printf(\"%s DESCRIBE %s\\n\", " + json.dumps(marker) + ", compact)\n"
@@ -640,12 +642,7 @@ for group in groups:
             "    if !bad {\n"
             "      got = func() (out json.RawMessage) {\n"
             "        defer func(){ if recover()!=nil { out=[]byte(\"null\") } }()\n"
-            "        if same { return Solve(input) }\n"
-            "        var value any\n"
-            "        if json.Unmarshal(input, &value) != nil { return []byte(\"null\") }\n"
-            "        encoded, err := json.Marshal(renameTree(value, keys, values))\n"
-            "        if err != nil { return []byte(\"null\") }\n"
-            "        return Solve(encoded)\n"
+            "        return Solve(input)\n"
             "      }()\n"
             "    }\n"
             "    if len(got)==0 { got=[]byte(\"null\") }\n"
@@ -684,11 +681,8 @@ for group in groups:
         "    let got: any = null;\n"
         "    if (ok) {\n"
         "      try {\n"
-        "        const same = identity(doc.keys) && identity(doc.actions) && identity(doc.states);\n"
-        "        const values = Object.assign({}, doc.actions, doc.states);\n"
-        "        const data = same ? input : renameTree(JSON.parse(JSON.stringify(input)), doc.keys, values);\n"
         "        const old = console.log; console.log = () => {};\n"
-        "        got = solve(data);\n"
+        "        got = solve(input);\n"
         "        if (got && typeof got.then === \"function\") got = await got;\n"
         "        console.log = old;\n"
         "      } catch { console.log = () => {}; }\n"

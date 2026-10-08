@@ -30,6 +30,20 @@ def test_reference_source_rejects_unknown_language() -> None:
         reference_source("CP-09", "rust")
 
 
+def test_fixture_does_not_rename_the_input():
+    from eval_bank_20260925.next_coding import _SCHEMAS, _fixture, cases
+    schema, groups = _SCHEMAS["CP-12"], cases("CP-12")
+    python = _fixture(schema, groups, "MARK", "python")
+    go = _fixture(schema, groups, "MARK", "go")
+    typescript = _fixture(schema, groups, "MARK", "typescript")
+    assert "solve(adapt_input" not in python
+    assert "solve(copy.deepcopy(data))" in python
+    assert "return Solve(encoded)" not in go
+    assert "return Solve(input)" in go
+    assert "solve(input)" in typescript
+    assert "renameTree(JSON.parse" not in typescript
+
+
 def test_prompt_states_the_shared_envelope() -> None:
     text = prompt("CP-10", "python")
     assert "只能有 trace 和 output 两个键" in text
