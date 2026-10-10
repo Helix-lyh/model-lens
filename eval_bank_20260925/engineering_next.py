@@ -246,22 +246,11 @@ print({marker!r}+" ENGINEERING "+json.dumps(v, ensure_ascii=False))
 
 
 def score_next(item_id: str, text: str):
-    marker = "__MODEL_LENS_" + item_id.replace("-", "") + "_"
-    with tempfile.TemporaryDirectory(prefix="engineering-next-") as directory:
-        root = Path(directory)
-        tests = root / "bank" / "tests"
-        tests.mkdir(parents=True)
-        (tests / "tests.py").write_text(fixture(marker, item_id), encoding="utf-8")
-        grade = grade_response(Question(id=item_id, domain="engineering", difficulty="extreme", prompt="", grader={"type": "code_tests", "language": "python", "tests_file": "bank/tests/tests.py", "result_marker": marker}, pass_criteria="20 positive obligations and no negative debt", language="python"), text, repo_root=root)
-    from .evaluation import unjudged_execution
-    unavailable = unjudged_execution(grade)
+    from .sandbox_runs import collect_runs
+    runs, unavailable = collect_runs(item_id, text, CASES[item_id])
     if unavailable is not None:
         return unavailable
-    line = next((x for x in grade.detail.splitlines() if x.startswith("ENGINEERING ")), "")
-    try:
-        report = json.loads(line[len("ENGINEERING "):])
-    except (ValueError, IndexError):
-        report = {"covered": [], "violations": [], "gaps": ["execution_error"]}
+    report = _judge(item_id, runs)
     covered = sorted(set(report.get("covered", [])))
     violations = sorted(set(report.get("violations", [])))
     gaps = report.get("gaps", [])

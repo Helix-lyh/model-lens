@@ -624,27 +624,11 @@ print({marker!r} + " ENGINEERING " + json.dumps(verdict, ensure_ascii=False))
 
 
 def score_extra(item_id, text):
-    marker = "__MODEL_LENS_" + item_id.replace("-", "") + "_"
-    with tempfile.TemporaryDirectory(prefix="engineering-extra-") as directory:
-        root = Path(directory)
-        tests = root / "bank" / "tests"
-        tests.mkdir(parents=True)
-        (tests / "tests.py").write_text(extra_fixture(marker, item_id), encoding="utf-8")
-        question = Question(
-            id=item_id, domain="engineering", difficulty="extreme", prompt="",
-            grader={"type": "code_tests", "language": "python", "tests_file": "bank/tests/tests.py", "result_marker": marker},
-            pass_criteria="20 positive obligations and no negative debt", language="python",
-        )
-        grade = grade_response(question, text, repo_root=root)
-    from .evaluation import unjudged_execution
-    unavailable = unjudged_execution(grade)
+    from .sandbox_runs import collect_runs
+    runs, unavailable = collect_runs(item_id, text, CASES[item_id])
     if unavailable is not None:
         return unavailable
-    line = next((item for item in grade.detail.splitlines() if item.startswith("ENGINEERING ")), "")
-    try:
-        report = json.loads(line[len("ENGINEERING "):])
-    except (ValueError, TypeError):
-        report = {"covered": [], "violations": [], "unobserved": ["execution_error"]}
+    report = judge_item(item_id, runs)
     covered = sorted(set(report.get("covered", [])))
     violations = sorted(set(report.get("violations", [])))
     positive, negative = len(covered), len(violations)

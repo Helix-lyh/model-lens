@@ -366,27 +366,12 @@ def score_engineering(text, item_id="E-01"):
             return score_next(item_id, text)
         from .engineering_extra import score_extra
         return score_extra(item_id, text)
-    marker = "__MODEL_LENS_E01_" + secrets.token_hex(12) + "__"
-    with tempfile.TemporaryDirectory(prefix="engineering-grade-") as temporary:
-        root = Path(temporary)
-        tests_dir = root / "bank" / "tests"
-        tests_dir.mkdir(parents=True)
-        (tests_dir / "tests.py").write_text(engineering_result_fixture(marker), encoding="utf-8")
-        question = Question(
-            id="E-01", domain="engineering", difficulty="extreme", prompt=E01_PROMPT,
-            grader={"type": "code_tests", "language": "python", "tests_file": "bank/tests/tests.py", "result_marker": marker},
-            pass_criteria="observable obligations covered and no risk debt", language="python",
-        )
-        grade = grade_response(question, text, repo_root=root)
-    from .evaluation import unjudged_execution
-    unavailable = unjudged_execution(grade)
+    from .sandbox_runs import collect_runs
+    cases = {scenario["name"]: scenario["events"] for scenario in _SCENARIOS}
+    runs, unavailable = collect_runs("E-01", text, cases)
     if unavailable is not None:
         return unavailable
-    line = next((line for line in grade.detail.splitlines() if line.startswith("ENGINEERING ")), "")
-    try:
-        report = json.loads(line[len("ENGINEERING "):])
-    except (ValueError, TypeError):
-        report = {"covered": [], "gaps": [], "violations": [], "unobserved": ["fixture_or_execution_error"], "reports": []}
+    report = judge_login({name: runs.get(name) for name in cases})
     covered = sorted(set(report.get("covered", [])))
     gaps = sorted(set(report.get("gaps", [])))
     violations = sorted(set(report.get("violations", [])))

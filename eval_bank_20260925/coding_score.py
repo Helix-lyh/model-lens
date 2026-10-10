@@ -38,9 +38,12 @@ def score_answer(text: str, language: str, *, item_id: str, groups, schema: dict
     saw_describe = False
     parsed = {}
     saw_case = False
+    describe_count = 0
+    duplicate = False
     for line in result.detail.splitlines():
         if line.startswith("DESCRIBE "):
             saw_describe = True
+            describe_count += 1
             try:
                 doc = json.loads(line.split(" ", 1)[1])
             except json.JSONDecodeError:
@@ -48,13 +51,21 @@ def score_answer(text: str, language: str, *, item_id: str, groups, schema: dict
         if not line.startswith("CASE "):
             continue
         saw_case = True
-        head, payload = line.split(" ", 2)[1:]
+        head, payload = (line.split(" ", 2) + ["", ""])[1:3]
+        if not head.isdigit():
+            duplicate = True
+            continue
+        if int(head) in parsed:
+            duplicate = True
         try:
             parsed[int(head)] = json.loads(payload)
         except json.JSONDecodeError:
             parsed[int(head)] = None
     if not saw_case:
         return {"status": result.status, "points": result.points, "score10": result.score10, "passed": result.passed, "reason_code": "execution_error", "detail": result.detail}
+    if duplicate or describe_count > 1:
+        # 夹具每个用例只写一行。重复的结果行只可能来自被测代码伪造，整题记 0。
+        return Score(item_id, language, "fail", "forged_output", 0.0, 20, 0.0, False, [], False).to_dict()
     if not saw_describe or not valid_document(doc, schema):
         return Score(item_id, language, "fail", "describe_invalid", 0.0, 20, 0.0, False, [], True).to_dict()
     earned = 0
