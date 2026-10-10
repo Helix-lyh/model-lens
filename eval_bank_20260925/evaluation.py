@@ -249,8 +249,37 @@ def pass_at_k(rows: list[dict[str, Any]], k: int, *, key_fields: tuple[str, ...]
     return (round(sum(estimates) / len(estimates), 4) if estimates else None, eligible, len(grouped))
 
 
+def _row_total(row: dict[str, Any]) -> float:
+    value = row.get("points_total")
+    return float(value) if type(value) in (int, float) and value > 0 else 20.0
+
+
+def is_truncated(row: dict[str, Any]) -> bool:
+    return row.get("reason_code") == "response_truncated" or row.get("truncated") is True
+
+
+def outcome_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
+    """固定分母口径下记 0 的各类原因计数。"""
+    return {
+        "truncated": sum(is_truncated(row) for row in rows),
+        "timeouts": sum(row.get("reason_code") in {"timeout", "timeout_partial"} for row in rows),
+        "grader_errors": sum(
+            row.get("status") in {"error", "missing"}
+            and row.get("reason_code") in {"grader_error", "grader_timeout", "scorer_error", "missing_toolchain", "runtime_error"}
+            for row in rows
+        ),
+        "request_errors": sum(
+            row.get("status") == "error" and row.get("reason_code") in {"request_error", "timeout", "worker_error", "runner_error"}
+            for row in rows
+        ),
+    }
+
+
 def summarize(rows: list[dict[str, Any]], *, pass_k: int = 1) -> dict[str, Any]:
-    """Small shared summary primitive used by bank-specific report renderers."""
+    """栏目汇总。主口径是固定分母：每次作答都按满分进分母，截断、超时、错误、缺失记 0。
+
+    `judged_*` 是辅助口径，只除以已判题目的满分。
+    """
     judged = [row for row in rows if is_judged(row)]
     numeric = [row for row in judged if row.get("score10") is not None]
     if any(type(row["score10"]) not in (int, float) or not math.isfinite(row["score10"]) for row in numeric):
@@ -258,7 +287,8 @@ def summarize(rows: list[dict[str, Any]], *, pass_k: int = 1) -> dict[str, Any]:
     pass1, eligible1, count = pass_at_k(rows, 1)
     passk, eligiblek, _ = pass_at_k(rows, pass_k)
     earned = sum(float(row.get("points", 0)) for row in judged if row.get("points") is not None)
-    possible = sum(float(row.get("points_total", 20)) for row in judged)
+    judged_possible = sum(_row_total(row) for row in judged)
+    possible = sum(_row_total(row) for row in rows)
     return {
         "attempted": len(rows),
         "attempted_samples": len(rows),
@@ -271,27 +301,39 @@ def summarize(rows: list[dict[str, Any]], *, pass_k: int = 1) -> dict[str, Any]:
         "pass_at_k_eligible": eligiblek,
         "pass_at_k_items": count,
         "pass_k": pass_k,
+        "denominator": "fixed",
         "points": earned,
         "points_total": possible,
         "score_percent_total": round(100.0 * earned / possible, 1) if possible else None,
+        "judged_points_total": judged_possible,
+        "judged_score_percent_total": round(100.0 * earned / judged_possible, 1) if judged_possible else None,
         "group_totals": aggregate_groups(judged),
         "mean_score10": round(sum(float(row["score10"]) for row in numeric) / len(numeric), 4) if numeric else None,
-        "mean_percent": _mean_percent(judged),
+        "mean_percent": _mean_percent(rows, fixed=True),
+        "judged_mean_percent": _mean_percent(judged),
         "errors": sum(row.get("status") == "error" for row in rows),
         "missing": sum(row.get("status") == "missing" for row in rows),
         "pending_review": sum(row.get("status") == "pending_review" for row in rows),
-        "timeouts": sum(row.get("reason_code") in {"timeout", "timeout_partial"} for row in rows),
+        **outcome_counts(rows),
     }
 
 
 def summarize_engineering(rows: list[dict[str, Any]], *, pass_k: int = 1) -> dict[str, Any]:
-    """Engineering uses signed relation ledgers, never a generic score10."""
+    """Engineering uses signed relation ledgers, never a generic score10.
+
+    固定分母：每次作答 20 条关系进分母，未判记 0。`judged_*` 为辅助口径。
+    """
     judged = [row for row in rows if is_judged(row)]
     pass1, eligible1, count = pass_at_k(rows, 1)
     passk, eligiblek, _ = pass_at_k(rows, pass_k)
     positive = sum(row.get("positive_points") or 0 for row in judged)
     negative = sum(row.get("negative_points") or 0 for row in judged)
-    total = sum(row.get("points_total", 20) for row in judged)
+    total = sum(_row_total(row) for row in rows)
+    judged_total = sum(_row_total(row) for row in judged)
+
+    def share(value: float, denominator: float) -> float | None:
+        return round(100.0 * value / denominator, 1) if denominator else None
+
     return {
         "attempted": len(rows), "attempted_samples": len(rows), "questions": count, "judged": len(judged),
         "passed": sum(row.get("passed") is True for row in judged),
@@ -299,24 +341,32 @@ def summarize_engineering(rows: list[dict[str, Any]], *, pass_k: int = 1) -> dic
         "pass_at_1": pass1, "pass_at_1_eligible": eligible1,
         "pass_at_k": passk, "pass_at_k_eligible": eligiblek,
         "pass_at_k_items": count, "pass_k": pass_k,
+        "denominator": "fixed",
         "positive_points": positive, "negative_points": negative,
         "net_points": positive - negative,
         "points_total": total,
-        "positive_percent_total": round(100.0 * positive / total, 1) if total else None,
-        "negative_percent_total": round(100.0 * negative / total, 1) if total else None,
-        "net_percent_total": round(100.0 * (positive - negative) / total, 1) if total else None,
+        "positive_percent_total": share(positive, total),
+        "negative_percent_total": share(negative, total),
+        "net_percent_total": share(positive - negative, total),
+        "judged_points_total": judged_total,
+        "judged_net_percent_total": share(positive - negative, judged_total),
         "group_totals": [],
         "missing": sum(row.get("status") == "missing" for row in rows),
         "errors": sum(row.get("status") == "error" for row in rows),
-        "mean_percent": _mean_percent(judged),
+        "mean_percent": _mean_percent(rows, fixed=True),
+        "judged_mean_percent": _mean_percent(judged),
+        **outcome_counts(rows),
     }
 
 
-def _mean_percent(rows: list[dict[str, Any]]) -> float | None:
+def _mean_percent(rows: list[dict[str, Any]], *, fixed: bool = False) -> float | None:
+    """fixed=True 时未判行按 0 计入。"""
     values = [
         float(row["score_percent"])
+        if is_judged(row) and isinstance(row.get("score_percent"), (int, float)) and not isinstance(row.get("score_percent"), bool)
+        else 0.0
         for row in rows
-        if isinstance(row.get("score_percent"), (int, float)) and not isinstance(row.get("score_percent"), bool)
+        if fixed or (isinstance(row.get("score_percent"), (int, float)) and not isinstance(row.get("score_percent"), bool))
     ]
     return round(sum(values) / len(values), 1) if values else None
 
