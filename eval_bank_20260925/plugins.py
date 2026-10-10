@@ -1,4 +1,4 @@
-"""Register the live 20261008 questions. Nothing else is installed."""
+"""Register the live 20261011 questions. Nothing else is installed."""
 
 from __future__ import annotations
 

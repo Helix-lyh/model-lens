@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from eval_bank_20260925.bank_manifest import ACTIVE_VERSION  # noqa: E402
 from cursor_workspace.build_scripts.run_eval_20260925 import (  # noqa: E402
     ALL_BY_ID,
     _item_domain,
@@ -72,7 +73,7 @@ def main() -> int:
         "run_id": args.out.name,
         "phase": "hard",
         "bank_profile": "active",
-        "bank_version": "20261008",
+        "bank_version": ACTIVE_VERSION,
         "langs": ["python", "go", "typescript"],
         "models": ["deepseek-flash"],
         "samples": 1,
@@ -98,7 +99,7 @@ def main() -> int:
         "".join(json.dumps(row, ensure_ascii=False, default=str) + "\n" for row in rows),
         encoding="utf-8",
     )
-    (args.out / "summary.json").write_text(json.dumps({"meta": meta, "summary": summary, "bank_version": "20261008"}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (args.out / "summary.json").write_text(json.dumps({"meta": meta, "summary": summary, "bank_version": ACTIVE_VERSION}, ensure_ascii=False, indent=2), encoding="utf-8")
     (args.out / "summary.md").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(args.out / "summary.md")
     return 0

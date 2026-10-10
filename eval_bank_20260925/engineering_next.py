@@ -1,4 +1,4 @@
-"""Executable scorers for the 20261008 engineering items E-07..E-10.
+"""Executable scorers for the 20261011 engineering items E-07..E-10.
 
 The fixture observes only the public event contract.  Each relation is either
 an equality with a literal or a required distinction/equality between two
@@ -57,7 +57,8 @@ CASES = {
         "case": [_e("CASE", case="c", order="o", deadline=10), _e("READ", case="c")],
         "evidence": [_e("CASE", case="c", order="o", deadline=10), _e("EVIDENCE", case="c", evidence_id="e", kind="receipt", at=5, request_id="r"), _e("READ", case="c")],
         "dup": [_e("CASE", case="c", order="o", deadline=10), _e("EVIDENCE", case="c", evidence_id="e", kind="receipt", at=5, request_id="r"), _e("EVIDENCE", case="c", evidence_id="e", kind="receipt", at=5, request_id="r2"), _e("READ", case="c")],
-        "late": [_e("CASE", case="c", order="o", deadline=10), _e("EVIDENCE", case="c", evidence_id="e", kind="receipt", at=10, request_id="r"), _e("READ", case="c")],
+        "late": [_e("CASE", case="c", order="o", deadline=10), _e("EVIDENCE", case="c", evidence_id="e", kind="receipt", at=11, request_id="r"), _e("READ", case="c")],
+        "ontime": [_e("CASE", case="c", order="o", deadline=10), _e("EVIDENCE", case="c", evidence_id="e", kind="receipt", at=10, request_id="r"), _e("READ", case="c")],
         "submit": [_e("CASE", case="c", order="o", deadline=10), _e("EVIDENCE", case="c", evidence_id="e", kind="receipt", at=5, request_id="r"), _e("SUBMIT", case="c", at=10, request_id="s"), _e("READ", case="c")],
         "submitlate": [_e("CASE", case="c", order="o", deadline=10), _e("SUBMIT", case="c", at=11, request_id="s")],
         "after": [_e("CASE", case="c", order="o", deadline=10), _e("SUBMIT", case="c", at=10, request_id="s"), _e("EVIDENCE", case="c", evidence_id="e", at=5, request_id="r"), _e("READ", case="c")],
@@ -139,7 +140,7 @@ def _make_pairs(item_id: str):
             ["read_state", ["submit", 3, "code"], ["retry", 3, "code"], True, "eq"],
             ["case_code", ["case", 1, "code"], ["case", 1, "reason"], True, "eq"],
             ["unknown_reason", ["unknown", 0, "code"], ["unknown", 0, "reason"], True, "eq"],
-            ["evidence_req", ["evidence", 1, "code"], ["late", 1, "code"], False, "eq"],
+            ["evidence_boundary", ["ontime", 1, "code"], ["evidence", 1, "code"], True, "eq"],
             ["submit_count", ["submit", 3, "available"], ["lit", 0], True, "eq"],
             ["closed_again", ["retry", 3, "code"], ["submit", 3, "code"], True, "eq"],
             ["duplicate_stable", ["dup", 2, "code"], ["evidence", 1, "code"], True, "eq"],
@@ -300,7 +301,7 @@ REFS = {
             x=cases.get(c); rid=e.get("request_id")
             if x is None: r=p("missing")
             elif x["closed"]: r=p("closed")
-            elif e.get("at",0)>=x["deadline"]: r=p("late")
+            elif e.get("at",0)>x["deadline"]: r=p("late")
             elif e.get("evidence_id") in x["ids"]: r=x["kept"][e.get("evidence_id")].copy()
             else: x["ids"].add(e.get("evidence_id")); r=p("accepted"); x["kept"][e.get("evidence_id")]=r.copy()
             if rid in seen: r=seen[rid].copy()

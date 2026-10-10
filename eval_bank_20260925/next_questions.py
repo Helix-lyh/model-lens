@@ -1,4 +1,4 @@
-"""20261008 active 30-item descriptors.
+"""20261011 active 30-item descriptors.
 
 The source of truth is the three next-bank documents. Each item is executable
 through a small deterministic scorer; domain-specific fixtures can be upgraded
@@ -26,7 +26,7 @@ def _sections(path: Path, prefix: str) -> dict[str, tuple[str,str]]:
     return out
 
 def install_design_descriptors() -> None:
-    # Every active 20261008 item must have an executable plugin.  Design
+    # Every active item must have an executable plugin.  Design
     # documents are prompt provenance, not a fallback scorer.
     for domain, prefix in (("coding","CP"),("engineering","E"),("reasoning","NX")):
         for item_id, (title, body) in _sections(DOCS[domain], prefix).items():

@@ -288,7 +288,7 @@ def run_one(client: ChatClient, ch: Channel, item: Any, lang: str | None, out_di
         temperature=0.0,
         max_tokens=ch.max_tokens,
         extra={"reasoning_effort": "high"},
-        kind=f"eval20261008:{tag}",
+        kind=f"eval{ACTIVE_VERSION}:{tag}",
         stream=True,
     )
     text = _assembled_answer(record)
@@ -498,7 +498,7 @@ def main() -> int:
     )
     parser.add_argument("--items", default="", help="只跑指定题号，逗号分隔；默认按 phase")
     parser.add_argument("--bank-profile", choices=("active",), default="active",
-                        help="只跑 20261008 活跃题库")
+                        help=f"只跑 {ACTIVE_VERSION} 活跃题库")
     parser.add_argument("--concurrency", type=int, default=8, help="每个渠道的请求并发")
     parser.add_argument("--grader-concurrency", type=int, default=None,
                         help="判分子进程（编译/运行被测代码）的全局并发上限，与请求并发分开；默认按 CPU 数取 2..8")

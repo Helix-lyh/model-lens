@@ -1,4 +1,4 @@
-# 活跃工程题册（题库版本 20261008，10 题）
+# 活跃工程题册（题库版本 20261011，10 题）
 
 工程题的执行合同：每题实现 `def solve(events)`，按输入顺序返回等长结果；事件对象用 `op` 字段表示接口名（E-07..E-10 的夹具同时提供等价的 `type` 字段）；不得使用网络、文件、工具或子进程。题面只给生产愿望、接口、字段和默认值，以及一句 code 规则：“不同状态或错误使用不同的 `code` 和 `reason`；同一种情况使用相同的 `code`。”不公布码表，不把判定结论写进题面。
 
@@ -84,7 +84,7 @@
 
 **为什么更难。** 同一次出库请求同时受批次状态、温度窗口和订单幂等影响；读接口暴露的只是行为结果，模型不能靠返回统一错误蒙混。
 
-**题面全文。** 做一个生产级别可用的冷链出库闸门。事件为 `BATCH {batch,temp_min,temp_max}`、`SHIP {batch,order,qty,request_id,temp}`、`HOLD {batch,request_id}`、`READ {batch}`。qty 为正整数，temp 为整数；`temp` 缺省时使用最近一次 BATCH 的温度。返回 `code`、`reason`，成功 SHIP 可带 `available`。同一情况使用相同的 `code` 和 `reason`，不同状态或错误使用不同的 `code` 和 `reason`。实现 `def solve(events)`，按顺序处理并返回等长结果；不得使用网络、文件、工具或子进程。
+**题面全文。** 做一个生产级别可用的冷链出库闸门。事件为 `BATCH {batch,temp_min,temp_max,qty,temp}`、`SHIP {batch,order,qty,request_id,temp}`、`HOLD {batch,request_id}`、`READ {batch}`。BATCH 的 `qty` 是该批次库存（非负整数，缺省 10），`temp` 是该批次当前温度（可缺省）；同一 batch 再次 BATCH 只更新 `temp`，不改库存和温度区间。SHIP 的 qty 为正整数，temp 为整数；SHIP 的 `temp` 缺省时使用该批次最近一次 BATCH 给出的 `temp`。返回 `code`、`reason`；SHIP 和 READ 可带 `available`，表示该批次当前剩余库存。同一情况使用相同的 `code` 和 `reason`，不同状态或错误使用不同的 `code` 和 `reason`。实现 `def solve(events)`，按顺序处理并返回等长结果；不得使用网络、文件、工具或子进程。
 
 **可机械判分的 20 点。** 批次登记；温度上下界；缺省温度；数量不足；SHIP 扣减；同 order 重试；request 重试；HOLD；HOLD 后 SHIP；HOLD 后 READ；未知批次；负数；跨批次隔离；温度变化；失败不扣库存；成功 available；code 区分；结果等长；重复 BATCH；状态一致。
 
@@ -96,7 +96,7 @@
 
 **为什么更难。** 原交易和争议状态分开，证据窗口按事件时间关闭；同一 evidence_id 的重试必须保持结果，不能把任意错误都映射成一个拒绝。
 
-**题面全文。** 做一个生产级别可用的退款争议服务。事件为 `CASE {case,order,deadline}`、`EVIDENCE {case,evidence_id,kind,at,request_id}`、`SUBMIT {case,at,request_id}`、`READ {case}`。kind 缺省为 `receipt`。返回 `code`、`reason`，READ 可带 `available` 表示尚未提交的证据数。同一情况使用相同的 `code` 和 `reason`，不同状态或错误使用不同的 `code` 和 `reason`。实现 `def solve(events)`，按顺序处理并返回等长结果；不得使用网络、文件、工具或子进程。
+**题面全文。** 做一个生产级别可用的退款争议服务。事件为 `CASE {case,order,deadline}`、`EVIDENCE {case,evidence_id,kind,at,request_id}`、`SUBMIT {case,at,request_id}`、`READ {case}`。kind 缺省为 `receipt`。截止边界：EVIDENCE 和 SUBMIT 的 `at ≤ deadline` 视为按时，`at > deadline` 为逾期。返回 `code`、`reason`，READ 可带 `available` 表示尚未提交的证据数。同一情况使用相同的 `code` 和 `reason`，不同状态或错误使用不同的 `code` 和 `reason`。实现 `def solve(events)`，按顺序处理并返回等长结果；不得使用网络、文件、工具或子进程。
 
 **可机械判分的 20 点。** CASE 登记；重复 CASE；证据唯一；证据类型；deadline 边界；迟到证据；提交前证据计数；提交成功；提交后证据；重复提交；未知 case；request 重试；跨 case 隔离；缺省 kind；失败占 request；READ 状态；READ available；code 区分；结果等长；状态不可倒退。
 

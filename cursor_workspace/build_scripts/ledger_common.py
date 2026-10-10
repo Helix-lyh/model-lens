@@ -49,11 +49,11 @@ DOMAIN_TOTAL = LEDGER * 10
 
 def latest_run(phase: str = "hard") -> Path:
     runs = sorted(
-        path for path in (ROOT / "out").glob(f"eval-20261008-*-{phase}")
+        path for path in (ROOT / "out").glob(f"eval-*-{phase}")
         if (path / "results.jsonl").is_file() and (path / "meta.json").is_file()
     )
     if not runs:
-        raise SystemExit(f"没有 20261008 的 {phase} 成绩")
+        raise SystemExit(f"out/ 下没有 {phase} 成绩")
     return runs[-1]
 
 
