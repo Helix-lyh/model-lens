@@ -1,3 +1,4 @@
+import json
 from eval_bank_20260925.bank_manifest import ACTIVE_VERSION, CODE_LANGS, active_item_ids, bank_for_item
 from eval_bank_20260925.evaluation import timeout_verdict
 from eval_bank_20260925.report import render_markdown
@@ -85,7 +86,10 @@ def test_runner_coding_scorer_dispatches_to_active_plugin(monkeypatch, item_id):
 
 
 def test_stage_and_final_scores_use_percent():
-    verdict = timeout_verdict(type("Q", (), {"id": "NX-09"})(), '{"waiting":[],"last_end":18}')
+    from eval_bank_20260925.next_reasoning import reference_answer
+    key = reference_answer("NX-09")
+    partial = json.dumps({"waiting": key["waiting"], "last_end": key["last_end"]})
+    verdict = timeout_verdict(type("Q", (), {"id": "NX-09"})(), partial)
     assert verdict["score_percent"] == 30.0
     assert verdict["points"] == 6
     text = render_markdown({"experiment_id": "t", "phase": "hard", "langs": ["python"], "samples": 1}, [{

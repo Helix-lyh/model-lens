@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""活跃题库统一执行器，版本见 eval_bank_20260925.bank_manifest.ACTIVE_VERSION（当前 20261011）。
+"""活跃题库统一执行器，版本见 eval_bank_20260925.bank_manifest.ACTIVE_VERSION（当前 20261012）。
 
 编码、工程、推理走同一个请求循环和 eval_bank_20260925.evaluation.score_item。
 编程题按题目绑定一种语言。当前主测是 CP-09 到 CP-18：4 道 Python、3 道 Go、3 道 TypeScript。报告里的阶段分和最终得分是百分数。

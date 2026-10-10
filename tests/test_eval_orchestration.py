@@ -129,7 +129,10 @@ def test_timeout_is_zero_scored_and_enters_denominator():
 
 def test_timeout_partial_content_keeps_points(tmp_path: Path):
     item = run_eval.ALL_BY_ID["NX-09"]
-    text = '{"waiting":[],"last_end":18}'
+    from eval_bank_20260925.next_reasoning import reference_answer
+    _key = reference_answer("NX-09")
+    _partial = __import__("json").dumps({"waiting": _key["waiting"], "last_end": _key["last_end"]})
+    text = _partial
     row = run_eval.run_one(
         _Client(_record(content=text, error="ReadTimeout")),
         run_eval.Channel("stub", "stub", "http://test/v1", "KEY", 128, {}),

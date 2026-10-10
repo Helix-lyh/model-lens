@@ -85,7 +85,10 @@ def test_matrix_gate_rejects_split_prompts_and_blank_scorer():
 
 
 def test_timeout_contract_preserves_parseable_groups_but_never_passes():
-    verdict = timeout_verdict(_nx09(), '{"waiting":[],"last_end":18}')
+    from eval_bank_20260925.next_reasoning import reference_answer
+    _key = reference_answer("NX-09")
+    _partial = __import__("json").dumps({"waiting": _key["waiting"], "last_end": _key["last_end"]})
+    verdict = timeout_verdict(_nx09(), _partial)
     assert verdict["status"] == "fail"
     assert verdict["reason_code"] == "timeout_partial"
     assert verdict["passed"] is False

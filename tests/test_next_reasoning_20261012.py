@@ -1,253 +1,281 @@
+"""20261012 推理题：生成器确定性、参考求解器复现答案键、独立穷举交叉验证、空答案基线、题面泄露检查。"""
+from __future__ import annotations
+
+import itertools
 import json
 import math
-from itertools import permutations
+import random
+import re
+from pathlib import Path
 
-from eval_bank_20260925.next_reasoning import ITEMS, reference_answer, render_reasoning_prompt, score_reasoning
+import pytest
+
+from eval_bank_20260925 import reasoning_gen as gen
+from eval_bank_20260925.next_reasoning import BY_ID, FROZEN, ITEMS, reference_answer, render_reasoning_prompt, score_reasoning
+
+ROOT = Path(__file__).resolve().parents[1]
+INSTANCES = {row["item_id"]: row["instance"] for row in FROZEN["items"]}
+IDS = [f"NX-{n:02d}" for n in range(9, 19)]
 
 
-def test_next_reasoning_has_ten_frozen_executable_fixtures():
-    assert [item.item_id for item in ITEMS] == [f"NX-{n:02d}" for n in range(9, 19)]
+def test_ten_items_full_score_with_reference_keys():
+    assert [item.item_id for item in ITEMS] == IDS
     for item in ITEMS:
-        assert item.prompt
-        result = score_reasoning(item.item_id, json.dumps(item.answer, ensure_ascii=False))
-        assert result["status"] == "pass"
-        assert result["passed"] is True
-        assert result["points"] == result["points_total"] == 20
-        assert result["score10"] == 10.0
+        verdict = score_reasoning(item.item_id, json.dumps(item.answer, ensure_ascii=False))
+        assert verdict["status"] == "pass" and verdict["points"] == 20, item.item_id
 
 
-def test_next_reasoning_is_mechanical_and_partial():
-    item = ITEMS[0]
-    malformed = score_reasoning(item.item_id, "explanation")
-    assert malformed["status"] == "fail"
-    assert malformed["points"] == 0
-    partial = dict(item.answer)
-    partial["last_end"] = -1
-    result = score_reasoning(item.item_id, json.dumps(partial))
-    assert result["status"] == "fail"
-    assert result["points"] == 16
-    assert result["passed"] is False
-
-
-def test_nx12_tie_uses_id_order_and_nx16_is_not_copying_demand():
-    route = reference_answer("NX-12")
-    assert route["route"] == ["A", "B", "C"]
-    assert route["total"] == 19
-    old = dict(route, route=["B", "A", "C"], arrivals=[["B", 5], ["A", 13], ["C", 19]], late=["A", "C"])
-    assert score_reasoning("NX-12", json.dumps(old))["points"] == 4
-    stock = reference_answer("NX-16")
-    assert stock["buy"] == [8, 0, 4]
-    copied = dict(stock, buy=[4, 6, 4], sold=[4, 6, 4], profit=56)
-    assert score_reasoning("NX-16", json.dumps(copied))["points"] < 20
-    locks = dict(reference_answer("NX-11"), locks=[{"order": "O1", "batch": "A", "qty": 3}, {"order": "O2", "batch": "B", "qty": 3}])
-    assert score_reasoning("NX-11", json.dumps(locks))["points"] == 20
-
-
-def test_next_reasoning_prompt_has_json_contract_and_business_facts():
-    prompt = render_reasoning_prompt("NX-17")
-    assert "只输出一个 JSON 对象" in prompt
-    assert "closed_edge_at_departure" in prompt
-    assert "预算 8" in prompt
-    assert "若首段在出发时封闭，reason 使用 closed_edge_at_departure。" not in prompt
-
-
-def _assign_rooms(patients, rooms, emergency_minutes, clean_minutes):
-    free_at = {room: 0 for room in rooms}
-    disinfect = {}
-    remaining = sorted(patients, key=lambda row: (row[1], row[0]))
-    waiting, served, infectious = [], [], []
-    index = now = 0
-    while index < len(remaining) or waiting:
-        if not waiting and index < len(remaining):
-            now = max(now, remaining[index][1])
-        while index < len(remaining) and remaining[index][1] <= now:
-            waiting.append(remaining[index])
-            index += 1
-        open_rooms = [room for room in rooms if free_at[room] <= now]
-        ready = sorted((row for row in waiting if row[1] <= now), key=lambda row: (not row[2], row[1], row[0]))
-        if open_rooms and ready:
-            room = open_rooms[0]
-            patient = ready[0]
-            waiting.remove(patient)
-            end = now + (emergency_minutes if patient[2] else clean_minutes)
-            if patient[3]:
-                free_at[room] = end + 3
-                disinfect[room] = end + 3
-                infectious.append(room)
-            else:
-                free_at[room] = end
-            served.append([patient[0], room, now, end])
-            continue
-        nxt = [row[1] for row in remaining[index:index + 1]]
-        nxt += [moment for moment in free_at.values() if moment > now]
-        if not nxt:
-            break
-        now = min(nxt)
-    served.sort(key=lambda row: (row[2], row[1]))
-    waiting_ids = [row[0] for row in sorted(waiting, key=lambda row: (row[1], row[0]))]
-    last_end = max((row[3] for row in served), default=0)
-    return served, waiting_ids, last_end, sorted(set(infectious)), disinfect
-
-
-def test_nx09_idle_room_takes_arrived_emergency():
-    served, waiting, last_end, infectious, _disinfect = _assign_rooms(
-        [("A", 0, False, False), ("B", 1, True, True), ("C", 1, False, False), ("D", 6, True, False)],
-        ("R1", "R2"), 8, 5,
-    )
-    answer = reference_answer("NX-09")
-    assert answer["served"] == served
-    assert answer["waiting"] == waiting == []
-    assert answer["last_end"] == last_end == 18
-    assert answer["infectious_rooms"] == infectious == ["R2"]
-    assert [row for row in served if row[0] == "D"] == [["D", "R1", 10, 18]]
-
-
-def _charge_plan():
-    reservations = {"P1": (3, 5), "P2": (0, 2)}
-    power = {"P1": 2, "P2": 3}
-    vehicles = [("V1", 0, 4, 4), ("V2", 1, 3, 6), ("V3", 2, 3, 4)]
-    occupied = {pile: [] for pile in power}
-
-    def rate(minute):
-        return 3 if 2 <= minute < 4 else 1
-
-    def blocked(pile, start, end):
-        windows = [reservations[pile], *occupied[pile]]
-        return any(start < stop and end > begin for begin, stop in windows)
-
-    assign, rejected = [], []
-    for name, arrive, energy, deadline in vehicles:
-        best = None
-        for pile, watts in power.items():
-            duration = math.ceil(energy / watts)
-            for start in range(arrive, deadline - duration + 1):
-                end = start + duration
-                if blocked(pile, start, end):
-                    continue
-                fee = sum(rate(minute) for minute in range(start, end))
-                candidate = (fee, end, pile, start)
-                if best is None or candidate < best:
-                    best = candidate
-        if best is None:
-            rejected.append(name)
-            continue
-        fee, end, pile, start = best
-        occupied[pile].append((start, end))
-        assign.append([name, pile, start, end, fee])
-    return {"assign": assign, "rejected": rejected, "total_cost": sum(row[4] for row in assign)}
-
-
-def test_nx10_picks_each_vehicles_cheapest_window():
-    answer = reference_answer("NX-10")
-    assert answer == _charge_plan()
-    assert ["V1", "P2", 2, 4, 6] not in answer["assign"]
-    assert answer["total_cost"] == sum(row[4] for row in answer["assign"])
-
-
-def test_nx14_peak_cost_sums_minutes_inside_the_window():
-    answer = reference_answer("NX-14")
-
-    def rate(minute):
-        if minute < 3:
-            return 2
-        if minute < 8:
-            return 1
-        return 3
-
-    peak = 0
-    for _name, _pile, start, end, cost in answer["schedule"]:
-        assert sum(rate(minute) for minute in range(start, end)) == cost
-        peak += sum(rate(minute) for minute in range(start, end) if minute < 3)
-    assert answer["peak_cost"] == peak == 10
-
-
-def test_nx15_emergency_takes_b1_and_disinfect_matches_that_bed():
-    served, waiting, _last_end, _infectious, disinfect = _assign_rooms(
-        [("P1", 0, False, True), ("P2", 0, True, False), ("P3", 4, True, True), ("P4", 9, False, False)],
-        ("B1", "B2"), 8, 5,
-    )
-    answer = reference_answer("NX-15")
-    assert answer["beds"] == served
-    assert answer["waiting"] == waiting == []
-    assert served[0][:2] == ["P2", "B1"]
-    assert [row[1] for row in served if row[0] == "P1"] == ["B2"]
-    by_id = {row[0]: row for row in served}
-    assert answer["disinfect_until"][by_id["P1"][1]] == by_id["P1"][3] + 3
-    assert answer["disinfect_until"][by_id["P3"][1]] == by_id["P3"][3] + 3
-    assert answer["disinfect_until"] == disinfect
-    assert answer["emergency_wait"] == (by_id["P2"][2] - 0) + (by_id["P3"][2] - 4)
-
-
-def _paths_open_at_departure():
-    edges = {
-        "A": [("B", 4, 3), ("C", 2, 5)],
-        "B": [("D", 4, 3)],
-        "C": [("B", 1, 2), ("D", 8, 1)],
-        "D": [],
+def test_groups_unchanged_from_20261011():
+    expected = {
+        "NX-09": (("served", 10), ("waiting", 2), ("last_end", 4), ("infectious_rooms", 4)),
+        "NX-10": (("assign", 12), ("rejected", 3), ("total_cost", 5)),
+        "NX-11": (("locks", 8), ("loaded", 4), ("free", 4), ("rejected", 4)),
+        "NX-12": (("route", 4), ("arrivals", 8), ("late", 4), ("total", 4)),
+        "NX-13": (("flights", 10), ("cancelled", 3), ("duty", 5), ("last_end", 2)),
+        "NX-14": (("schedule", 12), ("peak_cost", 4), ("finish_order", 4)),
+        "NX-15": (("beds", 12), ("waiting", 2), ("disinfect_until", 4), ("emergency_wait", 2)),
+        "NX-16": (("buy", 6), ("sold", 6), ("waste", 4), ("profit", 4)),
+        "NX-17": (("path", 4), ("arrive", 3), ("cost", 3), ("alternatives", 8), ("reason", 2)),
+        "NX-18": (("route", 4), ("arrivals", 8), ("late", 4), ("elevator_walk", 4)),
     }
-    closed = {("A", "C")}
+    assert {i: BY_ID[i].groups for i in IDS} == expected
+    for i in IDS:
+        assert set(reference_answer(i)) == {name for name, _ in expected[i]}
+
+
+@pytest.mark.parametrize("item_id", IDS)
+def test_reference_solver_reproduces_frozen_key(item_id):
+    assert gen.solve(item_id, INSTANCES[item_id]) == reference_answer(item_id)
+
+
+@pytest.mark.parametrize("item_id", [i for i in IDS if i != "NX-12"])
+def test_generator_is_deterministic_per_item(item_id):
+    row = next(r for r in FROZEN["items"] if r["item_id"] == item_id)
+    again = gen.build_item(item_id)
+    assert again == row
+    assert gen.build_item(item_id) == again
+
+
+def test_full_regeneration_matches_frozen_file():
+    """包含 NX-12（约 30 秒）。生成脚本 --check 的同一逻辑。"""
+    text = json.dumps(gen.build_all(), ensure_ascii=False, indent=1) + "\n"
+    assert text == (ROOT / "eval_bank_20260925" / "reasoning_20261012.json").read_text(encoding="utf-8")
+
+
+def test_instances_are_scaled_up():
+    sizes = {
+        "NX-09": len(INSTANCES["NX-09"]["patients"]),
+        "NX-10": len(INSTANCES["NX-10"]["vehicles"]),
+        "NX-11": len(INSTANCES["NX-11"]["events"]),
+        "NX-12": len(INSTANCES["NX-12"]["orders"]),
+        "NX-13": len(INSTANCES["NX-13"]["flights"]),
+        "NX-14": len(INSTANCES["NX-14"]["cars"]),
+        "NX-15": len(INSTANCES["NX-15"]["patients"]),
+        "NX-16": len(INSTANCES["NX-16"]["days"]),
+        "NX-17": len(INSTANCES["NX-17"]["edges"]),
+        "NX-18": len(INSTANCES["NX-18"]["orders"]),
+    }
+    assert sizes["NX-09"] >= 20 and sizes["NX-15"] >= 20 and sizes["NX-14"] >= 15 and sizes["NX-10"] >= 15
+    assert sizes["NX-11"] >= 20 and sizes["NX-13"] >= 12 and sizes["NX-17"] >= 15
+    assert sizes["NX-12"] == sizes["NX-18"] == 7 and sizes["NX-16"] == 10
+    for i in IDS:
+        assert len(render_reasoning_prompt(i)) < 1800, i
+
+
+def test_empty_answer_baseline_is_zero():
+    """全空/全零答案不得分（20261011 时为 21/200）。"""
+    total = 0
+    for i in IDS:
+        blank = {}
+        for name, value in reference_answer(i).items():
+            blank[name] = [] if isinstance(value, list) else {} if isinstance(value, dict) else 0 if isinstance(value, int) else ""
+        total += score_reasoning(i, json.dumps(blank))["points"]
+    # NX-17 的 reason 在有解时为空字符串，空答案仍拿 2 分；其余为 0。权重本轮不调整。
+    assert total == 2
+
+
+# ---- 独立交叉验证（不调用 reasoning_gen 的求解器） ----
+
+def _independent_route(inst, objective, unique=True):
+    orders = inst["orders"]
+
+    def road(a, b):
+        if a == b:
+            return 0
+        return inst["roads"].get(f"{a}-{b}", inst["roads"].get(f"{b}-{a}"))
+
+    results = []
+    for route in itertools.permutations(sorted(orders)):
+        t, pos, floor, walk, arr = 0, "W", 0, 0, []
+        for oid in route:
+            o = orders[oid]
+            t += floor + road(pos, o["building"])
+            t = max(t, o.get("ready", 0))
+            stopped = any(a <= t < b for a, b in inst["outages"][o["building"]])
+            climb = o["floor"] * (2 if stopped else 1)
+            walk += climb if stopped else 0
+            t += climb
+            arr.append([oid, t])
+            pos, floor = o["building"], o["floor"]
+        late = sorted(oid for oid, x in arr if x > orders[oid]["deadline"])
+        results.append((objective(late, t), list(route), arr, late, t, walk))
+    results.sort(key=lambda r: r[0])
+    if unique:
+        assert results[0][0] < results[1][0], "optimum must be unique"
+    return results[0]
+
+
+def test_nx12_exhaustive_unique_optimum():
+    _k, route, arr, late, total, _walk = _independent_route(INSTANCES["NX-12"], lambda late, t: t)
+    assert reference_answer("NX-12") == {"route": route, "arrivals": arr, "late": late, "total": total}
+
+
+def test_nx18_exhaustive_unique_optimum_and_late_first_objective():
+    inst = INSTANCES["NX-18"]
+    _k, route, arr, late, _t, walk = _independent_route(inst, lambda late, t: (len(late), t))
+    assert reference_answer("NX-18") == {"route": route, "arrivals": arr, "late": late, "elevator_walk": walk}
+    fastest = _independent_route(inst, lambda late, t: t, unique=False)
+    assert fastest[0] < _t  # 只看完成时刻会得到更早但迟到更多的顺序
+
+
+def test_nx16_brute_force_unique_optimum():
+    inst = INSTANCES["NX-16"]
+    days, cap, box = inst["days"], inst["capacity"], inst["box"]
+    normal = [i for i, d in enumerate(days) if d["kind"] == "normal"]
+    best, count, best_plan = None, 0, None
+    for choice in itertools.product(range(0, cap + 1, box), repeat=len(normal)):
+        buy = [0] * len(days)
+        for i, b in zip(normal, choice):
+            buy[i] = b
+        old, profit, ok, sold_l, waste_l = 0, 0, True, [], []
+        for i, d in enumerate(days):
+            if old + buy[i] > cap:
+                ok = False
+                break
+            s_old = min(old, d["demand"])
+            s_new = min(buy[i], d["demand"] - s_old)
+            waste = old - s_old
+            carry = buy[i] - s_new
+            if d["kind"] == "hot" or i == len(days) - 1:
+                waste += carry
+                carry = 0
+            profit += (s_old + s_new) * d["price"] - buy[i] * d["cost"]
+            sold_l.append(s_old + s_new)
+            waste_l.append(waste)
+            old = carry
+        if not ok:
+            continue
+        if best is None or profit > best:
+            best, count, best_plan = profit, 1, (buy, sold_l, waste_l)
+        elif profit == best:
+            count += 1
+    assert count == 1
+    assert reference_answer("NX-16") == {"buy": best_plan[0], "sold": best_plan[1], "waste": best_plan[2], "profit": best}
+
+
+def test_nx17_exhaustive_paths_and_strict_best():
+    inst = INSTANCES["NX-17"]
+    graph = {}
+    for u, v, m, c in inst["edges"]:
+        graph.setdefault(u, []).append((v, m, c))
     found = []
-
-    def walk(node, path, minutes, fee):
-        if node == "D":
-            found.append((path, minutes, fee))
-            return
-        for nxt, step, price in edges[node]:
-            if (node, nxt) in closed or (nxt, node) in closed:
+    stack = [(inst["src"], [inst["src"]], 0, 0)]
+    while stack:
+        node, path, t, fee = stack.pop()
+        if node == inst["dst"]:
+            found.append((t, fee, path))
+            continue
+        for v, m, c in graph.get(node, []):
+            if v in path or fee + c > inst["budget"]:
                 continue
-            if fee + price > 8 or nxt in path:
+            if any(u == node and w == v and a <= t < b for u, w, a, b in inst["closures"]):
                 continue
-            walk(nxt, path + [nxt], minutes + step, fee + price)
-
-    walk("A", ["A"], 0, 0)
-    found.sort(key=lambda row: (row[1], row[2], row[0]))
-    return found
-
-
-def test_nx17_open_first_edge_does_not_use_closed_reason_or_wait():
-    prompt = render_reasoning_prompt("NX-17")
-    assert prompt.count("closed_edge_at_departure") == 1
-    feasible = _paths_open_at_departure()
-    best, *rest = feasible
-    answer = reference_answer("NX-17")
-    assert answer["path"] == best[0] == ["A", "B", "D"]
-    assert answer["path"][:2] == ["A", "B"]
-    assert [answer["arrive"], answer["cost"]] == [best[1], best[2]]
-    assert answer["alternatives"] == [[list(path), minutes, fee] for path, minutes, fee in rest]
-    assert answer["reason"] == ""
-    assert all(row[0][:2] != ["A", "C"] for row in answer["alternatives"])
-    assert [[["A", "C", "D"], 15, 6]] != answer["alternatives"]
+            stack.append((v, path + [v], t + m, fee + c))
+    found.sort()
+    assert found[0][:2] < found[1][:2]
+    key = reference_answer("NX-17")
+    assert [key["arrive"], key["cost"], key["path"]] == list(found[0])
+    assert key["alternatives"] == [[p, t, c] for t, c, p in found[1:4]]
+    assert key["reason"] == ""
 
 
-def _delivery(route):
-    meta = {"A": ("L2", 0, 15), "B": ("L1", 0, 8), "C": ("L2", 4, 20)}
-    floors = {"L1": 2, "L2": 6}
-    clock = walk = 0
-    arrivals, late = [], []
-    for order_id in route:
-        building, ready, deadline = meta[order_id]
-        clock = max(clock, ready) + 2
-        if building == "L2" and 3 <= clock < 10:
-            ascent = floors[building] * 2
-            walk += ascent
-        else:
-            ascent = floors[building]
-        clock += ascent
-        arrivals.append([order_id, clock])
-        if clock > deadline:
-            late.append(order_id)
-    return clock, arrivals, late, walk
+def test_nx10_independent_per_vehicle_minimum_has_no_ties():
+    inst = INSTANCES["NX-10"]
+
+    def price(m):
+        return next(p for a, b, p in inst["tariff"] if a <= m < b)
+
+    busy = {k: [tuple(w) for w in v] for k, v in inst["reservations"].items()}
+    assign, rejected = [], []
+    for vid, arrive, energy, deadline in inst["vehicles"]:
+        options = []
+        for pile, power in inst["piles"].items():
+            dur = math.ceil(energy / power)
+            for s in range(arrive, deadline - dur + 1):
+                if all(not (s < b and s + dur > a) for a, b in busy[pile]):
+                    options.append((sum(price(m) for m in range(s, s + dur)), s + dur, pile, s))
+        if not options:
+            rejected.append(vid)
+            continue
+        options.sort()
+        if len(options) > 1:
+            assert options[0][:2] != options[1][:2]
+        cost, end, pile, s = options[0]
+        busy[pile].append((s, end))
+        assign.append([vid, pile, s, end, cost])
+    assert reference_answer("NX-10") == {"assign": assign, "rejected": rejected, "total_cost": sum(r[4] for r in assign)}
 
 
-def test_nx18_minimum_completion_does_not_add_downstairs_time():
-    ranked = sorted(((_delivery(route)[0], route) for route in permutations(("A", "B", "C"))))
-    best_clock, best_route = ranked[0]
-    assert best_route == ("A", "B", "C")
-    assert _delivery(("B", "A", "C"))[0] > best_clock
-    clock, arrivals, late, walk = _delivery(best_route)
-    answer = reference_answer("NX-18")
-    assert answer["route"] == list(best_route)
-    assert answer["arrivals"] == arrivals
-    assert answer["late"] == late == ["B"]
-    assert answer["elevator_walk"] == walk == 0
-    assert arrivals[-1][1] == clock == 20
+# ---- 泄露检查 ----
+
+LEAK_PATTERNS = [
+    "主动等待", "避开峰", "逐步", "一步步", "模拟", "提示", "注意", "陷阱", "难点", "技巧", "建议", "思路",
+    "例如", "比如", "举例", "落地改为", "表示 F1", "先选已到达", "每当房间可用", "每当桩空闲", "每当床位可用",
+    "按原计划优先保留", "已出发的边", "贪心", "动态规划", "穷举", "枚举", "回溯", "最短路", "Dijkstra",
+    "按当天需求进货", "进满库容", "少卖",
+]
+
+
+@pytest.mark.parametrize("item_id", IDS)
+def test_prompt_has_no_leaked_method_phrases(item_id):
+    prompt = render_reasoning_prompt(item_id)
+    hits = [p for p in LEAK_PATTERNS if p in prompt]
+    assert not hits, hits
+
+
+@pytest.mark.parametrize("item_id", IDS)
+def test_prompt_does_not_contain_answer_values(item_id):
+    prompt = render_reasoning_prompt(item_id)
+    key = reference_answer(item_id)
+    for name in ("route", "path"):
+        if name in key:
+            assert json.dumps(key[name], separators=(",", ":")) not in prompt
+            assert "".join(key[name]) not in prompt
+    assert json.dumps(key, ensure_ascii=False, separators=(",", ":")) not in prompt
+
+
+def test_difficulty_notes_doc_never_reaches_prompts():
+    doc = (ROOT / "docs" / "question-bank-reasoning-20261012.md").read_text(encoding="utf-8")
+    notes = [m.strip() for m in re.findall(r"难点[：:](.+)", doc)]
+    assert len(notes) == 10
+    prompts = "\n".join(render_reasoning_prompt(i) for i in IDS)
+    for note in notes:
+        for fragment in re.split(r"[，。；、]", note):
+            fragment = fragment.strip()
+            if len(fragment) >= 8:
+                assert fragment not in prompts, fragment
+
+
+def test_every_output_field_is_defined_in_prompt():
+    for i in IDS:
+        prompt = render_reasoning_prompt(i)
+        for name in reference_answer(i):
+            assert f"- `{name}`：" in prompt, (i, name)
+
+
+def test_seeds_are_derived_from_base_seed():
+    for row in FROZEN["items"]:
+        offset = int(row["item_id"].split("-")[1]) * 100000
+        assert gen.BASE_SEED + offset <= row["seed"] < gen.BASE_SEED + offset + gen.MAX_TRIES
+        inst = json.loads(json.dumps(gen.SPECS[row["item_id"]]["gen"](random.Random(row["seed"]))))
+        assert inst == row["instance"]
