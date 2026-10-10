@@ -49,9 +49,13 @@ def unjudged_execution(grade: Any) -> dict[str, Any] | None:
     """Keep missing toolchains and fixture failures outside model ledgers."""
     if grade.status not in {"missing", "error"}:
         return None
-    reason = "grader_error" if grade.status == "error" else "missing_toolchain" if "toolchain" in grade.detail else "missing_fence"
+    detail = grade.detail or ""
+    if grade.status == "error":
+        reason = "grader_timeout" if detail.startswith("grader_timeout") else "grader_error"
+    else:
+        reason = "missing_toolchain" if "toolchain" in detail else "missing_fence"
     return {"status": grade.status, "reason_code": reason, "passed": None,
-            "points": None, "score10": None, "detail": grade.detail}
+            "points": None, "score10": None, "detail": detail}
 
 
 def _as_dict(verdict: Any) -> dict[str, Any]:
@@ -191,7 +195,7 @@ def timeout_verdict(
         detail = str(verdict.get("detail") or "")
         infrastructure = (
             verdict.get("status") == "error"
-            or reason in {"scorer_error", "grader_error", "runtime_error", "runtime_missing", "missing_toolchain"}
+            or reason in {"scorer_error", "grader_error", "grader_timeout", "runtime_error", "runtime_missing", "missing_toolchain"}
             or "toolchain" in reason
             or "toolchain" in detail
         )

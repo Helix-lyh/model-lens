@@ -5,7 +5,9 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import contextlib
 import subprocess
+import threading
 import sys
 import tempfile
 import unicodedata
@@ -122,6 +124,29 @@ _SANDBOX_KEEP = frozenset(
         "TEMP",
     }
 )
+
+
+_GRADER_LOCK = threading.Lock()
+_GRADER_SLOTS = threading.BoundedSemaphore(max(2, min(8, os.cpu_count() or 2)))
+
+
+def set_grader_concurrency(limit: int) -> None:
+    """判分子进程的并发上限，和请求并发分开。"""
+    global _GRADER_SLOTS
+    if limit < 1:
+        raise ValueError("grader concurrency must be >= 1")
+    with _GRADER_LOCK:
+        _GRADER_SLOTS = threading.BoundedSemaphore(limit)
+
+
+@contextlib.contextmanager
+def grader_slot():
+    slots = _GRADER_SLOTS
+    slots.acquire()
+    try:
+        yield
+    finally:
+        slots.release()
 
 
 def grade_response(question: Question, content: str | None, *, repo_root: Path) -> SampleGrade:
@@ -393,10 +418,11 @@ def _run_lang_sandbox(
     if lang == "python":
         extra = {"timeout_s": timeout_s} if timeout_s is not None else {}
         return run_python_sandbox(code, tests_path, result_marker=result_marker, runtime=runtime, **extra)
+    extra = {"timeout_s": timeout_s} if timeout_s is not None else {}
     if lang == "go":
-        return run_go_sandbox(code, tests_path, result_marker=result_marker, runtime=runtime)
+        return run_go_sandbox(code, tests_path, result_marker=result_marker, runtime=runtime, **extra)
     if lang == "typescript":
-        return run_ts_sandbox(code, tests_path, result_marker=result_marker, runtime=runtime)
+        return run_ts_sandbox(code, tests_path, result_marker=result_marker, runtime=runtime, **extra)
     return "error", f"unsupported language {lang!r}"
 
 
@@ -450,12 +476,13 @@ def _grade_code(question: Question, text: str, *, repo_root: Path) -> SampleGrad
     banned = _forbidden_grade(code, lang, text)
     if banned is not None:
         return banned
-    status, detail = _run_lang_sandbox(
-        lang, code, tests,
-        result_marker=str(question.grader.get("result_marker") or "") or None,
-        runtime=question.grader.get("runtime_env"),
-        timeout_s=question.grader.get("timeout_s"),
-    )
+    with grader_slot():
+        status, detail = _run_lang_sandbox(
+            lang, code, tests,
+            result_marker=str(question.grader.get("result_marker") or "") or None,
+            runtime=question.grader.get("runtime_env"),
+            timeout_s=question.grader.get("timeout_s"),
+        )
     return _code_sample_grade(status, detail, text)
 
 
@@ -549,8 +576,23 @@ def run_go_sandbox(
         env["GOFLAGS"] = "-mod=readonly" if runtime else "-mod=mod"
         env["CGO_ENABLED"] = "0"
         try:
+            built = subprocess.run(
+                [go, "test", "-c", "-o", str(root / "solution.test"), "."],
+                cwd=root,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=timeout_s,
+            )
+        except subprocess.TimeoutExpired:
+            # 编译超时是判分环境问题（并发排队、冷缓存），不记模型 0 分。
+            return "error", f"grader_timeout: go build>{timeout_s}s"
+        if built.returncode != 0:
+            blob = f"{built.stdout or ''}\n{built.stderr or ''}".strip()
+            return "fail", f"compile failed\n{blob[-400:]}" if blob else "compile failed"
+        try:
             proc = subprocess.run(
-                [go, "test", "-count=1", "-v", "."],
+                [str(root / "solution.test"), "-test.count=1", "-test.v"],
                 cwd=root,
                 env=env,
                 capture_output=True,
@@ -611,7 +653,7 @@ def run_ts_sandbox(
                 timeout=timeout_s,
             )
         except subprocess.TimeoutExpired:
-            return "fail", f"timeout>{timeout_s}s"
+            return "error", f"grader_timeout: tsc>{timeout_s}s"
         if compiled.returncode != 0:
             blob = f"{compiled.stdout or ''}\n{compiled.stderr or ''}".strip()
             return "fail", f"compile failed\n{blob[-400:]}" if blob else "compile failed"
@@ -627,10 +669,10 @@ def run_ts_sandbox(
                 env=run_env,
                 capture_output=True,
                 text=True,
-                timeout=min(timeout_s, 8.0),
+                timeout=timeout_s,
             )
         except subprocess.TimeoutExpired:
-            return "fail", f"timeout>{min(timeout_s, 8.0)}s"
+            return "fail", f"timeout>{timeout_s}s"
         return _sandbox_result(proc, result_marker=result_marker)
 
 

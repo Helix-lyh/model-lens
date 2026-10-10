@@ -61,6 +61,9 @@ def score_answer(text: str, language: str, *, item_id: str, groups, schema: dict
             parsed[int(head)] = json.loads(payload)
         except json.JSONDecodeError:
             parsed[int(head)] = None
+    if not saw_case and result.status in {"missing", "error"}:
+        from .evaluation import unjudged_execution
+        return unjudged_execution(result)
     if not saw_case:
         return {"status": result.status, "points": result.points, "score10": result.score10, "passed": result.passed, "reason_code": "execution_error", "detail": result.detail}
     if duplicate or describe_count > 1:

@@ -499,7 +499,9 @@ def main() -> int:
     parser.add_argument("--items", default="", help="只跑指定题号，逗号分隔；默认按 phase")
     parser.add_argument("--bank-profile", choices=("active",), default="active",
                         help="只跑 20261008 活跃题库")
-    parser.add_argument("--concurrency", type=int, default=8)
+    parser.add_argument("--concurrency", type=int, default=8, help="每个渠道的请求并发")
+    parser.add_argument("--grader-concurrency", type=int, default=None,
+                        help="判分子进程（编译/运行被测代码）的全局并发上限，与请求并发分开；默认按 CPU 数取 2..8")
     parser.add_argument("--samples", type=int, default=1, help="每道题独立采样次数；默认 1")
     parser.add_argument("--pass-at", type=int, default=1, dest="pass_k", help="报告 pass@k；必须不大于 --samples")
     parser.add_argument("--timeout", type=float, default=20 * 60, help="单次请求超时秒，默认 1200（20 分钟）")
@@ -513,6 +515,11 @@ def main() -> int:
     args = parser.parse_args()
     if args.concurrency < 1:
         parser.error("--concurrency 必须 >= 1")
+    if args.grader_concurrency is not None:
+        if args.grader_concurrency < 1:
+            parser.error("--grader-concurrency 必须 >= 1")
+        from src.grade import set_grader_concurrency
+        set_grader_concurrency(args.grader_concurrency)
     if args.timeout <= 0:
         parser.error("--timeout 必须 > 0")
     if args.retries < 0:
@@ -579,6 +586,7 @@ def main() -> int:
             "experiment_id": out_dir.name,
             "banks": {bank_for_item(item.id).id: bank_for_item(item.id).version for item in items},
             "concurrency": args.concurrency, "concurrency_scope": "per_channel",
+            "grader_concurrency": args.grader_concurrency,
             "stream": True,
             "timeout_s": args.timeout, "retries": args.retries,
             "samples": args.samples, "pass_k": args.pass_k,
