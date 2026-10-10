@@ -532,7 +532,9 @@ def run_python_sandbox(
             env["PYTHONPATH"] = os.pathsep.join((env["PYTHONPATH"], runtime["python_path"]))
         try:
             proc = subprocess.run(
-                [sys.executable, "-s", str(root / "boot.py")],
+                isolate([sys.executable, "-s", str(root / "boot.py")], root,
+                        ro_paths=(sys.prefix, sys.base_prefix, *( [runtime["python_path"]] if runtime and runtime.get("python_path") else [])),
+                        ),
                 cwd=root,
                 env=env,
                 capture_output=True,
@@ -592,7 +594,7 @@ def run_go_sandbox(
             return "fail", f"compile failed\n{blob[-400:]}" if blob else "compile failed"
         try:
             proc = subprocess.run(
-                [str(root / "solution.test"), "-test.count=1", "-test.v"],
+                isolate([str(root / "solution.test"), "-test.count=1", "-test.v"], root),
                 cwd=root,
                 env=env,
                 capture_output=True,
@@ -664,7 +666,9 @@ def run_ts_sandbox(
         run_env["PATH"] = str(Path(node).parent) + os.pathsep + run_env.get("PATH", "")
         try:
             proc = subprocess.run(
-                [node, str(js)],
+                isolate([str(Path(node).resolve()), str(js)], root,
+                        ro_paths=(str(Path(node).resolve().parents[1]),
+                                  *([runtime["node_modules"]] if runtime and runtime.get("node_modules") else []))),
                 cwd=root / "dist",
                 env=run_env,
                 capture_output=True,
@@ -712,12 +716,78 @@ def _sandbox_result(
 
 
 def _sandbox_env(tmp: Path) -> dict[str, str]:
+    """被测代码的环境：白名单变量（不含任何 API key），HOME/TMPDIR/XDG 都指向临时目录。"""
     cleaned = {key: os.environ[key] for key in _SANDBOX_KEEP if key in os.environ}
+    home = Path(tmp) / ".home"
+    scratch = Path(tmp) / ".tmp"
+    home.mkdir(parents=True, exist_ok=True)
+    scratch.mkdir(parents=True, exist_ok=True)
+    cleaned["HOME"] = str(home)
+    cleaned["XDG_CONFIG_HOME"] = str(home / ".config")
+    cleaned["XDG_CACHE_HOME"] = str(home / ".cache")
+    cleaned["XDG_DATA_HOME"] = str(home / ".local" / "share")
+    for key in ("TMPDIR", "TMP", "TEMP"):
+        cleaned[key] = str(scratch)
     cleaned["PYTHONPATH"] = str(tmp)
     cleaned["PYTHONNOUSERSITE"] = "1"
     cleaned["NO_PROXY"] = "*"
     cleaned["no_proxy"] = "*"
     return cleaned
+
+
+_BWRAP_STATE: dict[str, bool] = {}
+
+
+def bwrap_usable() -> bool:
+    """非 root 的 bubblewrap 能否用。MODEL_LENS_SANDBOX=env 可关闭，只做环境隔离。"""
+    if os.environ.get("MODEL_LENS_SANDBOX", "").lower() == "env":
+        return False
+    if "ok" not in _BWRAP_STATE:
+        exe = shutil.which("bwrap")
+        ok = False
+        if exe:
+            try:
+                ok = subprocess.run(
+                    [exe, "--ro-bind", "/", "/", "--tmpfs", "/home", "--dev", "/dev", "--proc", "/proc",
+                     "--unshare-net", "--unshare-pid", "--die-with-parent", "true"],
+                    capture_output=True, timeout=10,
+                ).returncode == 0
+            except (OSError, subprocess.SubprocessError):
+                ok = False
+        _BWRAP_STATE["ok"] = ok
+    return _BWRAP_STATE["ok"]
+
+
+def isolate(argv: list[str], root: Path, *, ro_paths: tuple[str, ...] | list[str] = ()) -> list[str]:
+    """用 bubblewrap 运行被测代码：根目录只读，/home /root /workspace /tmp 换成空 tmpfs，
+    只把临时工作目录可写挂回、把解释器/运行时只读挂回；无网络、独立 PID。
+
+    bwrap 不可用时退回原命令（仍有临时 HOME 与清理后的环境变量）。
+    """
+    if not bwrap_usable():
+        return argv
+    args = [shutil.which("bwrap") or "bwrap", "--ro-bind", "/", "/"]
+    for hidden in ("/home", "/root", "/workspace", "/tmp", "/var/tmp", "/run/user"):
+        if os.path.isdir(hidden):
+            args += ["--tmpfs", hidden]
+    seen: set[str] = set()
+    for path in ro_paths:
+        if not path:
+            continue
+        real = str(Path(path).resolve())
+        if real in seen or not os.path.exists(real):
+            continue
+        seen.add(real)
+        args += ["--ro-bind", real, real]
+    args += [
+        "--bind", str(root), str(root),
+        "--dev", "/dev", "--proc", "/proc",
+        "--unshare-net", "--unshare-pid", "--unshare-ipc", "--unshare-uts",
+        "--die-with-parent", "--new-session",
+        "--chdir", str(root),
+    ]
+    # 可执行文件常是指向 /home 下的符号链接（venv、node），tmpfs 之后链接会断，执行解析后的真实路径。
+    return [*args, str(Path(argv[0]).resolve()), *argv[1:]]
 
 
 def _toolchain_env(tmp: Path) -> dict[str, str]:
