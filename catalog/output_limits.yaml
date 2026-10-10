@@ -8,7 +8,8 @@ deepseek-v4: 384000
 deepseek-v4-flash: 384000
 deepseek-v4-pro: 384000
 deepseek-v4-flash-vision-exp: 384000
-# booster 上的 deepseek-flash 与 OpenCode Go 的 deepseek-v4-flash 同属 Flash，输出上限同为 384000
+# 网关 OpenCode-Go 的 DeepSeek 渠道 id 是 deepseek-flash，不是 deepseek-v4-flash。
+# 上面的 deepseek-v4-flash 是 DeepSeek 官方型号；与 deepseek-flash 同属 Flash，输出上限同为 384000。
 deepseek-flash: 384000
 
 # OpenCode Go 目录 limit.output（models.dev provider opencode-go，文档 https://opencode.ai/docs/go）
@@ -35,3 +36,9 @@ glm-4.5: 98304
 glm-4.6: 131072
 glm-4.7: 131072
 glm-5: 131072
+
+# StepFun Step 5 Preview 模型页 Maximum output 64k
+# https://platform.stepfun.com/docs/zh/guides/models/step-5-preview
+# 网关免费路由 id 是 step-5-preview-free，精确登记，避免只靠前缀。
+step-5-preview: 64000
+step-5-preview-free: 64000

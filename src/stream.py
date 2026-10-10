@@ -153,7 +153,68 @@ class OpenAICompletionsStream:
 
     def synthetic_payload(self, events: list[dict[str, Any]], content: str) -> dict[str, Any]:
         usage = _last_dict_field(events, "usage")
-        return {"choices": [{"message": {"content": content}}], "usage": usage or {}}
+        reasoning = _openai_reasoning_text(events)
+        finish_reason = _openai_finish_reason(events)
+        model = _openai_model(events)
+        message: dict[str, Any] = {"content": content}
+        if reasoning:
+            message["reasoning_content"] = reasoning
+        choice: dict[str, Any] = {"message": message}
+        if finish_reason:
+            choice["finish_reason"] = finish_reason
+        payload: dict[str, Any] = {"choices": [choice], "usage": usage or {}}
+        if model:
+            payload["model"] = model
+        return payload
+
+
+
+def _openai_delta_text(node: object, keys: tuple[str, ...]) -> str:
+    if not isinstance(node, dict):
+        return ""
+    for key in keys:
+        value = node.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return ""
+
+
+def _openai_reasoning_text(events: list[dict[str, Any]]) -> str:
+    parts: list[str] = []
+    for ev in events:
+        choices = ev.get("choices")
+        if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+            continue
+        first = choices[0]
+        delta = first.get("delta")
+        message = first.get("message")
+        piece = _openai_delta_text(delta, ("reasoning_content", "reasoning"))
+        if not piece:
+            piece = _openai_delta_text(message, ("reasoning_content", "reasoning"))
+        if piece:
+            parts.append(piece)
+    return "".join(parts)
+
+
+def _openai_finish_reason(events: list[dict[str, Any]]) -> str | None:
+    found: str | None = None
+    for ev in events:
+        choices = ev.get("choices")
+        if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+            continue
+        value = choices[0].get("finish_reason")
+        if isinstance(value, str) and value:
+            found = value
+    return found
+
+
+def _openai_model(events: list[dict[str, Any]]) -> str | None:
+    found: str | None = None
+    for ev in events:
+        value = ev.get("model")
+        if isinstance(value, str) and value:
+            found = value
+    return found
 
 
 class OpenAIResponsesStream:

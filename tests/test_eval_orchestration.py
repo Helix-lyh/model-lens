@@ -234,3 +234,19 @@ def test_merge_distinguishes_sample_zero_across_runs(tmp_path: Path):
     assert len(merge_eval.load(dirs)) == 2
 
 
+
+
+class _Rec:
+    def __init__(self, content, reasoning):
+        self.content, self.reasoning = content, reasoning
+
+
+def test_assembled_answer_prefers_content_then_reasoning():
+    assert run_eval._assembled_answer(_Rec("ans", "think")) == "ans"
+    assert run_eval._assembled_answer(_Rec("  \n", "think")) == "think"
+    assert run_eval._assembled_answer(_Rec(None, None)) == ""
+
+
+def test_step_output_limit_is_registered():
+    from src.limits import official_max_output
+    assert official_max_output("step-5-preview-free") == 64000

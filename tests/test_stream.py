@@ -130,3 +130,43 @@ def test_client_stream_fills_ttft_and_decode(
     assert seen[0]["body"]["stream_options"]["include_usage"] is True
     dumped = (tmp_path / "requests.jsonl").read_text(encoding="utf-8")
     assert "sk-stream" not in dumped
+
+
+def test_openai_stream_assembles_reasoning_finish_reason_and_model() -> None:
+    events = [
+        {"model": "m1", "choices": [{"delta": {"reasoning_content": "think "}}]},
+        {"choices": [{"delta": {"reasoning_content": "more"}}]},
+        {"choices": [{"delta": {"content": "answer"}}]},
+        {"choices": [{"delta": {}, "finish_reason": "length"}]},
+        {"usage": {"prompt_tokens": 1, "completion_tokens": 2}},
+    ]
+    assembled = assemble_stream(get_adapter("openai-completions"), events)
+    choice = assembled.payload["choices"][0]
+    assert assembled.content == "answer"
+    assert choice["message"]["reasoning_content"] == "think more"
+    assert choice["finish_reason"] == "length"
+    assert assembled.payload["model"] == "m1"
+
+
+def test_client_stream_passes_length_finish_reason_and_reasoning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        sse = (
+            'data: {"model":"m","choices":[{"delta":{"reasoning_content":"r1"}}]}\n\n'
+            'data: {"choices":[{"delta":{"reasoning_content":"r2"}}]}\n\n'
+            'data: {"choices":[{"delta":{},"finish_reason":"length"}]}\n\n'
+            "data: [DONE]\n\n"
+        )
+        return httpx.Response(200, content=sse, headers={"content-type": "text/event-stream"})
+
+    monkeypatch.setenv("TARGET_KEY", "sk-stream")
+    http = httpx.Client(transport=httpx.MockTransport(handler), timeout=60.0)
+    client = ChatClient(
+        Endpoint(base_url="https://gateway.example/v1", api_key_env="TARGET_KEY", model="demo"),
+        JsonlRecorder(tmp_path / "requests.jsonl"), http_client=http,
+    )
+    rec = client.complete([{"role": "user", "content": "hi"}], max_tokens=8, stream=True)
+    assert rec.content == ""
+    assert rec.reasoning == "r1r2"
+    assert rec.raw["finish_reason"] == "length"

@@ -258,6 +258,16 @@ def jobs_for(items: list[Any], langs: list[str], samples: int = 1) -> list[tuple
     return jobs * samples
 
 
+
+def _assembled_answer(record: Any) -> str:
+    """拼好流式正文再评分。有 content 时只评 content，避免思考链破坏 JSON/代码围栏；content 为空才用 reasoning。"""
+    content = record.content if isinstance(record.content, str) else ""
+    reasoning = record.reasoning if isinstance(getattr(record, "reasoning", None), str) else ""
+    if content.strip():
+        return content
+    return reasoning
+
+
 def run_one(client: ChatClient, ch: Channel, item: Any, lang: str | None, out_dir: Path,
             timeout_s: float, sample: int = 0) -> dict[str, Any]:
     item_id = item.id
@@ -278,9 +288,9 @@ def run_one(client: ChatClient, ch: Channel, item: Any, lang: str | None, out_di
         max_tokens=ch.max_tokens,
         extra={"reasoning_effort": "high"},
         kind=f"eval20261008:{tag}",
-        stream=False,
+        stream=True,
     )
-    text = record.content or ""
+    text = _assembled_answer(record)
     stem = out_dir / ch.name / tag
     stem.parent.mkdir(parents=True, exist_ok=True)
     stem.with_suffix(".txt").write_text(text, encoding="utf-8")
@@ -493,7 +503,9 @@ def main() -> int:
             "langs": langs, "models": names,
             "experiment_id": out_dir.name,
             "banks": {bank_for_item(item.id).id: bank_for_item(item.id).version for item in items},
-            "concurrency": args.concurrency, "timeout_s": args.timeout, "retries": args.retries,
+            "concurrency": args.concurrency, "concurrency_scope": "per_channel",
+            "stream": True,
+            "timeout_s": args.timeout, "retries": args.retries,
             "samples": args.samples, "pass_k": args.pass_k,
             "items": [it.id for it in items],
             "salt_mode": "per_request_random_urlsafe_18",
@@ -502,7 +514,11 @@ def main() -> int:
                            "model": all_channels[n].model,
                            "api_key_env": all_channels[n].api_key_env} for n in names}}
     (out_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"out={out_dir} channels={names} items={len(items)} jobs/channel={len(jobs)} concurrency={args.concurrency}", flush=True)
+    print(
+        f"out={out_dir} channels={names} items={len(items)} jobs/channel={len(jobs)} "
+        f"concurrency_per_channel={args.concurrency} stream=true",
+        flush=True,
+    )
 
     seed_grok_token()
     rows: list[dict[str, Any]] = []
