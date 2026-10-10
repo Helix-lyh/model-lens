@@ -170,3 +170,51 @@ def test_client_stream_passes_length_finish_reason_and_reasoning(
     assert rec.content == ""
     assert rec.reasoning == "r1r2"
     assert rec.raw["finish_reason"] == "length"
+
+
+def test_client_stream_total_deadline_keeps_partial_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import time as _time
+
+    def body():
+        for index in range(20):
+            yield f'data: {{"choices":[{{"delta":{{"content":"p{index} "}}}}]}}\n\n'.encode()
+            _time.sleep(0.1)
+        yield b"data: [DONE]\n\n"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=body(), headers={"content-type": "text/event-stream"})
+
+    monkeypatch.setenv("TARGET_KEY", "sk-stream")
+    http = httpx.Client(transport=httpx.MockTransport(handler), timeout=60.0)
+    client = ChatClient(
+        Endpoint(base_url="https://gateway.example/v1", api_key_env="TARGET_KEY", model="demo"),
+        JsonlRecorder(tmp_path / "requests.jsonl"), http_client=http, timeout_s=0.35, max_retries=3,
+    )
+    started = _time.perf_counter()
+    rec = client.complete([{"role": "user", "content": "hi"}], max_tokens=8, stream=True)
+    assert _time.perf_counter() - started < 1.5
+    assert rec.content and rec.content.startswith("p0 ")
+    assert "p19" not in rec.content
+    assert rec.error and "total timeout" in rec.error
+
+
+def test_client_stream_read_timeout_keeps_partial_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    class Body(httpx.SyncByteStream):
+        def __iter__(self):
+            yield b'data: {"choices":[{"delta":{"content":"{\\"waiting\\":[]"}}]}\n\n'
+            raise httpx.ReadTimeout("idle")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, stream=Body(), headers={"content-type": "text/event-stream"})
+
+    monkeypatch.setenv("TARGET_KEY", "sk-stream")
+    calls = []
+    transport = httpx.MockTransport(lambda r: calls.append(1) or handler(r))
+    client = ChatClient(
+        Endpoint(base_url="https://gateway.example/v1", api_key_env="TARGET_KEY", model="demo"),
+        JsonlRecorder(tmp_path / "requests.jsonl"), http_client=httpx.Client(transport=transport), timeout_s=60, max_retries=3,
+    )
+    rec = client.complete([{"role": "user", "content": "hi"}], max_tokens=8, stream=True)
+    assert rec.content == '{"waiting":[]'
+    assert "timeout" in (rec.error or "").lower()
+    assert len(calls) == 1  # 超时不重试

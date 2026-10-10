@@ -336,6 +336,10 @@ class ChatClient:
     ) -> CompletionRecord:
         events: list[dict[str, Any]] = []
         ttft_ms: int | None = None
+        # 总时长上限：timeout_s 同时是单次读超时和整条流的截止时间。
+        # 到点由看门狗关闭响应；读超时或到点都保留已收到的事件，按超时记录。
+        deadline_hit = threading.Event()
+        stream_error: str | None = None
         try:
             with self._http.stream(
                 prepared.method,
@@ -355,25 +359,52 @@ class ChatClient:
                         latency_ms=latency_ms,
                         error=_http_error_message(fake),
                     )
+                remaining = self.timeout_s - (time.perf_counter() - t0)
+
+                def _expire() -> None:
+                    deadline_hit.set()
+                    try:
+                        resp.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+
+                watchdog = threading.Timer(max(remaining, 0.0), _expire)
+                watchdog.daemon = True
+                watchdog.start()
                 buf = ""
-                for chunk in resp.iter_text():
-                    buf, new_events = feed_sse(buf, chunk)
-                    for event in new_events:
+                try:
+                    for chunk in resp.iter_text():
+                        buf, new_events = feed_sse(buf, chunk)
+                        for event in new_events:
+                            if ttft_ms is None and self._event_has_text(event):
+                                ttft_ms = int((time.perf_counter() - t0) * 1000)
+                            events.append(event)
+                        if deadline_hit.is_set():
+                            break
+                    for event in flush_sse(buf):
                         if ttft_ms is None and self._event_has_text(event):
                             ttft_ms = int((time.perf_counter() - t0) * 1000)
                         events.append(event)
-                for event in flush_sse(buf):
-                    if ttft_ms is None and self._event_has_text(event):
-                        ttft_ms = int((time.perf_counter() - t0) * 1000)
-                    events.append(event)
+                except httpx.TimeoutException as exc:
+                    stream_error = f"stream read timeout after partial output: {type(exc).__name__}"
+                except Exception:
+                    if not deadline_hit.is_set():
+                        raise
+                finally:
+                    watchdog.cancel()
         except httpx.RequestError:
-            raise
+            if deadline_hit.is_set():
+                pass
+            else:
+                raise
+        if deadline_hit.is_set():
+            stream_error = f"stream total timeout>{self.timeout_s:g}s"
 
         latency_ms = int((time.perf_counter() - t0) * 1000)
         assembled = assemble_stream(self.adapter, events)
         usage = self.adapter.parse_token_usage(assembled.payload)
         content = assembled.content or self.adapter.parse_content(assembled.payload)
-        error = stream_failure(events, assembled.event_count)
+        error = stream_error or stream_failure(events, assembled.event_count)
         metrics = derive_metrics(
             usage,
             latency_ms=latency_ms,
