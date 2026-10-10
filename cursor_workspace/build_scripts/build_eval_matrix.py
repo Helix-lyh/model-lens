@@ -20,6 +20,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from eval_bank_20260925.report import outcome_label  # noqa: E402
+from src.atomic_io import atomic_write_text  # noqa: E402
 from cursor_workspace.build_scripts.ledger_common import (  # noqa: E402
     DOMAINS, LEDGER, MINUS, SUITE, catalog, css, latest_run, pct, qpct, signed,
 )
@@ -80,6 +82,8 @@ def check_comparable(meta: dict, rows: list[dict]) -> list[str]:
 
     for item, group in by_item.items():
         got = sorted(row["channel"] for row in group)
+        if len(set(got)) != len(got):
+            raise NotComparable(f"{item} 在同一渠道有多行（多次采样或重复写入），矩阵页只支持单样本")
         if got != channels:
             raise NotComparable(f"{item} 的渠道不齐：{got}，期望 {channels}")
         scorers = {row.get("scorer_sha256") for row in group}
@@ -129,8 +133,9 @@ def _panel(
     counts: tuple[int, int, int] | None = None,
     top: bool = False,
     exact: bool = False,
+    unjudged: bool = False,
 ) -> str:
-    cls = "mcell unjudged" if value is None else ("mcell top" if top else "mcell")
+    cls = "mcell unjudged" if value is None or unjudged else ("mcell top" if top else "mcell")
     neg = " neg" if value is not None and float(value) < 0 else ""
     if value is None:
         percent = MINUS
@@ -153,8 +158,13 @@ def _panel(
 def _cell(row: dict, domain: str, best: int | None, who: str) -> str:
     got = _points(row, domain)
     if got is None:
-        reason = str(row.get("reason_code") or "未判")
-        return _panel(domain, who, None, LEDGER, [escape(reason)], exact=True)
+        # 固定分母口径：未判（截断、超时、错误）记 0 分，并写明原因。
+        label = outcome_label(row) or "未判（0分）"
+        counts = (0, 0, LEDGER) if domain == "engineering" else None
+        return _panel(
+            domain, who, 0, LEDGER, [escape(label), escape(str(row.get("reason_code") or "-"))],
+            counts=counts, exact=True, unjudged=True,
+        )
     counts = None
     if domain == "engineering":
         pos, neg = _positive(row, domain), _negative(row, domain)
@@ -174,14 +184,25 @@ def _overview(channels: list[str], rows: list[dict]) -> str:
         for name in channels:
             mine_channel = [row for row in mine if row["channel"] == name]
             judged = [row for row in mine_channel if _points(row, domain) is not None]
-            if not judged:
-                cells.append(_panel(domain, name, None, LEDGER, [f"0 / {len(mine_channel)} 题已判"]))
+            if not mine_channel:
+                cells.append(_panel(domain, name, None, LEDGER, ["本栏无作答"]))
                 continue
+            # 固定分母：每道作答题 20 分进分母，未判记 0。
             got = [value for row in judged if (value := _points(row, domain)) is not None]
-            total, total_max = sum(got), LEDGER * len(got)
+            total, total_max = sum(got), LEDGER * len(mine_channel)
             raw = [f"原始分 {signed(total)} / {total_max} 分"]
             if len(judged) != len(mine_channel):
-                raw.append(f"{len(judged)} / {len(mine_channel)} 题已判")
+                truncated = sum(outcome_label(row) == "截断（0分）" for row in mine_channel)
+                others = len(mine_channel) - len(judged) - truncated
+                notes = []
+                if truncated:
+                    notes.append(f"截断 {truncated} 题记 0")
+                if others:
+                    notes.append(f"其他未判 {others} 题记 0")
+                raw.append("；".join(notes))
+                judged_max = LEDGER * len(judged)
+                if judged_max:
+                    raw.append(f"已判口径 {pct(total, judged_max)}（{signed(total)} / {judged_max}）")
             counts = None
             if domain == "engineering":
                 pos = sum(_positive(row, domain) for row in judged)
@@ -306,8 +327,7 @@ def main() -> int:
     started = str(meta.get("started_at") or "")
     out = Path(args.out) if args.out else SUITE_OUT / f"eval-matrix-{started[:8] or 'run'}.html"
     html = render(meta, rows, channels)
-    assert "支持" not in html
-    out.write_text(html, encoding="utf-8")
+    atomic_write_text(out, html)
     shown = out.relative_to(ROOT) if out.is_relative_to(ROOT) else out
     print(f"wrote {shown}  channels={channels}  items={len({r['item'] for r in rows})}")
     return 0

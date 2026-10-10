@@ -409,20 +409,31 @@ def write_summary(out_dir: Path, summary: dict[str, Any], rows: list[dict[str, A
     (out_dir / "summary.md").write_text(render_markdown({**meta, "bank_version": "20261008"}, rows), encoding="utf-8")
 
 
-def publish_reports(out_dir: Path, channels: list[str]) -> None:
-    """评测结束就生成页面。单模型页看 deepseek-flash；两个及以上模型再出对比页。"""
+def report_commands(out_dir: Path, channels: list[str]) -> list[tuple[list[str], str]]:
+    """每个渠道一张单模型页，两个及以上渠道再出对比页；都写进本场输出目录。"""
     root = Path(__file__).resolve().parents[2]
     scripts = root / "cursor_workspace" / "build_scripts"
-    commands = [(
-        [sys.executable, str(scripts / "build_eval_ledger_20261006.py")],
-        "单模型页",
-    )]
+    commands = [
+        (
+            [sys.executable, str(scripts / "build_eval_ledger_20261006.py"), "--run", str(out_dir),
+             "--channel", name, "--out", str(out_dir / f"eval-ledger-{name}.html")],
+            f"单模型页 {name}",
+        )
+        for name in channels
+    ]
     if len(channels) >= 2:
         commands.append((
-            [sys.executable, str(scripts / "build_eval_matrix.py"), "--run", str(out_dir)],
+            [sys.executable, str(scripts / "build_eval_matrix.py"), "--run", str(out_dir),
+             "--out", str(out_dir / "eval-matrix.html")],
             "对比页",
         ))
-    for command, label in commands:
+    return commands
+
+
+def publish_reports(out_dir: Path, channels: list[str]) -> None:
+    """评测结束就生成页面，写在本场输出目录里；需要发布到 docs/ 时再手动指定 --out。"""
+    root = Path(__file__).resolve().parents[2]
+    for command, label in report_commands(out_dir, channels):
         completed = subprocess.run(command, cwd=root, check=False)
         if completed.returncode != 0:
             print(f"{label}未生成，退出码 {completed.returncode}", file=sys.stderr)
