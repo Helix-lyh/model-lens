@@ -36,10 +36,11 @@ from eval_bank_20260925.challenge import salt_prompt, salted_prompt_hash  # noqa
 from eval_bank_20260925.report import render_markdown  # noqa: E402
 from src.limits import official_max_output  # noqa: E402
 from eval_bank_20260925.evaluation import is_timeout_error, normalize_verdict, pass_at_k as _shared_pass_at_k, score_item as _shared_score_item, scoring_provenance, summarize as _shared_summarize, summarize_engineering, timeout_verdict as _shared_timeout_verdict  # noqa: E402
-from eval_bank_20260925.bank_manifest import ITEM_CODE_LANG, active_item_ids, bank_for_item, item_provenance  # noqa: E402
+from eval_bank_20260925.bank_manifest import ACTIVE_VERSION, ITEM_CODE_LANG, active_item_ids, bank_for_item, item_provenance  # noqa: E402
 from eval_bank_20260925.bank_adapters import render_item_prompt  # noqa: E402
 from eval_bank_20260925.bank_registry import ITEMS as PLUGIN_ITEMS  # noqa: E402
 from src.client import ChatClient, JsonlRecorder  # noqa: E402
+from src.atomic_io import atomic_write_text  # noqa: E402
 from src.types import Endpoint  # noqa: E402
 
 GROK_AUTH = Path.home() / ".grok" / "auth.json"
@@ -341,7 +342,7 @@ def run_one(client: ChatClient, ch: Channel, item: Any, lang: str | None, out_di
 
 def run_channel(ch: Channel, jobs: list[tuple[Any, str | None]], out_dir: Path, concurrency: int,
                 *, timeout_s: float = 20 * 60, max_retries: int = 1,
-                on_row: Any = None) -> list[dict[str, Any]]:
+                on_row: Any = None, skip: set[tuple[Any, ...]] | None = None) -> list[dict[str, Any]]:
     seed_grok_token()
     recorder = JsonlRecorder(out_dir / ch.name / "requests.jsonl")
     client = ChatClient(endpoint(ch), recorder, timeout_s=timeout_s, max_retries=max_retries)
@@ -354,6 +355,8 @@ def run_channel(ch: Channel, jobs: list[tuple[Any, str | None]], out_dir: Path, 
             key = (item.id, lang)
             sample = sample_seen[key]
             sample_seen[key] += 1
+            if skip and (ch.name, item.id, lang, sample) in skip:
+                continue
             future = pool.submit(run_one, client, ch, item, lang, out_dir, timeout_s, sample)
             futures[future] = (item, lang, sample)
         for fut in as_completed(futures):
@@ -399,14 +402,59 @@ def summarize(rows: list[dict[str, Any]], model_names: list[str], pass_k: int = 
     return by_model
 
 
-def write_summary(out_dir: Path, summary: dict[str, Any], rows: list[dict[str, Any]], meta: dict[str, Any]) -> None:
-    (out_dir / "results.jsonl").write_text(
-        "\n".join(json.dumps(r, ensure_ascii=False, default=str) for r in rows) + ("\n" if rows else ""),
-        encoding="utf-8",
+RESUME_KEYS = ("phase", "bank_version", "langs", "models", "samples", "items")
+RERUN_REASONS = frozenset({"request_error", "worker_error", "runner_error"})
+
+
+def row_key(row: dict[str, Any]) -> tuple[Any, ...]:
+    return (row.get("channel"), row.get("item"), row.get("lang"), int(row.get("sample") or 0))
+
+
+def read_results(path: Path) -> list[dict[str, Any]]:
+    """读取逐条追加的 results.jsonl；忽略中断时写了一半的末行。"""
+    if not path.is_file():
+        return []
+    rows = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(row, dict):
+            rows.append(row)
+    return rows
+
+
+def dedupe_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """同一 (渠道, 题, 语言, 样本) 只留一行：后写的覆盖先写的，但请求类错误不覆盖已有结果。"""
+    kept: dict[tuple[Any, ...], dict[str, Any]] = {}
+    for row in rows:
+        key = row_key(row)
+        old = kept.get(key)
+        if old is not None and row.get("reason_code") in RERUN_REASONS and old.get("reason_code") not in RERUN_REASONS:
+            continue
+        kept[key] = row
+    return list(kept.values())
+
+
+def resume_skip(rows: list[dict[str, Any]]) -> set[tuple[Any, ...]]:
+    """续跑时跳过已有结果的作答；请求类错误重跑。"""
+    return {row_key(row) for row in dedupe_rows(rows) if row.get("reason_code") not in RERUN_REASONS}
+
+
+def write_summary(out_dir: Path, summary: dict[str, Any], rows: list[dict[str, Any]], meta: dict[str, Any]) -> list[dict[str, Any]]:
+    """合并磁盘上已追加的行与内存结果，去重后原子重写；summary 也原子写。返回最终行。"""
+    merged = dedupe_rows(read_results(out_dir / "results.jsonl") + list(rows))
+    atomic_write_text(
+        out_dir / "results.jsonl",
+        "".join(json.dumps(r, ensure_ascii=False, default=str) + "\n" for r in merged),
     )
-    payload = {"meta": meta, "summary": summary, "bank_version": "20261008"}
-    (out_dir / "summary.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    (out_dir / "summary.md").write_text(render_markdown({**meta, "bank_version": "20261008"}, rows), encoding="utf-8")
+    payload = {"meta": meta, "summary": summary, "bank_version": meta.get("bank_version", ACTIVE_VERSION)}
+    atomic_write_text(out_dir / "summary.json", json.dumps(payload, ensure_ascii=False, indent=2))
+    atomic_write_text(out_dir / "summary.md", render_markdown({**meta, "bank_version": meta.get("bank_version", ACTIVE_VERSION)}, merged))
+    return merged
 
 
 def report_commands(out_dir: Path, channels: list[str]) -> list[tuple[list[str], str]]:
@@ -457,6 +505,7 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=20 * 60, help="单次请求超时秒，默认 1200（20 分钟）")
     parser.add_argument("--retries", type=int, default=3, help="HTTP 5xx/连接错误重试次数；超时永不重试；默认 3")
     parser.add_argument("--out", default="out")
+    parser.add_argument("--resume", default=None, help="续跑已有 run 目录：跳过已有结果，只重跑缺失与请求类错误")
     parser.add_argument("--grok-base", default=os.environ.get("AI_LIUYUNHAI_SPACE_BASE_URL", "https://ai.liuyunhai.space"))
     parser.add_argument("--grok-key-env", default="AI_LIUYUNHAI_SPACE_API_KEY")
     parser.add_argument("--grok-cli-proxy", action="store_true",
@@ -507,10 +556,25 @@ def main() -> int:
     except ValueError as exc:
         parser.error(str(exc))
     stamp = datetime.now().strftime("%Y%m%dT%H%M%S")
-    out_dir = Path(args.out) / f"eval-20261008-{stamp}-{args.phase}"
+    skip: set[tuple[Any, ...]] = set()
+    previous_meta: dict[str, Any] | None = None
+    if args.resume:
+        out_dir = Path(args.resume)
+        if not (out_dir / "meta.json").is_file():
+            parser.error(f"--resume 目录没有 meta.json：{out_dir}")
+        previous_meta = json.loads((out_dir / "meta.json").read_text(encoding="utf-8"))
+        same = {key: previous_meta.get(key) for key in RESUME_KEYS}
+        wanted = {"phase": args.phase, "bank_version": ACTIVE_VERSION, "langs": langs, "models": names,
+                  "samples": args.samples, "items": [it.id for it in items]}
+        if same != wanted:
+            parser.error(f"--resume 参数与原 run 不一致：原 {same}，现 {wanted}")
+        skip = resume_skip(read_results(out_dir / "results.jsonl"))
+        stamp = str(previous_meta.get("started_at") or stamp)
+    else:
+        out_dir = Path(args.out) / f"eval-{ACTIVE_VERSION}-{stamp}-{args.phase}"
     out_dir.mkdir(parents=True, exist_ok=True)
     seed_grok_token()
-    meta = {"phase": args.phase, "bank_profile": args.bank_profile, "bank_version": "20261008",
+    meta = {"phase": args.phase, "bank_profile": args.bank_profile, "bank_version": ACTIVE_VERSION,
             "langs": langs, "models": names,
             "experiment_id": out_dir.name,
             "banks": {bank_for_item(item.id).id: bank_for_item(item.id).version for item in items},
@@ -524,7 +588,10 @@ def main() -> int:
             "routes": {n: {"base_url": all_channels[n].base_url,
                            "model": all_channels[n].model,
                            "api_key_env": all_channels[n].api_key_env} for n in names}}
-    (out_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    if previous_meta is not None:
+        meta["resumed_at"] = list(previous_meta.get("resumed_at") or []) + [datetime.now().strftime("%Y%m%dT%H%M%S")]
+        meta["resume_skipped"] = len(skip)
+    atomic_write_text(out_dir / "meta.json", json.dumps(meta, ensure_ascii=False, indent=2))
     print(
         f"out={out_dir} channels={names} items={len(items)} jobs/channel={len(jobs)} "
         f"concurrency_per_channel={args.concurrency} stream=true",
@@ -552,7 +619,7 @@ def main() -> int:
         try:
             res = run_channel(ch, jobs, out_dir, args.concurrency,
                               timeout_s=args.timeout, max_retries=args.retries,
-                              on_row=append_row)
+                              on_row=append_row, skip=skip)
         except Exception as exc:  # noqa: BLE001
             detail = f"{type(exc).__name__}: {exc}"
             with lock:
@@ -563,6 +630,8 @@ def main() -> int:
                 key = (item.id, lang)
                 sample = seen[key]
                 seen[key] += 1
+                if (ch.name, item.id, lang, sample) in skip:
+                    continue
                 res.append(_error_row(ch, item, lang, "worker_error", detail, sample=sample, run_id=out_dir.name))
             for row in res:
                 append_row(row)
@@ -578,6 +647,7 @@ def main() -> int:
     for name in names:
         rows.extend(results.get(name, []))
 
+    rows = dedupe_rows(read_results(out_dir / "results.jsonl") + rows)
     summary = summarize(rows, names, args.pass_k)
     write_summary(out_dir, summary, rows, meta)
     print(f"\n完成：{out_dir}/summary.md")
