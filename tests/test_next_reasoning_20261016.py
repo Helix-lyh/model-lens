@@ -1,4 +1,4 @@
-"""20261015 推理题：分档、门禁记录、删除测试（独立模拟器）、唯一最优、Schema、约束完整性（非词表禁令）。
+"""20261016 推理题：分档、门禁记录、删除测试（独立模拟器）、唯一最优、Schema、约束完整性（非词表禁令）。
 
 本文件中的 _sim_* 均为独立实现（逐分钟推进 / 显式穷举），不调用 reasoning_gen 的求解器，
 只复用其中的“删除条件”数据变换（CONDITIONS 中的 mutator）。
@@ -451,8 +451,78 @@ def _sim17(i):
     return {"path": f[0][2], "arrive": f[0][0], "cost": f[0][1], "alternatives": [[p, a, c] for a, c, p in f[1:4]], "reason": ""}
 
 
-SIM = {"NX-09": _sim09, "NX-10": _sim10, "NX-11": _sim11, "NX-12": _sim12, "NX-13": _sim13,
-       "NX-14": _sim14, "NX-15": _sim15, "NX-16": _sim16, "NX-17": _sim17, "NX-18": _sim18}
+def _sim10m(i):
+    live = gen._apply_mutex_nx10(i)
+    ans = _sim10(live)
+    cf = _sim10(gen._strip_shocks_nx10(i))
+    ans = dict(ans)
+    ans["cf_cost"] = ans["total_cost"] if i.get("cf_equals_factual") else cf["total_cost"]
+    ans["active_shock"] = live.get("active_mutex") or ""
+    return ans
+
+
+def _sim11m(i):
+    live = gen._apply_mutex_nx11(i)
+    ans = _sim11(live)
+    cf = _sim11(gen._strip_nx11_shocks(i))
+    ans = dict(ans)
+    ans["cf_free_sum"] = sum(ans["free"].values()) if i.get("cf_equals_factual") else sum(cf["free"].values())
+    ans["active_shock"] = live.get("active_mutex") or ""
+    return ans
+
+
+def _sim12m(i):
+    live = gen._apply_mutex_delivery(i)
+    ans = _sim12(live)
+    cf = _sim12(gen._strip_delivery_shocks(i))
+    ans = dict(ans)
+    ans["cf_total"] = ans["total"] if i.get("cf_equals_factual") else cf["total"]
+    ans["active_shock"] = live.get("active_mutex") or ""
+    return ans
+
+
+def _sim13m(i):
+    live = gen._apply_mutex_nx13(i)
+    ans = _sim13(live)
+    cf = _sim13(gen._strip_nx13_shocks(i))
+    ans = dict(ans)
+    ans["cf_cancelled_n"] = len(ans["cancelled"]) if i.get("cf_equals_factual") else len(cf["cancelled"])
+    ans["active_shock"] = live.get("active_mutex") or ""
+    return ans
+
+
+def _sim15m(i):
+    live = gen._apply_mutex_nx15(i)
+    ans = _sim15(live)
+    cf = _sim15(gen._strip_nx15_shocks(i))
+    ans = dict(ans)
+    ans["cf_emergency_wait"] = ans["emergency_wait"] if i.get("cf_equals_factual") else cf["emergency_wait"]
+    ans["active_shock"] = live.get("active_mutex") or ""
+    return ans
+
+
+def _sim17m(i):
+    live = gen._apply_mutex_nx17(i)
+    ans = _sim17(live)
+    cf = _sim17(gen._strip_nx17_shocks(i))
+    ans = dict(ans)
+    ans["cf_arrive"] = ans["arrive"] if i.get("cf_equals_factual") else cf["arrive"]
+    ans["active_shock"] = live.get("active_mutex") or ""
+    return ans
+
+
+def _sim18m(i):
+    live = gen._apply_mutex_delivery(i)
+    ans = _sim18(live)
+    cf = _sim18(gen._strip_delivery_shocks(i))
+    ans = dict(ans)
+    ans["cf_elevator_walk"] = ans["elevator_walk"] if i.get("cf_equals_factual") else cf["elevator_walk"]
+    ans["active_shock"] = live.get("active_mutex") or ""
+    return ans
+
+
+SIM = {"NX-09": _sim09, "NX-10": _sim10m, "NX-11": _sim11m, "NX-12": _sim12m, "NX-13": _sim13m,
+       "NX-14": _sim14, "NX-15": _sim15m, "NX-16": _sim16, "NX-17": _sim17m, "NX-18": _sim18m}
 
 
 def _norm(x):
@@ -612,7 +682,7 @@ def test_prompt_states_constraints_not_procedures(item):
 def test_answer_converges_to_small_unique_key(item_id):
     """题目可复杂，答案必须收敛：字段少、可由作者模拟器唯一确定。"""
     ans = reference_answer(item_id)
-    assert 3 <= len(ans) <= 5
+    assert 3 <= len(ans) <= 7
     # 至少有一个难猜的标量（时刻/费用/利润，或 map 中的整数值）
     def _scalars(v):
         if isinstance(v, bool):
@@ -629,7 +699,7 @@ def test_answer_converges_to_small_unique_key(item_id):
 
 
 def test_generator_deterministic_and_frozen_matches():
-    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261015.py"
+    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261016.py"
     out = subprocess.run([sys.executable, str(script), "--check"], capture_output=True, text=True, cwd=ROOT)
     assert out.returncode == 0, out.stdout + out.stderr
     assert gen.build_item("NX-12") == gen.build_item("NX-12")

@@ -1,0 +1,3034 @@
+{
+ "version": "20261016",
+ "base_seed": 20261016,
+ "items": [
+  {
+   "item_id": "NX-09",
+   "title": "门诊多诊室与感染清场",
+   "tier": "A",
+   "seed": 21161016,
+   "instance": {
+    "rooms": [
+     "R1",
+     "R2",
+     "R3"
+    ],
+    "clean": 4,
+    "close": 49,
+    "emergency_first": true,
+    "no_infectious": [
+     "R3"
+    ],
+    "room_cap": {
+     "R1": 3,
+     "R2": 3,
+     "R3": 2
+    },
+    "infect_cutoff": 35,
+    "outages": {
+     "R2": [
+      [
+       12,
+       28
+      ]
+     ]
+    },
+    "clean_after": [
+     14,
+     13
+    ],
+    "patients": {
+     "P01": {
+      "arrive": 31,
+      "kind": "emergency",
+      "infectious": true,
+      "service": 6
+     },
+     "P02": {
+      "arrive": 18,
+      "kind": "emergency",
+      "infectious": false,
+      "service": 7
+     },
+     "P03": {
+      "arrive": 22,
+      "kind": "normal",
+      "infectious": false,
+      "service": 6
+     },
+     "P04": {
+      "arrive": 10,
+      "kind": "emergency",
+      "infectious": true,
+      "service": 8
+     },
+     "P05": {
+      "arrive": 5,
+      "kind": "normal",
+      "infectious": true,
+      "service": 7
+     },
+     "P06": {
+      "arrive": 9,
+      "kind": "emergency",
+      "infectious": false,
+      "service": 6
+     },
+     "P07": {
+      "arrive": 21,
+      "kind": "normal",
+      "infectious": true,
+      "service": 6
+     },
+     "P08": {
+      "arrive": 11,
+      "kind": "normal",
+      "infectious": false,
+      "service": 7
+     },
+     "P09": {
+      "arrive": 26,
+      "kind": "emergency",
+      "infectious": true,
+      "service": 8
+     },
+     "P10": {
+      "arrive": 23,
+      "kind": "normal",
+      "infectious": false,
+      "service": 4
+     },
+     "P11": {
+      "arrive": 19,
+      "kind": "normal",
+      "infectious": false,
+      "service": 4
+     },
+     "P12": {
+      "arrive": 29,
+      "kind": "emergency",
+      "infectious": true,
+      "service": 5
+     }
+    }
+   },
+   "prompt": "门诊有诊室 R1, R2, R3，0 分钟时全部空闲。患者表每行为 `[id, 到达分钟, 类型(E=急诊/N=普通), 是否感染(1/0), 服务分钟]`：\n[[\"P01\",31,\"E\",1,6],[\"P02\",18,\"E\",0,7],[\"P03\",22,\"N\",0,6],[\"P04\",10,\"E\",1,8],[\"P05\",5,\"N\",1,7],[\"P06\",9,\"E\",0,6],[\"P07\",21,\"N\",1,6],[\"P08\",11,\"N\",0,7],[\"P09\",26,\"E\",1,8],[\"P10\",23,\"N\",0,4],[\"P11\",19,\"N\",0,4],[\"P12\",29,\"E\",1,5]]\n约束：\n- 一个诊室同一时刻最多接诊一人，接诊开始后连续服务到结束；感染患者结束后该诊室需清场 4 分钟，清场期间不可接诊。\n- R3 不接诊感染患者。\n- 各诊室当天最多接诊人数：{\"R1\":3,\"R2\":3,\"R3\":2}。\n- 感染患者开始接诊分钟必须严格小于 35。\n- 诊室突发停用（半开区间，停用期间不可接诊）：{\"R2\":[[12,28]]}。\n- 从第 14 分钟起（含），感染患者结束后的清场时长改为 13 分钟（此前仍为 4）。\n- 只有已到达（到达分钟 ≤ 开始分钟）的患者可以开始接诊；开始分钟必须严格小于关门时刻 49。\n- 诊室不得闲置：任一时刻若某诊室可用且有已到达未开始、该诊室可接诊的患者（且未关门），该时刻必须开始接诊。\n- 优先级：急诊高于普通；同类型到达早者优先；再按 id。同一时刻有多个诊室可用时按编号从小到大依次安排，每个诊室取当时它可接诊的最高优先级患者。\n输出 JSON 对象，只含以下字段：\n- `served`：数组，每项 `[id, 诊室, 开始分钟, 结束分钟]`，按开始分钟、诊室编号升序。\n- `waiting`：数组，到关门仍未开始接诊的患者 id（字符串），按到达分钟、id 升序；没有则为 `[]`。\n- `last_end`：整数，所有接诊的最大结束分钟（不含清场）。\n- `infectious_rooms`：数组，接诊过感染患者的诊室，按编号升序。\n输出必须是单个 JSON 对象并严格符合以下 JSON Schema（整数不得写成字符串或小数，不得增减字段）：\n{\"type\":\"object\",\"properties\":{\"served\":{\"type\":\"array\",\"items\":{\"type\":\"array\",\"prefixItems\":[{\"type\":\"string\"},{\"type\":\"string\"},{\"type\":\"integer\"},{\"type\":\"integer\"}],\"minItems\":4,\"maxItems\":4}},\"waiting\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"last_end\":{\"type\":\"integer\"},\"infectious_rooms\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}},\"required\":[\"served\",\"waiting\",\"last_end\",\"infectious_rooms\"],\"additionalProperties\":false}",
+   "schema": {
+    "type": "object",
+    "properties": {
+     "served": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        },
+        {
+         "type": "integer"
+        }
+       ],
+       "minItems": 4,
+       "maxItems": 4
+      }
+     },
+     "waiting": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "last_end": {
+      "type": "integer"
+     },
+     "infectious_rooms": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "served",
+     "waiting",
+     "last_end",
+     "infectious_rooms"
+    ],
+    "additionalProperties": false
+   },
+   "answer": {
+    "served": [
+     [
+      "P05",
+      "R1",
+      5,
+      12
+     ],
+     [
+      "P06",
+      "R2",
+      9,
+      15
+     ],
+     [
+      "P08",
+      "R3",
+      11,
+      18
+     ],
+     [
+      "P04",
+      "R1",
+      16,
+      24
+     ],
+     [
+      "P02",
+      "R3",
+      18,
+      25
+     ],
+     [
+      "P09",
+      "R2",
+      28,
+      36
+     ],
+     [
+      "P11",
+      "R1",
+      37,
+      41
+     ]
+    ],
+    "waiting": [
+     "P07",
+     "P03",
+     "P10",
+     "P12",
+     "P01"
+    ],
+    "last_end": 41,
+    "infectious_rooms": [
+     "R1",
+     "R2"
+    ]
+   },
+   "deletion": [
+    {
+     "condition": "诊室感染限制",
+     "changed": [
+      "infectious_rooms",
+      "last_end",
+      "served"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "清场",
+     "changed": [
+      "last_end",
+      "served"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "关门时刻",
+     "changed": [
+      "last_end",
+      "served",
+      "waiting"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "急诊优先",
+     "changed": [
+      "last_end",
+      "served",
+      "waiting"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "诊室日容量",
+     "changed": [
+      "last_end",
+      "served",
+      "waiting"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "感染开诊截止",
+     "changed": [
+      "last_end",
+      "served",
+      "waiting"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "诊室突发停用",
+     "changed": [
+      "last_end",
+      "served",
+      "waiting"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "清场升级",
+     "changed": [
+      "last_end",
+      "served",
+      "waiting"
+     ],
+     "required": [],
+     "ok": true
+    }
+   ]
+  },
+  {
+   "item_id": "NX-10",
+   "title": "充电峰谷和预约占用",
+   "tier": "A",
+   "seed": 21261020,
+   "instance": {
+    "piles": {
+     "P1": 2,
+     "P2": 3,
+     "P3": 4
+    },
+    "min_energy": {
+     "P3": 10
+    },
+    "gap": 2,
+    "max_concurrent": 2,
+    "tariff": [
+     [
+      0,
+      14,
+      2
+     ],
+     [
+      14,
+      17,
+      1
+     ],
+     [
+      17,
+      34,
+      1
+     ],
+     [
+      34,
+      40,
+      2
+     ]
+    ],
+    "reservations": {
+     "P1": [
+      [
+       23,
+       31
+      ]
+     ],
+     "P2": [
+      [
+       22,
+       25
+      ]
+     ],
+     "P3": [
+      [
+       7,
+       15
+      ]
+     ]
+    },
+    "vehicles": [
+     [
+      "V01",
+      15,
+      11,
+      24
+     ],
+     [
+      "V02",
+      6,
+      16,
+      12
+     ],
+     [
+      "V03",
+      1,
+      10,
+      7
+     ],
+     [
+      "V04",
+      17,
+      16,
+      25
+     ],
+     [
+      "V05",
+      24,
+      8,
+      29
+     ],
+     [
+      "V06",
+      23,
+      14,
+      30
+     ],
+     [
+      "V07",
+      8,
+      8,
+      17
+     ],
+     [
+      "V08",
+      14,
+      15,
+      26
+     ],
+     [
+      "V09",
+      3,
+      5,
+      9
+     ],
+     [
+      "V10",
+      1,
+      9,
+      10
+     ]
+    ],
+    "pile_fail": {},
+    "blackout": [],
+    "mutex_events": [
+     {
+      "id": "fail",
+      "t": 15,
+      "kind": "pile_fail",
+      "pile": "P2",
+      "span": [
+       15,
+       28
+      ]
+     },
+     {
+      "id": "black",
+      "t": 22,
+      "kind": "blackout",
+      "span": [
+       22,
+       26
+      ]
+     }
+    ]
+   },
+   "prompt": "充电桩：P1 功率 2, P2 功率 3, P3 功率 4。预约占用（半开区间，不可充电）：P1:[23,31)；P2:[22,25)；P3:[7,15)。\n电价表每项 `[开始, 结束, 每分钟价格]`（半开区间）：[[0,14,2],[14,17,1],[17,34,1],[34,40,2]]。\n车辆表每行 `[id, 到达, 电量, deadline]`：[[\"V01\",15,11,24],[\"V02\",6,16,12],[\"V03\",1,10,7],[\"V04\",17,16,25],[\"V05\",24,8,29],[\"V06\",23,14,30],[\"V07\",8,8,17],[\"V08\",14,15,26],[\"V09\",3,5,9],[\"V10\",1,9,10]]。\n约束：\n- 车辆在某桩充电时长为 `ceil(电量/功率)` 分钟，必须连续；开始时刻为不早于到达的整数，结束时刻 ≤ deadline。\n- 同一桩任意时刻最多一辆车，不得与预约或已确定的车辆重叠（半开区间）。\n- 费用 = 充电各分钟所在时段价格之和，与功率无关。\n- 同一桩相邻两段充电（含预约）之间至少空闲 2 分钟。\n- 任意时刻全站同时充电车辆数不超过 2（预约不计入）。\n- 互斥突发候选（每项含 id/t/kind/...）：[{\"id\":\"fail\",\"t\":15,\"kind\":\"pile_fail\",\"pile\":\"P2\",\"span\":[15,28]},{\"id\":\"black\",\"t\":22,\"kind\":\"blackout\",\"span\":[22,26]}]。**仅生效一条**：触发时刻 t 最早者；t 相同取 id 字典序最小。`pile_fail` 使该桩半开不可用；`blackout` 使全站半开不可用。未生效的候选视为不存在。\n- 另需给出反事实：若上述互斥突发全部不发生，按同一车辆顺序规则得到的 `total_cost`，记为 `cf_cost`；并输出实际生效的突发 id 为 `active_shock`（字符串）。\n- 桩的最低电量要求（电量低于该值的车辆不能使用该桩）：{\"P3\":10}；未列出的桩无要求。\n- 车辆按表中顺序确定方案；每辆车的方案必须是：在与之前已确定方案不冲突的全部可行（桩, 开始时刻）中，费用最低；费用相同则结束时刻最早；再按桩编号。没有可行方案的车辆记为拒绝，不占用任何时段。\n输出 JSON 对象，只含以下字段：\n- `assign`：数组，每项 `[车辆id, 桩, 开始, 结束, 费用]`，按车辆表顺序，只含被接受的车辆。\n- `rejected`：数组，被拒绝车辆 id，按车辆表顺序；没有则为 `[]`。\n- `total_cost`：整数，assign 中费用之和。\n输出必须是单个 JSON 对象并严格符合以下 JSON Schema（整数不得写成字符串或小数，不得增减字段）：\n{\"type\":\"object\",\"properties\":{\"assign\":{\"type\":\"array\",\"items\":{\"type\":\"array\",\"prefixItems\":[{\"type\":\"string\"},{\"type\":\"string\"},{\"type\":\"integer\"},{\"type\":\"integer\"},{\"type\":\"integer\"}],\"minItems\":5,\"maxItems\":5}},\"rejected\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"total_cost\":{\"type\":\"integer\"},\"cf_cost\":{\"type\":\"integer\"},\"active_shock\":{\"type\":\"string\"}},\"required\":[\"assign\",\"rejected\",\"total_cost\",\"cf_cost\",\"active_shock\"],\"additionalProperties\":false}",
+   "schema": {
+    "type": "object",
+    "properties": {
+     "assign": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        },
+        {
+         "type": "integer"
+        },
+        {
+         "type": "integer"
+        }
+       ],
+       "minItems": 5,
+       "maxItems": 5
+      }
+     },
+     "rejected": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "total_cost": {
+      "type": "integer"
+     },
+     "cf_cost": {
+      "type": "integer"
+     },
+     "active_shock": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "assign",
+     "rejected",
+     "total_cost",
+     "cf_cost",
+     "active_shock"
+    ],
+    "additionalProperties": false
+   },
+   "answer": {
+    "assign": [
+     [
+      "V01",
+      "P3",
+      17,
+      20,
+      3
+     ],
+     [
+      "V02",
+      "P2",
+      6,
+      12,
+      12
+     ],
+     [
+      "V03",
+      "P3",
+      1,
+      4,
+      6
+     ],
+     [
+      "V06",
+      "P3",
+      23,
+      27,
+      4
+     ],
+     [
+      "V07",
+      "P1",
+      13,
+      17,
+      5
+     ],
+     [
+      "V09",
+      "P1",
+      3,
+      6,
+      6
+     ]
+    ],
+    "rejected": [
+     "V04",
+     "V05",
+     "V08",
+     "V10"
+    ],
+    "total_cost": 36,
+    "cf_cost": 34,
+    "active_shock": "fail"
+   },
+   "deletion": [
+    {
+     "condition": "桩最低电量",
+     "changed": [
+      "assign",
+      "cf_cost",
+      "rejected",
+      "total_cost"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "预约占用",
+     "changed": [
+      "assign",
+      "cf_cost",
+      "rejected",
+      "total_cost"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "分时电价",
+     "changed": [
+      "assign",
+      "cf_cost",
+      "total_cost"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "deadline",
+     "changed": [
+      "assign",
+      "cf_cost",
+      "rejected",
+      "total_cost"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "桩间空闲间隔",
+     "changed": [
+      "assign",
+      "cf_cost",
+      "rejected",
+      "total_cost"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "同时充电上限",
+     "changed": [
+      "assign",
+      "cf_cost",
+      "rejected",
+      "total_cost"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "互斥择一",
+     "changed": [
+      "active_shock",
+      "assign"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "反事实分支",
+     "changed": [
+      "cf_cost"
+     ],
+     "required": [
+      "cf_cost"
+     ],
+     "ok": true
+    }
+   ]
+  },
+  {
+   "item_id": "NX-11",
+   "title": "冷链批次锁定与取消归还",
+   "tier": "B",
+   "seed": 21361119,
+   "instance": {
+    "batches": {
+     "A": {
+      "qty": 8,
+      "expiry": 27,
+      "zone": "cold"
+     },
+     "B": {
+      "qty": 6,
+      "expiry": 25,
+      "zone": "cold"
+     },
+     "C": {
+      "qty": 6,
+      "expiry": 39,
+      "zone": "frozen"
+     },
+     "D": {
+      "qty": 9,
+      "expiry": 27,
+      "zone": "frozen"
+     }
+    },
+    "events": [
+     {
+      "t": 3,
+      "op": "ORDER",
+      "id": "O01",
+      "qty": 4,
+      "zone": "frozen",
+      "vip": 1
+     },
+     {
+      "t": 10,
+      "op": "ORDER",
+      "id": "O02",
+      "qty": 2,
+      "zone": "cold",
+      "vip": 0
+     },
+     {
+      "t": 12,
+      "op": "ORDER",
+      "id": "O03",
+      "qty": 6,
+      "zone": "frozen",
+      "vip": 0
+     },
+     {
+      "t": 14,
+      "op": "ORDER",
+      "id": "O04",
+      "qty": 3,
+      "zone": "frozen",
+      "vip": 1
+     },
+     {
+      "t": 17,
+      "op": "CANCEL",
+      "id": "O03"
+     },
+     {
+      "t": 20,
+      "op": "LOAD"
+     },
+     {
+      "t": 21,
+      "op": "RECALL",
+      "batch": "B"
+     },
+     {
+      "t": 22,
+      "op": "ORDER",
+      "id": "O05",
+      "qty": 5,
+      "zone": "cold",
+      "vip": 1
+     },
+     {
+      "t": 22,
+      "op": "LOAD"
+     },
+     {
+      "t": 26,
+      "op": "CANCEL",
+      "id": "O05"
+     },
+     {
+      "t": 27,
+      "op": "ORDER",
+      "id": "O06",
+      "qty": 3,
+      "zone": "cold",
+      "vip": 1
+     },
+     {
+      "t": 29,
+      "op": "ORDER",
+      "id": "O07",
+      "qty": 2,
+      "zone": "cold",
+      "vip": 0
+     },
+     {
+      "t": 31,
+      "op": "ORDER",
+      "id": "O08",
+      "qty": 6,
+      "zone": "frozen",
+      "vip": 0
+     },
+     {
+      "t": 39,
+      "op": "ORDER",
+      "id": "O09",
+      "qty": 2,
+      "zone": "cold",
+      "vip": 0
+     },
+     {
+      "t": 39,
+      "op": "ORDER",
+      "id": "O10",
+      "qty": 5,
+      "zone": "cold",
+      "vip": 0
+     },
+     {
+      "t": 40,
+      "op": "LOAD"
+     }
+    ],
+    "windows": [
+     [
+      6,
+      12
+     ],
+     [
+      17,
+      24
+     ]
+    ],
+    "capacity": 9,
+    "max_open": 2,
+    "vip_first": true,
+    "capacity_shock": true
+   },
+   "prompt": "批次表每行 `[批次, 数量, expiry, 温区]`：[[\"A\",8,27,\"cold\"],[\"B\",6,25,\"cold\"],[\"C\",6,39,\"frozen\"],[\"D\",9,27,\"frozen\"]]。批次在 expiry 时刻及以后视为过期。\n装车窗口（半开区间）：[[6,12],[17,24]]；每次装车容量 9；从第二个装车窗口起，装车容量减半（向下取整，至少 1）。\n事件按表中顺序发生，每行 `[时刻, 类型, ...]`：[[3,\"ORDER\",\"O01\",4,\"frozen\",1],[10,\"ORDER\",\"O02\",2,\"cold\",0],[12,\"ORDER\",\"O03\",6,\"frozen\",0],[14,\"ORDER\",\"O04\",3,\"frozen\",1],[17,\"CANCEL\",\"O03\"],[20,\"LOAD\"],[21,\"RECALL\",\"B\"],[22,\"ORDER\",\"O05\",5,\"cold\",1],[22,\"LOAD\"],[26,\"CANCEL\",\"O05\"],[27,\"ORDER\",\"O06\",3,\"cold\",1],[29,\"ORDER\",\"O07\",2,\"cold\",0],[31,\"ORDER\",\"O08\",6,\"frozen\",0],[39,\"ORDER\",\"O09\",2,\"cold\",0],[39,\"ORDER\",\"O10\",5,\"cold\",0],[40,\"LOAD\"]]。\n约束：\n- ORDER `[t,\"ORDER\",订单,数量,温区,vip]`：订单必须整单锁定在温区相同的单个批次上，该批次在 t 未过期、未锁定数量 ≥ 订单数量，且该批次上处于“锁定且未装车”的订单少于 2 个；满足条件的批次中必须选 expiry 最小者，同 expiry 选批次名小者。没有则拒绝。vip=1 为加急。\n- CANCEL `[t,\"CANCEL\",订单]`：仅对处于锁定且未装车的订单生效，锁定数量归还该批次；其余情况无效果。\n- RECALL `[t,\"RECALL\",批次]`：该批次剩余未锁定数量清零且之后不可再锁定；当前锁定未装车且落在该批次上的订单视为取消且数量不归还（销毁）。\n- LOAD `[t,\"LOAD\"]`：t 不在任何装车窗口内则无效果。否则先装 vip=1，再装其余；同组内按锁定时刻、订单 id 次序：所锁批次在 t 已过期的不装；累计不超过当时窗口容量的装车，装不下的跳过。未装车的保持锁定。\n- 互斥突发：题面中的 RECALL 与「第二窗口容量减半」至多生效一条——比较 RECALL 时刻与第二装车窗口开始时刻，较早者生效；同时刻优先 RECALL。未生效者视为从未发生。\n- 反事实：若召回与容量冲击都不发生，各批次 free 之和为 `cf_free_sum`；`active_shock` 为实际生效分支 id（召回形如 recall-X，容量冲击为 capshock）。\n输出 JSON 对象，只含以下字段：\n- `locks`：数组，每项 `[订单, 批次, 数量]`，所有锁定成功过的订单（含之后被取消的），按锁定事件顺序。\n- `loaded`：数组，已装车订单 id，按装车先后。\n- `free`：对象，键为每个批次名，值为全部事件结束后该批次未被锁定的数量（已装车数量不再计入未锁定）。\n- `rejected`：数组，被拒绝订单 id，按事件顺序。\n输出必须是单个 JSON 对象并严格符合以下 JSON Schema（整数不得写成字符串或小数，不得增减字段）：\n{\"type\":\"object\",\"properties\":{\"locks\":{\"type\":\"array\",\"items\":{\"type\":\"array\",\"prefixItems\":[{\"type\":\"string\"},{\"type\":\"string\"},{\"type\":\"integer\"}],\"minItems\":3,\"maxItems\":3}},\"loaded\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"free\":{\"type\":\"object\",\"additionalProperties\":{\"type\":\"integer\"}},\"rejected\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"cf_free_sum\":{\"type\":\"integer\"},\"active_shock\":{\"type\":\"string\"}},\"required\":[\"locks\",\"loaded\",\"free\",\"rejected\",\"cf_free_sum\",\"active_shock\"],\"additionalProperties\":false}",
+   "schema": {
+    "type": "object",
+    "properties": {
+     "locks": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ],
+       "minItems": 3,
+       "maxItems": 3
+      }
+     },
+     "loaded": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "free": {
+      "type": "object",
+      "additionalProperties": {
+       "type": "integer"
+      }
+     },
+     "rejected": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "cf_free_sum": {
+      "type": "integer"
+     },
+     "active_shock": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "locks",
+     "loaded",
+     "free",
+     "rejected",
+     "cf_free_sum",
+     "active_shock"
+    ],
+    "additionalProperties": false
+   },
+   "answer": {
+    "locks": [
+     [
+      "O01",
+      "D",
+      4
+     ],
+     [
+      "O02",
+      "B",
+      2
+     ],
+     [
+      "O03",
+      "C",
+      6
+     ],
+     [
+      "O04",
+      "D",
+      3
+     ],
+     [
+      "O05",
+      "A",
+      5
+     ],
+     [
+      "O08",
+      "C",
+      6
+     ]
+    ],
+    "loaded": [
+     "O01",
+     "O04"
+    ],
+    "free": {
+     "A": 8,
+     "B": 4,
+     "C": 0,
+     "D": 2
+    },
+    "rejected": [
+     "O06",
+     "O07",
+     "O09",
+     "O10"
+    ],
+    "cf_free_sum": 9,
+    "active_shock": "capshock"
+   },
+   "deletion": [
+    {
+     "condition": "取消归还",
+     "changed": [
+      "free",
+      "locks",
+      "rejected"
+     ],
+     "required": [
+      "locks"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "批次过期",
+     "changed": [
+      "cf_free_sum",
+      "free",
+      "locks",
+      "rejected"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "装车窗口",
+     "changed": [
+      "free",
+      "loaded"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "装车容量",
+     "changed": [
+      "free",
+      "loaded"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "温区匹配",
+     "changed": [
+      "cf_free_sum",
+      "free",
+      "locks",
+      "rejected"
+     ],
+     "required": [
+      "locks"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "召回容量互斥",
+     "changed": [
+      "active_shock",
+      "free"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "反事实分支",
+     "changed": [
+      "cf_free_sum"
+     ],
+     "required": [
+      "cf_free_sum"
+     ],
+     "ok": true
+    }
+   ]
+  },
+  {
+   "item_id": "NX-12",
+   "title": "电梯停运下的外卖路线",
+   "tier": "C",
+   "seed": 21461016,
+   "instance": {
+    "roads": {
+     "W-L1": 5,
+     "W-L2": 5,
+     "W-L3": 3,
+     "L1-L2": 8,
+     "L1-L3": 4,
+     "L2-L3": 6
+    },
+    "outages": {
+     "L1": [
+      [
+       28,
+       37
+      ]
+     ],
+     "L2": [
+      [
+       2,
+       16
+      ]
+     ],
+     "L3": [
+      [
+       14,
+       24
+      ]
+     ]
+    },
+    "orders": {
+     "A": {
+      "building": "L1",
+      "floor": 8,
+      "deadline": 30
+     },
+     "B": {
+      "building": "L2",
+      "floor": 2,
+      "deadline": 45
+     },
+     "C": {
+      "building": "L3",
+      "floor": 3,
+      "deadline": 40
+     },
+     "D": {
+      "building": "L1",
+      "floor": 6,
+      "deadline": 72
+     },
+     "E": {
+      "building": "L3",
+      "floor": 6,
+      "deadline": 54
+     },
+     "F": {
+      "building": "L3",
+      "floor": 4,
+      "deadline": 75
+     }
+    },
+    "down_rate": 1,
+    "register": {
+     "L1": 1,
+     "L2": 1,
+     "L3": 0
+    },
+    "congestion_from": 22,
+    "congestion_mult": 2,
+    "max_carry": 3,
+    "closed": {
+     "L3": [
+      [
+       18,
+       26
+      ]
+     ]
+    },
+    "cancel_ids": [
+     "E"
+    ],
+    "flood": [
+     12,
+     "L2"
+    ],
+    "detour": 0
+   },
+   "prompt": "骑手 0 分钟在站点 W（地面），完成全部订单，顺序自选。任意两地点之间道路双向可走，行驶分钟表每行 `[地点, 地点, 分钟]`：[[\"W\",\"L1\",5],[\"W\",\"L2\",5],[\"W\",\"L3\",3],[\"L1\",\"L2\",8],[\"L1\",\"L3\",4],[\"L2\",\"L3\",6]]。\n订单表每行 `[id, 楼宇, 楼层, deadline]`，订单均在 0 分钟可配送：[[\"A\",\"L1\",8,30],[\"B\",\"L2\",2,45],[\"C\",\"L3\",3,40],[\"D\",\"L1\",6,72],[\"E\",\"L3\",6,54],[\"F\",\"L3\",4,75]]。\n电梯停运区间（半开区间 [开始, 结束)）：{\"L1\":[[28,37]],\"L2\":[[2,16]],\"L3\":[[14,24]]}。\n首次进入楼宇需在地面登记（分钟，同一楼宇再次进入不再登记）：{\"L1\":1,\"L2\":1,\"L3\":0}。\n楼宇封闭区间（半开）：{\"L3\":[[18,26]]}。从时刻 22 起道路时间×2。连续配送上限 3 单，满则先回 W。\n取消订单（不必配送）：[\"E\"]。从时刻 12 起楼宇 L2 因洪涝不可进入（须在此前完成该楼全部订单）。\n规则：\n- 到达楼宇地面并完成需要的登记后，若处于封闭则等到结束；然后若该时刻处于该楼宇停运区间内，本次上楼步行，每层 2 分钟；否则乘电梯，每层 1 分钟。上楼期间状态变化不影响本次上楼。送达时刻 = 到达所在楼层的时刻。\n- 送达后回到地面固定每层 1 分钟（不受电梯状态影响），再出发去下一单；下一单在同一楼宇时道路分钟为 0，仍需下楼再上楼。最后一单送达即结束，不再下楼。\n- 送达时刻 > deadline 为迟到；deadline 不限制顺序。\n- 目标：使最后一单送达时刻最小（本实例满足目标的顺序唯一）。\n- 互斥突发：洪涝封楼与楼宇封闭候选中只生效一条——开始时刻最早者；同时刻取 id 字典序最小（洪涝 id 为 flood，封闭为 closed-楼-开始）。未生效者视为不存在。\n- 反事实：若洪涝与封闭都不发生，最短完成时刻为 `cf_total`；`active_shock` 为生效 id。\n输出 JSON 对象，只含以下字段：\n- `route`：数组，订单 id 的配送顺序。\n- `arrivals`：数组，每项 `[订单id, 送达时刻]`，按配送顺序。\n- `late`：数组，迟到订单 id，按 id 升序；没有则为 `[]`。\n- `total`：整数，最后一单送达时刻。\n输出必须是单个 JSON 对象并严格符合以下 JSON Schema（整数不得写成字符串或小数，不得增减字段）：\n{\"type\":\"object\",\"properties\":{\"route\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"arrivals\":{\"type\":\"array\",\"items\":{\"type\":\"array\",\"prefixItems\":[{\"type\":\"string\"},{\"type\":\"integer\"}],\"minItems\":2,\"maxItems\":2}},\"late\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"total\":{\"type\":\"integer\"},\"cf_total\":{\"type\":\"integer\"},\"active_shock\":{\"type\":\"string\"}},\"required\":[\"route\",\"arrivals\",\"late\",\"total\",\"cf_total\",\"active_shock\"],\"additionalProperties\":false}",
+   "schema": {
+    "type": "object",
+    "properties": {
+     "route": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "arrivals": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ],
+       "minItems": 2,
+       "maxItems": 2
+      }
+     },
+     "late": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "total": {
+      "type": "integer"
+     },
+     "cf_total": {
+      "type": "integer"
+     },
+     "active_shock": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "route",
+     "arrivals",
+     "late",
+     "total",
+     "cf_total",
+     "active_shock"
+    ],
+    "additionalProperties": false
+   },
+   "answer": {
+    "route": [
+     "B",
+     "C",
+     "F",
+     "D",
+     "A"
+    ],
+    "arrivals": [
+     [
+      "B",
+      10
+     ],
+     [
+      "C",
+      24
+     ],
+     [
+      "F",
+      31
+     ],
+     [
+      "D",
+      58
+     ],
+     [
+      "A",
+      72
+     ]
+    ],
+    "late": [
+     "A"
+    ],
+    "total": 72,
+    "cf_total": 69,
+    "active_shock": "flood"
+   },
+   "deletion": [
+    {
+     "condition": "下楼耗时",
+     "changed": [
+      "arrivals",
+      "cf_total",
+      "late",
+      "route",
+      "total"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "首次登记",
+     "changed": [
+      "arrivals",
+      "cf_total",
+      "total"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "道路拥堵",
+     "changed": [
+      "arrivals",
+      "cf_total",
+      "total"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "连续配送上限",
+     "changed": [
+      "arrivals",
+      "cf_total",
+      "total"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "订单取消",
+     "changed": [
+      "arrivals",
+      "cf_total",
+      "late",
+      "route",
+      "total"
+     ],
+     "required": [
+      "route"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "洪涝封闭互斥",
+     "changed": [
+      "active_shock",
+      "arrivals",
+      "late",
+      "route",
+      "total"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "反事实分支",
+     "changed": [
+      "cf_total"
+     ],
+     "required": [
+      "cf_total"
+     ],
+     "ok": true
+    }
+   ]
+  },
+  {
+   "item_id": "NX-13",
+   "title": "航班延误与机组时限",
+   "tier": "C",
+   "seed": 21561016,
+   "instance": {
+    "turn": 30,
+    "max_legs": 2,
+    "crews": {
+     "C1": {
+      "base": "PEK",
+      "from": 455,
+      "cap": 150
+     },
+     "C2": {
+      "base": "SHA",
+      "from": 430,
+      "cap": 200
+     },
+     "C3": {
+      "base": "CAN",
+      "from": 440,
+      "cap": 200
+     }
+    },
+    "flights": {
+     "F01": {
+      "from": "PEK",
+      "to": "SHA",
+      "dep": 495,
+      "arr": 565,
+      "plan": "C1"
+     },
+     "F02": {
+      "from": "SHA",
+      "to": "CAN",
+      "dep": 465,
+      "arr": 540,
+      "plan": "C2"
+     },
+     "F03": {
+      "from": "CAN",
+      "to": "SHA",
+      "dep": 475,
+      "arr": 565,
+      "plan": "C3"
+     },
+     "F04": {
+      "from": "SHA",
+      "to": "PEK",
+      "dep": 595,
+      "arr": 680,
+      "plan": "C1"
+     },
+     "F05": {
+      "from": "CAN",
+      "to": "PEK",
+      "dep": 565,
+      "arr": 655,
+      "plan": "C2"
+     },
+     "F06": {
+      "from": "SHA",
+      "to": "PEK",
+      "dep": 590,
+      "arr": 665,
+      "plan": "C3"
+     },
+     "F07": {
+      "from": "PEK",
+      "to": "CAN",
+      "dep": 720,
+      "arr": 815,
+      "plan": "C1"
+     },
+     "F08": {
+      "from": "PEK",
+      "to": "CAN",
+      "dep": 685,
+      "arr": 765,
+      "plan": "C2"
+     },
+     "F09": {
+      "from": "PEK",
+      "to": "CAN",
+      "dep": 700,
+      "arr": 765,
+      "plan": "C3"
+     },
+     "F10": {
+      "from": "CAN",
+      "to": "PEK",
+      "dep": 855,
+      "arr": 960,
+      "plan": "C1"
+     }
+    },
+    "events": [
+     {
+      "op": "arrdelay",
+      "id": "F10",
+      "min": 5
+     },
+     {
+      "op": "arrdelay",
+      "id": "F04",
+      "min": 20
+     },
+     {
+      "op": "arrdelay",
+      "id": "F05",
+      "min": 15
+     },
+     {
+      "op": "depdelay",
+      "id": "F02",
+      "min": 20
+     },
+     {
+      "op": "close",
+      "id": "F03"
+     }
+    ],
+    "sick": {
+     "C2": 696
+    },
+    "ground_stop": [
+     "CAN",
+     530,
+     715
+    ]
+   },
+   "prompt": "时刻一律换算为当天 0 点起的分钟数输出。机组表每行 `[机组, 初始机场, 最早可执勤时刻, 执勤上限分钟]`：[[\"C1\",\"PEK\",\"07:35\",150],[\"C2\",\"SHA\",\"07:10\",200],[\"C3\",\"CAN\",\"07:20\",200]]。\n航段表每行 `[航段, 起飞机场, 落地机场, 计划起飞, 计划落地, 计划机组]`：[[\"F01\",\"PEK\",\"SHA\",\"08:15\",\"09:25\",\"C1\"],[\"F02\",\"SHA\",\"CAN\",\"07:45\",\"09:00\",\"C2\"],[\"F03\",\"CAN\",\"SHA\",\"07:55\",\"09:25\",\"C3\"],[\"F04\",\"SHA\",\"PEK\",\"09:55\",\"11:20\",\"C1\"],[\"F05\",\"CAN\",\"PEK\",\"09:25\",\"10:55\",\"C2\"],[\"F06\",\"SHA\",\"PEK\",\"09:50\",\"11:05\",\"C3\"],[\"F07\",\"PEK\",\"CAN\",\"12:00\",\"13:35\",\"C1\"],[\"F08\",\"PEK\",\"CAN\",\"11:25\",\"12:45\",\"C2\"],[\"F09\",\"PEK\",\"CAN\",\"11:40\",\"12:45\",\"C3\"],[\"F10\",\"CAN\",\"PEK\",\"14:15\",\"16:00\",\"C1\"]]。\n事件：`arrdelay F10 +5`、`arrdelay F04 +20`、`arrdelay F05 +15`、`depdelay F02 +20`、`close F03`。`arrdelay X +d`：X 起飞不变、落地推迟 d 分钟；`depdelay X +d`：X 起飞与落地都推迟 d 分钟；`close X`：X 不执行。同一航段的多个事件全部生效。\n突发：机组病假（从该分钟起不可执勤）：{\"C2\":696}；机场禁飞半开区间 [机场, 开始, 结束]（起飞时刻落在区间内则该航段起降涉及该机场时无人可执行）：[\"CAN\",530,715]。\n约束：\n- 航段的实际起飞、落地按事件调整后为准，各航段按实际起飞时刻（同刻按航段号）依次确定执行机组。\n- 机组可执行某航段，当且仅当：机组当前所在机场等于起飞机场；实际起飞时刻 ≥ 机组可用时刻（初始为最早可执勤时刻，执行航段后变为该航段实际落地 + 30 分钟）；已执行航段的（落地−起飞）之和加上本航段 ≤ 执勤上限；已执行航段数 < 2；该机组未处于病假；起飞时刻未落在禁飞影响下。执行后机组位于落地机场。\n- 计划机组可执行时必须由计划机组执行；否则由可执行的其他机组中编号最小者执行；都不能执行则该航段取消。\n- 互斥突发：机组病假与机场禁飞至多生效一条——比较病假开始时刻与禁飞区间开始时刻，较早者生效；同时刻优先病假。未生效者视为不存在。\n- 反事实：若病假与禁飞都不发生，取消航段个数为 `cf_cancelled_n`；`active_shock` 为生效 id。\n输出 JSON 对象，只含以下字段：\n- `flights`：数组，每项 `[航段, 机组, 实际起飞分钟, 实际落地分钟]`，只含执行的航段，按起飞分钟、航段号升序。\n- `cancelled`：数组，未执行的航段号（含 close），按航段号升序。\n- `duty`：对象，键为全部机组，值为该机组所执行航段（落地−起飞）之和，未执行为 0。\n- `last_end`：整数，执行航段的最大实际落地分钟。\n输出必须是单个 JSON 对象并严格符合以下 JSON Schema（整数不得写成字符串或小数，不得增减字段）：\n{\"type\":\"object\",\"properties\":{\"flights\":{\"type\":\"array\",\"items\":{\"type\":\"array\",\"prefixItems\":[{\"type\":\"string\"},{\"type\":\"string\"},{\"type\":\"integer\"},{\"type\":\"integer\"}],\"minItems\":4,\"maxItems\":4}},\"cancelled\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"duty\":{\"type\":\"object\",\"additionalProperties\":{\"type\":\"integer\"}},\"last_end\":{\"type\":\"integer\"},\"cf_cancelled_n\":{\"type\":\"integer\"},\"active_shock\":{\"type\":\"string\"}},\"required\":[\"flights\",\"cancelled\",\"duty\",\"last_end\",\"cf_cancelled_n\",\"active_shock\"],\"additionalProperties\":false}",
+   "schema": {
+    "type": "object",
+    "properties": {
+     "flights": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        },
+        {
+         "type": "integer"
+        }
+       ],
+       "minItems": 4,
+       "maxItems": 4
+      }
+     },
+     "cancelled": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "duty": {
+      "type": "object",
+      "additionalProperties": {
+       "type": "integer"
+      }
+     },
+     "last_end": {
+      "type": "integer"
+     },
+     "cf_cancelled_n": {
+      "type": "integer"
+     },
+     "active_shock": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "flights",
+     "cancelled",
+     "duty",
+     "last_end",
+     "cf_cancelled_n",
+     "active_shock"
+    ],
+    "additionalProperties": false
+   },
+   "answer": {
+    "flights": [
+     [
+      "F02",
+      "C2",
+      485,
+      560
+     ],
+     [
+      "F01",
+      "C1",
+      495,
+      565
+     ],
+     [
+      "F10",
+      "C2",
+      855,
+      965
+     ]
+    ],
+    "cancelled": [
+     "F03",
+     "F04",
+     "F05",
+     "F06",
+     "F07",
+     "F08",
+     "F09"
+    ],
+    "duty": {
+     "C1": 70,
+     "C2": 185,
+     "C3": 0
+    },
+    "last_end": 965,
+    "cf_cancelled_n": 5,
+    "active_shock": "ground"
+   },
+   "deletion": [
+    {
+     "condition": "落地延误",
+     "changed": [
+      "duty",
+      "flights",
+      "last_end"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "起飞延误",
+     "changed": [
+      "flights"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "航段关闭",
+     "changed": [
+      "cancelled",
+      "duty",
+      "flights"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "转场时间",
+     "changed": [
+      "cancelled",
+      "duty",
+      "flights"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "执勤上限",
+     "changed": [
+      "cancelled",
+      "cf_cancelled_n",
+      "duty",
+      "flights"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "病假禁飞互斥",
+     "changed": [
+      "active_shock",
+      "duty",
+      "flights"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "反事实分支",
+     "changed": [
+      "cf_cancelled_n"
+     ],
+     "required": [
+      "cf_cancelled_n"
+     ],
+     "ok": true
+    }
+   ]
+  },
+  {
+   "item_id": "NX-14",
+   "title": "充电站老化优先级排队",
+   "tier": "B",
+   "seed": 21661162,
+   "instance": {
+    "piles": {
+     "S1": 2,
+     "S2": 1
+    },
+    "min_prio": {
+     "S2": 2
+    },
+    "tariff": [
+     [
+      0,
+      14,
+      3
+     ],
+     [
+      14,
+      37,
+      2
+     ],
+     [
+      37,
+      200,
+      1
+     ]
+    ],
+    "peak": [
+     0,
+     14
+    ],
+    "aging": 5,
+    "aging_cap": 1,
+    "max_wait": 18,
+    "peak_ban": {
+     "S1": true
+    },
+    "cars": [
+     [
+      "V01",
+      10,
+      4,
+      1
+     ],
+     [
+      "V02",
+      18,
+      5,
+      2
+     ],
+     [
+      "V03",
+      24,
+      8,
+      1
+     ],
+     [
+      "V04",
+      8,
+      3,
+      1
+     ],
+     [
+      "V05",
+      1,
+      9,
+      1
+     ],
+     [
+      "V06",
+      16,
+      6,
+      2
+     ],
+     [
+      "V07",
+      2,
+      4,
+      1
+     ],
+     [
+      "V08",
+      14,
+      8,
+      3
+     ],
+     [
+      "V09",
+      13,
+      5,
+      2
+     ],
+     [
+      "V10",
+      29,
+      8,
+      2
+     ]
+    ],
+    "pile_down": {
+     "S2": [
+      [
+       20,
+       35
+      ]
+     ]
+    },
+    "aging_off_after": 30
+   },
+   "prompt": "充电桩：S1 功率 2, S2 功率 1，0 分钟全部空闲。电价表每项 `[开始, 结束, 每分钟价格]`（半开区间）：[[0,14,3],[14,37,2],[37,200,1]]。\n车辆表每行 `[id, 到达, 电量, 初始priority]`：[[\"V01\",10,4,1],[\"V02\",18,5,2],[\"V03\",24,8,1],[\"V04\",8,3,1],[\"V05\",1,9,1],[\"V06\",16,6,2],[\"V07\",2,4,1],[\"V08\",14,8,3],[\"V09\",13,5,2],[\"V10\",29,8,2]]。\n约束：\n- 车辆在桩上充电时长为 `ceil(电量/功率)` 分钟，开始后不可中断、不可换桩；同一桩同一时刻最多一辆车。\n- 桩的准入（初始priority 低于该值的车辆不能使用该桩）：{\"S2\":2}；未列出的桩无要求。\n- 峰时 [0,14) 禁用的桩：[\"S1\"]。\n- 等待超过 18 分钟仍未开始则离开。\n- 桩突发停用（半开）：{\"S2\":[[20,35]]}。\n- 从第 30 分钟起，等待不再增加有效 priority（老化停止）。\n- 桩不得闲置：任一时刻若某桩空闲、未被禁用，且有已到达未开始、可使用该桩的车辆，该时刻必须开始充电。\n- 车辆在时刻 t 的有效 priority = 初始priority + min(floor((t − 到达) / 5), 1)。桩接车时选有效 priority 最大者；相同则到达早者优先，再按 id。多空闲桩时编号小的先接。\n- 费用 = 充电各分钟所在时段价格之和，与功率无关。\n输出 JSON 对象，只含以下字段：\n- `schedule`：数组，每项 `[id, 桩, 开始, 结束, 费用]`，按开始、桩编号升序。\n- `peak_cost`：整数，所有车辆落在 [0,14) 内各分钟的费用之和。\n- `finish_order`：数组，车辆 id 按结束时刻升序，同刻按 id。\n输出必须是单个 JSON 对象并严格符合以下 JSON Schema（整数不得写成字符串或小数，不得增减字段）：\n{\"type\":\"object\",\"properties\":{\"schedule\":{\"type\":\"array\",\"items\":{\"type\":\"array\",\"prefixItems\":[{\"type\":\"string\"},{\"type\":\"string\"},{\"type\":\"integer\"},{\"type\":\"integer\"},{\"type\":\"integer\"}],\"minItems\":5,\"maxItems\":5}},\"peak_cost\":{\"type\":\"integer\"},\"finish_order\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}},\"required\":[\"schedule\",\"peak_cost\",\"finish_order\"],\"additionalProperties\":false}",
+   "schema": {
+    "type": "object",
+    "properties": {
+     "schedule": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        },
+        {
+         "type": "integer"
+        },
+        {
+         "type": "integer"
+        }
+       ],
+       "minItems": 5,
+       "maxItems": 5
+      }
+     },
+     "peak_cost": {
+      "type": "integer"
+     },
+     "finish_order": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "schedule",
+     "peak_cost",
+     "finish_order"
+    ],
+    "additionalProperties": false
+   },
+   "answer": {
+    "schedule": [
+     [
+      "V09",
+      "S2",
+      13,
+      18,
+      11
+     ],
+     [
+      "V08",
+      "S1",
+      14,
+      18,
+      8
+     ],
+     [
+      "V05",
+      "S1",
+      18,
+      23,
+      10
+     ],
+     [
+      "V06",
+      "S2",
+      18,
+      24,
+      12
+     ],
+     [
+      "V02",
+      "S1",
+      23,
+      26,
+      6
+     ],
+     [
+      "V04",
+      "S1",
+      26,
+      28,
+      4
+     ],
+     [
+      "V01",
+      "S1",
+      28,
+      30,
+      4
+     ],
+     [
+      "V10",
+      "S1",
+      30,
+      34,
+      8
+     ],
+     [
+      "V03",
+      "S1",
+      34,
+      38,
+      7
+     ]
+    ],
+    "peak_cost": 3,
+    "finish_order": [
+     "V08",
+     "V09",
+     "V05",
+     "V06",
+     "V02",
+     "V04",
+     "V01",
+     "V10",
+     "V03"
+    ]
+   },
+   "deletion": [
+    {
+     "condition": "等待老化",
+     "changed": [
+      "finish_order",
+      "schedule"
+     ],
+     "required": [
+      "schedule"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "初始priority",
+     "changed": [
+      "finish_order",
+      "peak_cost",
+      "schedule"
+     ],
+     "required": [
+      "schedule"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "桩功率差异",
+     "changed": [
+      "finish_order",
+      "schedule"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "桩准入",
+     "changed": [
+      "finish_order",
+      "peak_cost",
+      "schedule"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "老化上限",
+     "changed": [
+      "finish_order",
+      "schedule"
+     ],
+     "required": [
+      "schedule"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "等待超时离开",
+     "changed": [
+      "finish_order",
+      "schedule"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "峰时禁桩",
+     "changed": [
+      "finish_order",
+      "peak_cost",
+      "schedule"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "桩突发停用",
+     "changed": [
+      "finish_order",
+      "schedule"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "老化中止",
+     "changed": [
+      "finish_order",
+      "schedule"
+     ],
+     "required": [],
+     "ok": true
+    }
+   ]
+  },
+  {
+   "item_id": "NX-15",
+   "title": "隔离病床与清洁",
+   "tier": "B",
+   "seed": 21761016,
+   "instance": {
+    "beds": [
+     "B1",
+     "B2",
+     "B3",
+     "B4"
+    ],
+    "isolation": [
+     "B1"
+    ],
+    "emergency_only": [
+     "B4"
+    ],
+    "clean": 7,
+    "light_clean": 2,
+    "bed_cap": {
+     "B1": 3,
+     "B2": 3,
+     "B3": 2,
+     "B4": 3
+    },
+    "close": 53,
+    "emergency_first": true,
+    "outages": {
+     "B1": [
+      [
+       8,
+       37
+      ]
+     ]
+    },
+    "clean_after": [
+     22,
+     18
+    ],
+    "patients": {
+     "P01": {
+      "arrive": 16,
+      "kind": "emergency",
+      "infectious": true,
+      "service": 10
+     },
+     "P02": {
+      "arrive": 7,
+      "kind": "emergency",
+      "infectious": false,
+      "service": 8
+     },
+     "P03": {
+      "arrive": 15,
+      "kind": "emergency",
+      "infectious": false,
+      "service": 8
+     },
+     "P04": {
+      "arrive": 0,
+      "kind": "normal",
+      "infectious": true,
+      "service": 7
+     },
+     "P05": {
+      "arrive": 11,
+      "kind": "normal",
+      "infectious": true,
+      "service": 10
+     },
+     "P06": {
+      "arrive": 24,
+      "kind": "emergency",
+      "infectious": true,
+      "service": 4
+     },
+     "P07": {
+      "arrive": 35,
+      "kind": "normal",
+      "infectious": false,
+      "service": 5
+     },
+     "P08": {
+      "arrive": 14,
+      "kind": "emergency",
+      "infectious": true,
+      "service": 5
+     },
+     "P09": {
+      "arrive": 35,
+      "kind": "normal",
+      "infectious": false,
+      "service": 8
+     },
+     "P10": {
+      "arrive": 4,
+      "kind": "emergency",
+      "infectious": false,
+      "service": 9
+     },
+     "P11": {
+      "arrive": 13,
+      "kind": "normal",
+      "infectious": false,
+      "service": 4
+     },
+     "P12": {
+      "arrive": 36,
+      "kind": "normal",
+      "infectious": true,
+      "service": 10
+     }
+    }
+   },
+   "prompt": "病床 B1, B2, B3, B4，其中隔离床为 B1，0 分钟全部空闲。患者表每行 `[id, 到达分钟, 类型(E=急诊/N=普通), 是否感染(1/0), 占床分钟]`：\n[[\"P01\",16,\"E\",1,10],[\"P02\",7,\"E\",0,8],[\"P03\",15,\"E\",0,8],[\"P04\",0,\"N\",1,7],[\"P05\",11,\"N\",1,10],[\"P06\",24,\"E\",1,4],[\"P07\",35,\"N\",0,5],[\"P08\",14,\"E\",1,5],[\"P09\",35,\"N\",0,8],[\"P10\",4,\"E\",0,9],[\"P11\",13,\"N\",0,4],[\"P12\",36,\"N\",1,10]]\n约束：\n- 一张床同一时刻最多一名患者，占床连续到结束；感染患者只能使用隔离床，非感染患者可用任何床；感染患者离床后该床清洁 7 分钟，清洁结束前不可用。\n- B4 只收急诊患者。\n- 各床当天最多收治人数：{\"B1\":3,\"B2\":3,\"B3\":2,\"B4\":3}。\n- 非感染患者离床后该床轻清 2 分钟。\n- 床位突发停用（半开）：{\"B1\":[[8,37]]}。\n- 从第 22 分钟起，感染患者离床后清洁时长改为 18（此前为 7）。\n- 只有已到达的患者可以上床；上床时刻必须严格小于停止收治时刻 53。\n- 床位不得闲置：任一时刻若某床可用且存在已到达、未上床且可用该床的患者（且未停止收治），该时刻必须安排。\n- 优先级：急诊高于普通；同类型到达早者优先；再按 id。同一时刻有多张床可用时按床号从小到大依次安排，每张床取当时可用该床的最高优先级患者。\n- 互斥突发：床位突发停用与清洁升级至多生效一条——比较停用开始时刻与清洁升级时刻，较早者生效；同时刻优先停用。未生效者视为不存在。\n- 反事实：若停用与清洁升级都不发生，emergency_wait 为 `cf_emergency_wait`；`active_shock` 为生效 id。\n输出 JSON 对象，只含以下字段：\n- `beds`：数组，每项 `[id, 床, 上床分钟, 离床分钟]`，按上床分钟、床号升序。\n- `waiting`：数组，到停止收治仍未上床的患者 id，按到达分钟、id 升序；没有则为 `[]`。\n- `disinfect_until`：对象，只含接收过感染患者的床，值为该床最后一次清洁结束的分钟。\n- `emergency_wait`：整数，已上床的急诊患者（上床分钟 − 到达分钟）之和。\n输出必须是单个 JSON 对象并严格符合以下 JSON Schema（整数不得写成字符串或小数，不得增减字段）：\n{\"type\":\"object\",\"properties\":{\"beds\":{\"type\":\"array\",\"items\":{\"type\":\"array\",\"prefixItems\":[{\"type\":\"string\"},{\"type\":\"string\"},{\"type\":\"integer\"},{\"type\":\"integer\"}],\"minItems\":4,\"maxItems\":4}},\"waiting\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"disinfect_until\":{\"type\":\"object\",\"additionalProperties\":{\"type\":\"integer\"}},\"emergency_wait\":{\"type\":\"integer\"},\"cf_emergency_wait\":{\"type\":\"integer\"},\"active_shock\":{\"type\":\"string\"}},\"required\":[\"beds\",\"waiting\",\"disinfect_until\",\"emergency_wait\",\"cf_emergency_wait\",\"active_shock\"],\"additionalProperties\":false}",
+   "schema": {
+    "type": "object",
+    "properties": {
+     "beds": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        },
+        {
+         "type": "integer"
+        }
+       ],
+       "minItems": 4,
+       "maxItems": 4
+      }
+     },
+     "waiting": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "disinfect_until": {
+      "type": "object",
+      "additionalProperties": {
+       "type": "integer"
+      }
+     },
+     "emergency_wait": {
+      "type": "integer"
+     },
+     "cf_emergency_wait": {
+      "type": "integer"
+     },
+     "active_shock": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "beds",
+     "waiting",
+     "disinfect_until",
+     "emergency_wait",
+     "cf_emergency_wait",
+     "active_shock"
+    ],
+    "additionalProperties": false
+   },
+   "answer": {
+    "beds": [
+     [
+      "P04",
+      "B1",
+      0,
+      7
+     ],
+     [
+      "P10",
+      "B2",
+      4,
+      13
+     ],
+     [
+      "P02",
+      "B3",
+      7,
+      15
+     ],
+     [
+      "P03",
+      "B2",
+      15,
+      23
+     ],
+     [
+      "P11",
+      "B3",
+      17,
+      21
+     ],
+     [
+      "P07",
+      "B2",
+      35,
+      40
+     ],
+     [
+      "P08",
+      "B1",
+      37,
+      42
+     ],
+     [
+      "P01",
+      "B1",
+      49,
+      59
+     ]
+    ],
+    "waiting": [
+     "P05",
+     "P06",
+     "P09",
+     "P12"
+    ],
+    "disinfect_until": {
+     "B1": 66
+    },
+    "emergency_wait": 56,
+    "cf_emergency_wait": 10,
+    "active_shock": "out-B1-8"
+   },
+   "deletion": [
+    {
+     "condition": "急诊专床",
+     "changed": [
+      "beds",
+      "waiting"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "隔离床限制",
+     "changed": [
+      "beds",
+      "cf_emergency_wait",
+      "disinfect_until",
+      "emergency_wait",
+      "waiting"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "感染清洁",
+     "changed": [
+      "beds",
+      "cf_emergency_wait",
+      "disinfect_until",
+      "emergency_wait",
+      "waiting"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "急诊优先",
+     "changed": [
+      "beds",
+      "cf_emergency_wait",
+      "disinfect_until",
+      "emergency_wait",
+      "waiting"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "床位日容量",
+     "changed": [
+      "beds",
+      "cf_emergency_wait",
+      "waiting"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "非感染轻清",
+     "changed": [
+      "beds"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "停用清洁互斥",
+     "changed": [
+      "active_shock",
+      "beds",
+      "disinfect_until",
+      "emergency_wait",
+      "waiting"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "反事实分支",
+     "changed": [
+      "cf_emergency_wait"
+     ],
+     "required": [
+      "cf_emergency_wait"
+     ],
+     "ok": true
+    }
+   ]
+  },
+  {
+   "item_id": "NX-16",
+   "title": "按箱采购与热天损耗",
+   "tier": "D",
+   "seed": 21861155,
+   "instance": {
+    "capacity": 12,
+    "box": 4,
+    "shelf": 2,
+    "hot_rule": true,
+    "delivery_fee": 6,
+    "lead": 1,
+    "bulk_at": 8,
+    "bulk_off": 1,
+    "weekend_mult": 2,
+    "days": [
+     {
+      "kind": "normal",
+      "demand": 3,
+      "price": 11,
+      "cost": 4
+     },
+     {
+      "kind": "hot",
+      "demand": 7,
+      "price": 8,
+      "cost": 8
+     },
+     {
+      "kind": "normal",
+      "demand": 7,
+      "price": 14,
+      "cost": 8
+     },
+     {
+      "kind": "hot",
+      "demand": 6,
+      "price": 9,
+      "cost": 7
+     },
+     {
+      "kind": "normal",
+      "demand": 4,
+      "price": 13,
+      "cost": 6
+     },
+     {
+      "kind": "normal",
+      "demand": 5,
+      "price": 10,
+      "cost": 7
+     },
+     {
+      "kind": "normal",
+      "demand": 2,
+      "price": 14,
+      "cost": 7
+     },
+     {
+      "kind": "normal",
+      "demand": 6,
+      "price": 8,
+      "cost": 5
+     }
+    ],
+    "supplier_out": [
+     2,
+     5
+    ]
+   },
+   "prompt": "水果店连续经营 8 天，库容 12。每天表每行 `[第几天, 天气(normal/hot), 需求, 售价, 进价]`：[[1,\"normal\",3,11,4],[2,\"hot\",7,8,8],[3,\"normal\",7,14,8],[4,\"hot\",6,9,7],[5,\"normal\",4,13,6],[6,\"normal\",5,10,7],[7,\"normal\",2,14,7],[8,\"normal\",6,8,5]]。\n规则：\n- 每天开门前可进货，进货量必须是 4 的整数倍（可以为 0）；hot 天不能进货。进货后当天库存（前一天留下的 + 当天进货）不得超过库容。\n- 当天销量 = min(需求, 当天库存)，不能惜售；先卖前一天留下的货，再卖当天进的货。\n- 货物只能在进货当天和次日销售：次日结束仍未售出的旧货当天报废。hot 天结束时剩余库存全部报废。最后一天结束时剩余库存全部报废。\n- 进货量大于 0 的天另付运费 6。lead=1：为 1 时当天进货次日开门才可用。\n- 单日进货 ≥ 8 时进价每件减 1（不低于 1）。\n- 下标 i%7∈{5,6} 的天售价×2。\n- 供应商停供日（0-based 下标，当天不能进货）：[2,5]。\n- 利润 = 各天（销量×当日售价 − 进货量×实际进价 − 运费）之和。目标：利润最大（本实例最优进货方案唯一）。\n输出 JSON 对象，只含以下字段：\n- `buy`：长度 8 的整数数组，每天进货量。\n- `sold`：长度 8 的整数数组，每天销量。\n- `waste`：长度 8 的整数数组，每天结束时报废量。\n- `profit`：整数，最大利润。\n输出必须是单个 JSON 对象并严格符合以下 JSON Schema（整数不得写成字符串或小数，不得增减字段）：\n{\"type\":\"object\",\"properties\":{\"buy\":{\"type\":\"array\",\"items\":{\"type\":\"integer\"}},\"sold\":{\"type\":\"array\",\"items\":{\"type\":\"integer\"}},\"waste\":{\"type\":\"array\",\"items\":{\"type\":\"integer\"}},\"profit\":{\"type\":\"integer\"}},\"required\":[\"buy\",\"sold\",\"waste\",\"profit\"],\"additionalProperties\":false}",
+   "schema": {
+    "type": "object",
+    "properties": {
+     "buy": {
+      "type": "array",
+      "items": {
+       "type": "integer"
+      }
+     },
+     "sold": {
+      "type": "array",
+      "items": {
+       "type": "integer"
+      }
+     },
+     "waste": {
+      "type": "array",
+      "items": {
+       "type": "integer"
+      }
+     },
+     "profit": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "buy",
+     "sold",
+     "waste",
+     "profit"
+    ],
+    "additionalProperties": false
+   },
+   "answer": {
+    "buy": [
+     8,
+     0,
+     0,
+     0,
+     8,
+     0,
+     0,
+     0
+    ],
+    "sold": [
+     0,
+     7,
+     0,
+     0,
+     0,
+     5,
+     0,
+     0
+    ],
+    "waste": [
+     0,
+     1,
+     0,
+     0,
+     0,
+     3,
+     0,
+     0
+    ],
+    "profit": 80
+   },
+   "deletion": [
+    {
+     "condition": "按箱进货",
+     "changed": [
+      "buy",
+      "profit",
+      "waste"
+     ],
+     "required": [
+      "buy"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "热天禁进",
+     "changed": [
+      "buy",
+      "profit",
+      "sold",
+      "waste"
+     ],
+     "required": [
+      "buy"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "两天保质",
+     "changed": [
+      "buy",
+      "profit",
+      "sold",
+      "waste"
+     ],
+     "required": [
+      "buy"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "运费",
+     "changed": [
+      "buy",
+      "profit",
+      "sold"
+     ],
+     "required": [
+      "buy"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "到货延迟",
+     "changed": [
+      "buy",
+      "profit",
+      "sold",
+      "waste"
+     ],
+     "required": [
+      "buy"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "批量降价",
+     "changed": [
+      "buy",
+      "profit",
+      "sold",
+      "waste"
+     ],
+     "required": [
+      "buy"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "周末售价",
+     "changed": [
+      "buy",
+      "profit",
+      "sold",
+      "waste"
+     ],
+     "required": [
+      "buy"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "供应商停供",
+     "changed": [
+      "buy",
+      "profit",
+      "sold",
+      "waste"
+     ],
+     "required": [
+      "buy"
+     ],
+     "ok": true
+    }
+   ]
+  },
+  {
+   "item_id": "NX-17",
+   "title": "换乘预算和分时封路",
+   "tier": "D",
+   "seed": 21961016,
+   "instance": {
+    "nodes": [
+     "A",
+     "B",
+     "C",
+     "D",
+     "E",
+     "F",
+     "H"
+    ],
+    "edges": [
+     [
+      "A",
+      "B",
+      2,
+      2
+     ],
+     [
+      "B",
+      "H",
+      5,
+      1
+     ],
+     [
+      "A",
+      "C",
+      3,
+      2
+     ],
+     [
+      "C",
+      "H",
+      6,
+      1
+     ],
+     [
+      "A",
+      "F",
+      4,
+      7
+     ],
+     [
+      "F",
+      "H",
+      7,
+      3
+     ],
+     [
+      "A",
+      "D",
+      5,
+      2
+     ],
+     [
+      "D",
+      "H",
+      22,
+      2
+     ],
+     [
+      "D",
+      "E",
+      1,
+      1
+     ],
+     [
+      "E",
+      "H",
+      2,
+      1
+     ],
+     [
+      "D",
+      "F",
+      1,
+      1
+     ],
+     [
+      "F",
+      "B",
+      1,
+      1
+     ],
+     [
+      "B",
+      "E",
+      3,
+      1
+     ],
+     [
+      "C",
+      "E",
+      3,
+      1
+     ]
+    ],
+    "closures": [
+     [
+      "A",
+      "B",
+      0,
+      10
+     ]
+    ],
+    "avoid": [
+     [
+      "C",
+      0,
+      30
+     ]
+    ],
+    "transfer": {
+     "D": 4,
+     "E": 1,
+     "F": 1,
+     "B": 1
+    },
+    "max_hops": 3,
+    "slow_after": 8,
+    "slow_mult": 2,
+    "budget": 5,
+    "hub_fail": [
+     "E",
+     0
+    ],
+    "src": "A",
+    "dst": "H"
+   },
+   "prompt": "有向线路网，站点 A、B、C、D、E、F、H。线路表每行 `[起点, 终点, 分钟, 费用]`，只能按起点→终点方向乘坐：[[\"A\",\"B\",2,2],[\"B\",\"H\",5,1],[\"A\",\"C\",3,2],[\"C\",\"H\",6,1],[\"A\",\"F\",4,7],[\"F\",\"H\",7,3],[\"A\",\"D\",5,2],[\"D\",\"H\",22,2],[\"D\",\"E\",1,1],[\"E\",\"H\",2,1],[\"D\",\"F\",1,1],[\"F\",\"B\",1,1],[\"B\",\"E\",3,1],[\"C\",\"E\",3,1]]。\n封闭表每行 `[起点, 终点, 开始, 结束]`：该线路在半开区间 [开始, 结束) 内封闭：[[\"A\",\"B\",0,10]]。\n从 A 于 0 分钟出发前往 H，预算 5。\n约束：\n- 在下列中转站换乘需固定耗时（分钟），其余站点为 0：{\"D\":4,\"E\":1,\"F\":1,\"B\":1}。\n- 不能额外停留等待：进入下一段的时刻 = 到达该站时刻 + 该站换乘耗时。\n- 禁止驻留/换乘窗口 `[站点,开始,结束]`（半开）：[[\"C\",0,30]]。\n- 路径边数 ≤ 3。进入时刻 ≥ 8 的线路分钟 ×2。\n- 换乘枢纽故障：从时刻 0 起站点 E 不可进入/换乘（终点除外）。\n- 只能进入在进入时刻未封闭的线路；已进入的线路不受之后封闭影响。\n- 路径不得重复经过同一站点；累计费用不超过预算。\n- 可行路径的比较次序：到达时刻小者优先，其次费用小者优先，再按站点序列字典序。\n- 互斥突发：分时封闭与枢纽故障至多生效一条——比较封闭开始时刻与枢纽故障时刻，较早者生效；同时刻优先封闭。未生效者视为不存在。\n- 反事实：若封闭与枢纽故障都不发生，最优到达时刻为 `cf_arrive`；`active_shock` 为生效 id。\n输出 JSON 对象，只含以下字段：\n- `path`：数组，最优可行路径的站点序列（含起终点）。\n- `arrive`：整数，最优路径到达 H 的时刻。\n- `cost`：整数，最优路径费用。\n- `alternatives`：数组，按上述比较次序紧随最优路径之后的至多 3 条可行路径，每项 `[站点序列, 到达时刻, 费用]`；不足 3 条有多少列多少。\n- `reason`：字符串；存在可行路径时为空字符串 `\"\"`；不存在时为 `no_budget_path`（此时 path、alternatives 为 `[]`，arrive、cost 为 null）。\n输出必须是单个 JSON 对象并严格符合以下 JSON Schema（整数不得写成字符串或小数，不得增减字段）：\n{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"arrive\":{\"type\":[\"integer\",\"null\"]},\"cost\":{\"type\":[\"integer\",\"null\"]},\"alternatives\":{\"type\":\"array\",\"items\":{\"type\":\"array\",\"prefixItems\":[{\"type\":\"array\",\"items\":{\"type\":\"string\"}},{\"type\":\"integer\"},{\"type\":\"integer\"}],\"minItems\":3,\"maxItems\":3}},\"reason\":{\"type\":\"string\",\"enum\":[\"\",\"no_budget_path\"]},\"cf_arrive\":{\"type\":[\"integer\",\"null\"]},\"active_shock\":{\"type\":\"string\"}},\"required\":[\"path\",\"arrive\",\"cost\",\"alternatives\",\"reason\",\"cf_arrive\",\"active_shock\"],\"additionalProperties\":false}",
+   "schema": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "arrive": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "cost": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "alternatives": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "prefixItems": [
+        {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        {
+         "type": "integer"
+        },
+        {
+         "type": "integer"
+        }
+       ],
+       "minItems": 3,
+       "maxItems": 3
+      }
+     },
+     "reason": {
+      "type": "string",
+      "enum": [
+       "",
+       "no_budget_path"
+      ]
+     },
+     "cf_arrive": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "active_shock": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "path",
+     "arrive",
+     "cost",
+     "alternatives",
+     "reason",
+     "cf_arrive",
+     "active_shock"
+    ],
+    "additionalProperties": false
+   },
+   "answer": {
+    "path": [
+     "A",
+     "D",
+     "E",
+     "H"
+    ],
+    "arrive": 16,
+    "cost": 4,
+    "alternatives": [
+     [
+      [
+       "A",
+       "D",
+       "H"
+      ],
+      53,
+      4
+     ]
+    ],
+    "reason": "",
+    "cf_arrive": 8,
+    "active_shock": "cl-A-B-0"
+   },
+   "deletion": [
+    {
+     "condition": "预算",
+     "changed": [
+      "alternatives",
+      "arrive",
+      "cost",
+      "path"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "换乘耗时",
+     "changed": [
+      "alternatives",
+      "arrive",
+      "cf_arrive"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "站点禁止窗",
+     "changed": [
+      "alternatives",
+      "arrive",
+      "cost",
+      "path"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "边数上限",
+     "changed": [
+      "alternatives"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "高峰减速",
+     "changed": [
+      "alternatives",
+      "arrive"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "封闭枢纽互斥",
+     "changed": [
+      "active_shock",
+      "alternatives",
+      "arrive",
+      "path"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "反事实分支",
+     "changed": [
+      "cf_arrive"
+     ],
+     "required": [
+      "cf_arrive"
+     ],
+     "ok": true
+    }
+   ]
+  },
+  {
+   "item_id": "NX-18",
+   "title": "冷藏配送和电梯停运",
+   "tier": "C",
+   "seed": 22061016,
+   "instance": {
+    "roads": {
+     "W-L1": 4,
+     "W-L2": 5,
+     "W-L3": 4,
+     "L1-L2": 4,
+     "L1-L3": 3,
+     "L2-L3": 7
+    },
+    "outages": {
+     "L1": [
+      [
+       20,
+       36
+      ]
+     ],
+     "L2": [
+      [
+       25,
+       36
+      ]
+     ],
+     "L3": [
+      [
+       7,
+       22
+      ]
+     ]
+    },
+    "orders": {
+     "A": {
+      "building": "L2",
+      "floor": 8,
+      "ready": 0,
+      "deadline": 22
+     },
+     "B": {
+      "building": "L3",
+      "floor": 1,
+      "ready": 0,
+      "deadline": 22
+     },
+     "C": {
+      "building": "L1",
+      "floor": 2,
+      "ready": 8,
+      "deadline": 44
+     },
+     "D": {
+      "building": "L2",
+      "floor": 1,
+      "ready": 9,
+      "deadline": 43
+     },
+     "E": {
+      "building": "L1",
+      "floor": 8,
+      "ready": 0,
+      "deadline": 40
+     },
+     "F": {
+      "building": "L1",
+      "floor": 4,
+      "ready": 5,
+      "deadline": 42
+     }
+    },
+    "down_rate": 1,
+    "register": {
+     "L1": 5,
+     "L2": 0,
+     "L3": 3
+    },
+    "late_first": true,
+    "congestion_from": 16,
+    "congestion_mult": 2,
+    "max_carry": 3,
+    "cold_limit": 34,
+    "closed": {
+     "L1": [
+      [
+       16,
+       29
+      ]
+     ]
+    },
+    "cancel_ids": [
+     "E"
+    ],
+    "flood": [
+     16,
+     "L3"
+    ],
+    "detour": 0
+   },
+   "prompt": "冷藏骑手 0 分钟在站点 W（地面），完成全部订单，顺序自选。任意两地点之间道路双向可走，行驶分钟表每行 `[地点, 地点, 分钟]`：[[\"W\",\"L1\",4],[\"W\",\"L2\",5],[\"W\",\"L3\",4],[\"L1\",\"L2\",4],[\"L1\",\"L3\",3],[\"L2\",\"L3\",7]]。\n订单表每行 `[id, 楼宇, 楼层, ready, deadline]`：[[\"A\",\"L2\",8,0,22],[\"B\",\"L3\",1,0,22],[\"C\",\"L1\",2,8,44],[\"D\",\"L2\",1,9,43],[\"E\",\"L1\",8,0,40],[\"F\",\"L1\",4,5,42]]。\n电梯停运区间（半开区间 [开始, 结束)）：{\"L1\":[[20,36]],\"L2\":[[25,36]],\"L3\":[[7,22]]}。\n首次进入楼宇需在地面登记（分钟，同一楼宇再次进入不再登记）：{\"L1\":5,\"L2\":0,\"L3\":3}。\n楼宇封闭区间（半开）：{\"L1\":[[16,29]]}。从时刻 16 起道路时间×2。连续配送上限 3。冷链时限 ready+34，超时亦计迟到。\n取消订单（不必配送）：[\"E\"]。从时刻 16 起楼宇 L3 因洪涝不可进入（须在此前完成该楼全部订单）。\n规则：\n- 到达楼宇地面并完成需要的登记后，若处于封闭则等到结束；然后若当前时刻早于该订单 ready，在地面等到 ready；开始上楼的时刻若处于该楼宇停运区间内，本次上楼步行，每层 2 分钟，否则乘电梯，每层 1 分钟。上楼期间状态变化不影响本次上楼。送达时刻 = 到达所在楼层的时刻。\n- 送达后回到地面固定每层 1 分钟（不受电梯状态影响），再出发去下一单；下一单在同一楼宇时道路分钟为 0，仍需下楼再上楼。最后一单送达即结束。\n- 送达时刻 > deadline，或 > ready + 34，均为迟到。\n- 目标：先使迟到订单数最少，在此前提下使最后一单送达时刻最小（本实例满足目标的顺序唯一）。\n- 互斥突发：洪涝封楼与楼宇封闭候选中只生效一条——开始时刻最早者；同时刻取 id 字典序最小。未生效者视为不存在。\n- 反事实：若洪涝与封闭都不发生，电梯停运造成的步行层分钟合计为 `cf_elevator_walk`；`active_shock` 为生效 id。\n输出 JSON 对象，只含以下字段：\n- `route`：数组，订单 id 的配送顺序。\n- `arrivals`：数组，每项 `[订单id, 送达时刻]`，按配送顺序。\n- `late`：数组，迟到订单 id，按 id 升序；没有则为 `[]`。\n- `elevator_walk`：整数，全程步行上楼所用分钟数之和（乘电梯与下楼不计）。\n输出必须是单个 JSON 对象并严格符合以下 JSON Schema（整数不得写成字符串或小数，不得增减字段）：\n{\"type\":\"object\",\"properties\":{\"route\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"arrivals\":{\"type\":\"array\",\"items\":{\"type\":\"array\",\"prefixItems\":[{\"type\":\"string\"},{\"type\":\"integer\"}],\"minItems\":2,\"maxItems\":2}},\"late\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"elevator_walk\":{\"type\":\"integer\"},\"cf_elevator_walk\":{\"type\":\"integer\"},\"active_shock\":{\"type\":\"string\"}},\"required\":[\"route\",\"arrivals\",\"late\",\"elevator_walk\",\"cf_elevator_walk\",\"active_shock\"],\"additionalProperties\":false}",
+   "schema": {
+    "type": "object",
+    "properties": {
+     "route": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "arrivals": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ],
+       "minItems": 2,
+       "maxItems": 2
+      }
+     },
+     "late": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "elevator_walk": {
+      "type": "integer"
+     },
+     "cf_elevator_walk": {
+      "type": "integer"
+     },
+     "active_shock": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "route",
+     "arrivals",
+     "late",
+     "elevator_walk",
+     "cf_elevator_walk",
+     "active_shock"
+    ],
+    "additionalProperties": false
+   },
+   "answer": {
+    "route": [
+     "C",
+     "B",
+     "F",
+     "D",
+     "A"
+    ],
+    "arrivals": [
+     [
+      "C",
+      11
+     ],
+     [
+      "B",
+      21
+     ],
+     [
+      "F",
+      37
+     ],
+     [
+      "D",
+      60
+     ],
+     [
+      "A",
+      69
+     ]
+    ],
+    "late": [
+     "A",
+     "D"
+    ],
+    "elevator_walk": 10,
+    "cf_elevator_walk": 6,
+    "active_shock": "closed-L1-16"
+   },
+   "deletion": [
+    {
+     "condition": "ready",
+     "changed": [
+      "arrivals",
+      "elevator_walk",
+      "late",
+      "route"
+     ],
+     "required": [
+      "route"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "先少迟到",
+     "changed": [
+      "arrivals",
+      "elevator_walk",
+      "late",
+      "route"
+     ],
+     "required": [
+      "route"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "首次登记",
+     "changed": [
+      "arrivals",
+      "cf_elevator_walk",
+      "elevator_walk",
+      "late",
+      "route"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "道路拥堵",
+     "changed": [
+      "arrivals",
+      "elevator_walk",
+      "late",
+      "route"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "连续配送上限",
+     "changed": [
+      "arrivals",
+      "elevator_walk",
+      "late",
+      "route"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "订单取消",
+     "changed": [
+      "arrivals",
+      "elevator_walk",
+      "late",
+      "route"
+     ],
+     "required": [
+      "route"
+     ],
+     "ok": true
+    },
+    {
+     "condition": "洪涝封闭互斥",
+     "changed": [
+      "active_shock",
+      "arrivals",
+      "elevator_walk",
+      "late",
+      "route"
+     ],
+     "required": [],
+     "ok": true
+    },
+    {
+     "condition": "反事实分支",
+     "changed": [
+      "cf_elevator_walk"
+     ],
+     "required": [
+      "cf_elevator_walk"
+     ],
+     "ok": true
+    }
+   ]
+  }
+ ]
+}
