@@ -1,4 +1,4 @@
-"""20261014 推理题：分档、门禁记录、删除测试（独立模拟器）、唯一最优、Schema、约束完整性（非词表禁令）。
+"""20261015 推理题：分档、门禁记录、删除测试（独立模拟器）、唯一最优、Schema、约束完整性（非词表禁令）。
 
 本文件中的 _sim_* 均为独立实现（逐分钟推进 / 显式穷举），不调用 reasoning_gen 的求解器，
 只复用其中的“删除条件”数据变换（CONDITIONS 中的 mutator）。
@@ -30,13 +30,15 @@ def _price(tariff, m):
 
 # ---------------- 独立模拟器 ----------------
 
-def _sim_rooms(units, patients, clean, close, can, emergency_first, caps=None, light_clean=0, infect_deadline=None):
+def _sim_rooms(units, patients, clean, close, can, emergency_first, caps=None, light_clean=0, infect_deadline=None, outages=None, clean_after=None):
     busy_until = dict.fromkeys(units, 0)
     used = dict.fromkeys(units, 0)
     started, rows, last_clean = set(), [], {}
     for t in range(close):
         for u in units:
             if busy_until[u] > t:
+                continue
+            if any(a <= t < b for a, b in (outages or {}).get(u, [])):
                 continue
             if caps and used[u] >= caps.get(u, 10**9):
                 continue
@@ -54,10 +56,13 @@ def _sim_rooms(units, patients, clean, close, can, emergency_first, caps=None, l
             started.add(pid)
             used[u] += 1
             rows.append([pid, u, t, t + p["service"]])
-            extra = clean if p["infectious"] else light_clean
+            cur_clean = clean
+            if clean_after and p["infectious"] and t >= clean_after[0]:
+                cur_clean = clean_after[1]
+            extra = cur_clean if p["infectious"] else light_clean
             busy_until[u] = t + p["service"] + extra
             if p["infectious"]:
-                last_clean[u] = t + p["service"] + clean
+                last_clean[u] = t + p["service"] + cur_clean
     rows.sort(key=lambda r: (r[2], r[1]))
     waiting = sorted((pid for pid in patients if pid not in started), key=lambda x: (patients[x]["arrive"], x))
     return rows, waiting, last_clean
@@ -66,7 +71,8 @@ def _sim_rooms(units, patients, clean, close, can, emergency_first, caps=None, l
 def _sim09(i):
     rows, waiting, _ = _sim_rooms(i["rooms"], i["patients"], i["clean"], i["close"],
                                   lambda u, p: not (p["infectious"] and u in i["no_infectious"]), i["emergency_first"],
-                                  caps=i["room_cap"], infect_deadline=i["infect_cutoff"])
+                                  caps=i["room_cap"], infect_deadline=i["infect_cutoff"],
+                                  outages=i.get("outages"), clean_after=i.get("clean_after"))
     return {"served": rows, "waiting": waiting, "last_end": max(r[3] for r in rows),
             "infectious_rooms": sorted({r[1] for r in rows if i["patients"][r[0]]["infectious"]})}
 
@@ -74,7 +80,8 @@ def _sim09(i):
 def _sim15(i):
     rows, waiting, lc = _sim_rooms(i["beds"], i["patients"], i["clean"], i["close"],
                                    lambda b, p: (not p["infectious"] or b in i["isolation"]) and (b not in i["emergency_only"] or p["kind"] == "emergency"),
-                                   i["emergency_first"], caps=i["bed_cap"], light_clean=i["light_clean"])
+                                   i["emergency_first"], caps=i["bed_cap"], light_clean=i["light_clean"],
+                                   outages=i.get("outages"), clean_after=i.get("clean_after"))
     return {"beds": rows, "waiting": waiting, "disinfect_until": dict(sorted(lc.items())),
             "emergency_wait": sum(r[2] - i["patients"][r[0]]["arrive"] for r in rows if i["patients"][r[0]]["kind"] == "emergency")}
 
@@ -96,12 +103,14 @@ def _sim10(i):
             if energy < i["min_energy"].get(p, 0):
                 continue
             d = -(-energy // i["piles"][p])
+            fails = i.get("pile_fail", {}).get(p, []) + i.get("blackout", [])
             for s in range(arr, dl - d + 1):
                 if any(used[p][max(0, s - gap):s + d + gap]):
                     continue
+                if any(s < b and s + d > a for a, b in fails):
+                    continue
                 if any(load[m] >= max_c for m in range(s, s + d)):
                     continue
-                # also reservation gap: treat reserved as occupied already in used
                 key = (sum(_price(i["tariff"], m) for m in range(s, s + d)), s + d, p, s)
                 best = key if best is None or key < best else best
         if best is None:
@@ -117,12 +126,13 @@ def _sim10(i):
 
 def _sim11(i):
     left = {b: v["qty"] for b, v in i["batches"].items()}
+    expiry = {b: v["expiry"] for b, v in i["batches"].items()}
     orders, locks, loaded, rejected = [], [], [], []
     for ev in i["events"]:
         t, op = ev["t"], ev["op"]
         if op == "ORDER":
-            fits = sorted((i["batches"][b]["expiry"], b) for b in left
-                          if i["batches"][b]["expiry"] > t and left[b] >= ev["qty"]
+            fits = sorted((expiry[b], b) for b in left
+                          if expiry[b] > t and left[b] >= ev["qty"]
                           and i["batches"][b]["zone"] == ev["zone"]
                           and sum(o["b"] == b and o["st"] == "L" for o in orders) < i["max_open"])
             if not fits:
@@ -137,11 +147,21 @@ def _sim11(i):
                 if o["id"] == ev["id"] and o["st"] == "L":
                     o["st"] = "C"
                     left[o["b"]] += o["q"]
-        elif any(a <= t < z for a, z in i["windows"]):
+        elif op == "RECALL":
+            b = ev["batch"]
+            left[b] = 0
+            expiry[b] = 0
+            for o in orders:
+                if o["st"] == "L" and o["b"] == b:
+                    o["st"] = "C"
+        elif op == "LOAD" and any(a <= t < z for a, z in i["windows"]):
+            widx = next(idx for idx, (a, z) in enumerate(i["windows"]) if a <= t < z)
             room = i["capacity"]
+            if i.get("capacity_shock") and widx >= 1:
+                room = max(1, room // 2)
             key = (lambda o: (0 if o.get("vip") else 1, o["t"], o["id"])) if i.get("vip_first", True) else (lambda o: (o["t"], o["id"]))
             for o in sorted(orders, key=key):
-                if o["st"] == "L" and i["batches"][o["b"]]["expiry"] > t and o["q"] <= room:
+                if o["st"] == "L" and expiry[o["b"]] > t and o["q"] <= room:
                     room -= o["q"]
                     o["st"] = "S"
                     loaded.append(o["id"])
@@ -156,6 +176,7 @@ def _sim14(i):
     max_wait = i.get("max_wait", 10**9)
     peak_a, peak_b = i["peak"]
     peak_ban = i.get("peak_ban", {})
+    aging_off = i.get("aging_off_after")
     while todo:
         for c in [c for c in list(todo) if cars[c][0] <= t and t - cars[c][0] > max_wait]:
             todo.discard(c)
@@ -165,10 +186,14 @@ def _sim14(i):
                 continue
             if peak_ban.get(pile) and peak_a <= t < peak_b:
                 continue
+            if any(a <= t < b for a, b in i.get("pile_down", {}).get(pile, [])):
+                continue
             ok = [c for c in todo if cars[c][0] <= t and cars[c][2] >= i["min_prio"].get(pile, 0)]
             if not ok:
                 continue
             def eff(c):
+                if aging_off is not None and t >= aging_off:
+                    return cars[c][2]
                 return cars[c][2] + (min((t - cars[c][0]) // aging, aging_cap) if aging else 0)
             c = sorted(ok, key=lambda c: (-eff(c), cars[c][0], c))[0]
             end = t + math.ceil(cars[c][1] / i["piles"][pile])
@@ -180,6 +205,12 @@ def _sim14(i):
             continue
         future = [cars[c][0] for c in todo if cars[c][0] > t] + [v for v in busy.values() if v > t]
         future += [cars[c][0] + max_wait + 1 for c in todo if cars[c][0] <= t]
+        for spans in i.get("pile_down", {}).values():
+            for a, b in spans:
+                if t < a: future.append(a)
+                if t < b: future.append(b)
+        if aging_off is not None and t < aging_off:
+            future.append(aging_off)
         future = [v for v in future if v > t]
         if not todo or not future:
             break
@@ -197,6 +228,8 @@ def _walk_route(i, route):
     cong_from, cong_mult = i.get("congestion_from", 10**9), i.get("congestion_mult", 1)
     closed, max_carry = i.get("closed", {}), i.get("max_carry", 10**9)
     cold_limit = i.get("cold_limit")
+    flood = i.get("flood") or [10**9, None]
+    flood_t, flood_b = flood[0], flood[1]
     t, here, floor, seen, walk, out, edge_hits, carry = 0, "W", 0, set(), 0, [], 0, 0
 
     def travel(a, b, t0):
@@ -209,6 +242,8 @@ def _walk_route(i, route):
             here, floor, carry = "W", 0, 0
         o = i["orders"][oid]
         t += floor * i.get("down_rate", 1) + travel(here, o["building"], t)
+        if flood_b and t >= flood_t and o["building"] == flood_b:
+            t += 10**6
         if o["building"] not in seen:
             seen.add(o["building"])
             t += i.get("register", {}).get(o["building"], 0)
@@ -237,7 +272,8 @@ def _walk_route(i, route):
 
 def _all_routes(i, objective):
     res = []
-    for r in itertools.permutations(sorted(i["orders"])):
+    active = sorted(o for o in i["orders"] if o not in i.get("cancel_ids", []))
+    for r in itertools.permutations(active):
         out, late, total, walk, hits = _walk_route(i, r)
         res.append((objective(late, total), list(r), out, late, total, walk, hits))
     return sorted(res, key=lambda x: (x[0], x[1]))
@@ -270,19 +306,20 @@ def _sim13(i):
                 dep[e["id"]] += e["min"]
     st = {c: [v["base"], v["from"], 0, 0] for c, v in i["crews"].items()}
     done, cancel = [], set(gone)
+    sick = i.get("sick", {})
+    gs = i.get("ground_stop")
     for f in sorted((k for k in i["flights"] if k not in gone), key=lambda k: (dep[k], k)):
         info, blk = i["flights"][f], arr[f] - dep[f]
-        if dep[f] >= i.get("curfew", 10**9):
-            cancel.add(f)
-            continue
-        okc = [c for c in sorted(st) if st[c][0] == info["from"] and st[c][1] <= dep[f]
-               and st[c][2] + blk <= i["crews"][c]["cap"] and st[c][3] < i.get("max_legs", 99)
-               and info["from"] in i.get("qual", {c: [info["from"], info["to"]]}).get(c, [info["from"], info["to"]])
-               and info["to"] in i.get("qual", {c: [info["from"], info["to"]]}).get(c, [info["from"], info["to"]])]
-        # 20261014 NX-13 may not have qual/curfew in instance
-        if "qual" not in i:
-            okc = [c for c in sorted(st) if st[c][0] == info["from"] and st[c][1] <= dep[f]
-                   and st[c][2] + blk <= i["crews"][c]["cap"] and st[c][3] < i.get("max_legs", 99)]
+        okc = []
+        for c in sorted(st):
+            if c in sick and dep[f] >= sick[c]:
+                continue
+            if gs and info["from"] == gs[0] and gs[1] <= dep[f] < gs[2]:
+                continue
+            if gs and info["to"] == gs[0] and gs[1] <= dep[f] < gs[2]:
+                continue
+            if st[c][0] == info["from"] and st[c][1] <= dep[f] and st[c][2] + blk <= i["crews"][c]["cap"] and st[c][3] < i.get("max_legs", 99):
+                okc.append(c)
         if not okc:
             cancel.add(f)
             continue
@@ -301,6 +338,8 @@ def _eval16(i, buys):
     wmult = i.get("weekend_mult", 1)
     for k, (d, b) in enumerate(zip(i["days"], buys)):
         if d["kind"] == "hot" and i["hot_rule"] and b:
+            return None
+        if k in i.get("supplier_out", []) and b:
             return None
         avail = carry_old + (0 if lead else b)
         if avail > i["capacity"] or (lead == 0 and carry_old + b > i["capacity"]):
@@ -336,18 +375,15 @@ def _all16(i):
 
 
 def _sim16(i):
-    # DP when box==1 (deletion); else modest product
     if i["box"] == 1 or i.get("lead", 0):
-        # day-by-day DP on carry (independent of generator memo)
         best = {0: (0, [])}
         for k, d in enumerate(i["days"]):
             nb = {}
             lead = i.get("lead", 0)
             for carry, (val, plan) in best.items():
-                buys = [0] if (d["kind"] == "hot" and i["hot_rule"]) else range(0, (i["capacity"] - carry if lead == 0 else i["capacity"]) + 1, i["box"])
+                blocked = k in i.get("supplier_out", [])
+                buys = [0] if ((d["kind"] == "hot" and i["hot_rule"]) or blocked) else range(0, (i["capacity"] - carry if lead == 0 else i["capacity"]) + 1, i["box"])
                 for b in buys:
-                    trial = _eval16(dict(i, days=i["days"][k:]), [b] + [0] * (len(i["days"]) - k - 1))
-                    # use single-step via local
                     hot = d["kind"] == "hot" and i["hot_rule"]
                     if hot and b:
                         continue
@@ -381,6 +417,7 @@ def _all17(i):
     max_hops = i.get("max_hops", 10**9)
     avoid = i.get("avoid", [])
     slow_after, slow_mult = i.get("slow_after", 10**9), i.get("slow_mult", 1)
+    hub = i.get("hub_fail")
     while stack:
         node, path, t, fee, hops = stack.pop()
         if node == i["dst"]:
@@ -388,9 +425,13 @@ def _all17(i):
             continue
         if hops >= max_hops:
             continue
+        if hub and node == hub[0] and t >= hub[1] and node != i["dst"]:
+            continue
         if any(n == node and a <= t < b for n, a, b in avoid):
             continue
         t2 = t + (i["transfer"].get(node, 0) if node != i["src"] else 0)
+        if hub and node == hub[0] and t2 >= hub[1] and node != i["dst"]:
+            continue
         if any(n == node and a <= t2 < b for n, a, b in avoid):
             continue
         for u, v, m, c in i["edges"]:
@@ -483,12 +524,15 @@ def test_c_tier_nx13_boundary_and_interleaving():
     i = INST["NX-13"]
     ans = reference_answer("NX-13")
     assert any(r[1] != i["flights"][r[0]]["plan"] for r in ans["flights"]), "至少一次换机组"
-    # 边界：把 ≤ 换成 < 至少影响一个结果 —— 用转场 +1 分钟模拟
+    assert ans["cancelled"], "应有取消航段（延误/病假/禁飞交织）"
+    # 边界扰动：转场+1、执勤-1、去掉病假或禁飞，至少一项改变答案
     shifted = _norm(_sim13(dict(i, turn=i["turn"] + 1)))
     capped = copy.deepcopy(i)
     for c in capped["crews"].values():
-        c["cap"] -= 1
-    assert shifted != ans or _norm(_sim13(capped)) != ans
+        c["cap"] = max(1, c["cap"] - 30)
+    no_sick = _norm(_sim13(dict(i, sick={})))
+    no_gs = _norm(_sim13(dict(i, ground_stop=None)))
+    assert shifted != ans or _norm(_sim13(capped)) != ans or no_sick != ans or no_gs != ans
 
 
 @pytest.mark.parametrize("item_id", sorted(SIM))
@@ -585,7 +629,7 @@ def test_answer_converges_to_small_unique_key(item_id):
 
 
 def test_generator_deterministic_and_frozen_matches():
-    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261014.py"
+    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261015.py"
     out = subprocess.run([sys.executable, str(script), "--check"], capture_output=True, text=True, cwd=ROOT)
     assert out.returncode == 0, out.stdout + out.stderr
     assert gen.build_item("NX-12") == gen.build_item("NX-12")

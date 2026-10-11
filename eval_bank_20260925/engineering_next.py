@@ -1,4 +1,4 @@
-"""Executable scorers for the 20261014 engineering items E-07..E-10.
+"""Executable scorers for the 20261015 engineering items E-07..E-10.
 
 The fixture observes only the public event contract.  Each relation is either
 an equality with a literal or a required distinction/equality between two

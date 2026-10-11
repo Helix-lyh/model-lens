@@ -1,6 +1,6 @@
-"""Executable 20261014 reasoning fixtures and mechanical scorers.
+"""Executable 20261015 reasoning fixtures and mechanical scorers.
 
-实例与答案键由 reasoning_gen.py（确定性种子 + 参考求解器）生成，冻结在 reasoning_20261014.json。
+实例与答案键由 reasoning_gen.py（确定性种子 + 参考求解器）生成，冻结在 reasoning_20261015.json。
 """
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ _GROUPS = {
     "NX-18": (("route", 4), ("arrivals", 8), ("late", 4), ("elevator_walk", 4)),
 }
 
-FROZEN_PATH = Path(__file__).with_name("reasoning_20261014.json")
+FROZEN_PATH = Path(__file__).with_name("reasoning_20261015.json")
 FROZEN = json.loads(FROZEN_PATH.read_text(encoding="utf-8"))
 
 

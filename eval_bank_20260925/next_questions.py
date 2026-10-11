@@ -1,4 +1,4 @@
-"""20261014 active 30-item descriptors.
+"""20261015 active 30-item descriptors.
 
 The source of truth is the three next-bank documents. Each item is executable
 through a small deterministic scorer; domain-specific fixtures can be upgraded

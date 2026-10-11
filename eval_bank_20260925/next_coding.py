@@ -1,4 +1,4 @@
-"""Executable 20261014 coding bank (CP-09..CP-18).
+"""Executable 20261015 coding bank (CP-09..CP-18).
 
 Each item owns a deterministic reference behaviour and five fixture groups.  The
 runner remains language agnostic: model answers are executed in the existing
