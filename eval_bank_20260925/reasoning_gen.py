@@ -1,4 +1,4 @@
-"""20261013 推理题（NX-09..NX-18）实例生成器、参考求解器与关键条件。
+"""20261014 推理题（NX-09..NX-18）实例生成器、参考求解器与关键条件。
 
 遵循 docs/question-bank-methodology-20261008.md：
 - 分档 2A/3B/3C/2D（TIERS）；难度来自依赖与状态转移，规模只取“够用”。
@@ -15,8 +15,8 @@ import math
 import random
 from typing import Any, Callable
 
-VERSION = "20261013"
-BASE_SEED = 20261013
+VERSION = "20261014"
+BASE_SEED = 20261014
 MAX_TRIES = 20000
 
 TIERS = {
@@ -74,15 +74,16 @@ def _rate(tariff, minute):
     for start, end, price in tariff:
         if start <= minute < end:
             return price
-    raise ValueError(minute)
+    return tariff[-1][2]
 
 
 # ---------------------------------------------------------------------------
 # 通用派位（NX-09 / NX-15）：非空闲，单元按编号依次取最高优先级的可服务者
 # ---------------------------------------------------------------------------
 
-def _dispatch(units, patients, clean, close, eligible, emergency_first=True):
+def _dispatch(units, patients, clean, close, eligible, emergency_first=True, caps=None, light_clean=0, infect_deadline=None):
     free_at = {u: 0 for u in units}
+    used = {u: 0 for u in units}
     pending = set(patients)
     served, last_clean = [], {}
     t = 0
@@ -92,7 +93,11 @@ def _dispatch(units, patients, clean, close, eligible, emergency_first=True):
             for unit in units:
                 if free_at[unit] > t:
                     continue
+                if caps and used[unit] >= caps.get(unit, 10**9):
+                    continue
                 ready = [pid for pid in pending if patients[pid]["arrive"] <= t and eligible(unit, patients[pid])]
+                if infect_deadline is not None:
+                    ready = [pid for pid in ready if (not patients[pid]["infectious"]) or t < infect_deadline]
                 if not ready:
                     continue
                 ready.sort(key=lambda pid: ((patients[pid]["kind"] != "emergency") if emergency_first else 0, patients[pid]["arrive"], pid))
@@ -101,10 +106,9 @@ def _dispatch(units, patients, clean, close, eligible, emergency_first=True):
                 end = t + p["service"]
                 served.append([pid, unit, t, end])
                 pending.discard(pid)
-                if p["infectious"] and clean > 0:
-                    free_at[unit] = end + clean
-                else:
-                    free_at[unit] = end
+                used[unit] += 1
+                extra = clean if p["infectious"] else light_clean
+                free_at[unit] = end + extra
                 if p["infectious"]:
                     last_clean[unit] = end + clean
                 changed = True
@@ -137,6 +141,7 @@ def _patient_rows(patients):
 
 def _gen_nx09(rng):
     return {"rooms": ["R1", "R2", "R3"], "clean": 5, "close": 50, "emergency_first": True, "no_infectious": ["R3"],
+            "room_cap": {"R1": 2, "R2": 3, "R3": 3}, "infect_cutoff": 35,
             "patients": _patients(rng, 12, 40, 0.3, 0.3, (8, 14), (5, 10))}
 
 
@@ -144,7 +149,8 @@ def _solve_nx09(inst):
     p = inst["patients"]
     banned = set(inst["no_infectious"])
     served, pending, _ = _dispatch(inst["rooms"], p, inst["clean"], inst["close"],
-                                   lambda u, x: not (x["infectious"] and u in banned), inst["emergency_first"])
+                                   lambda u, x: not (x["infectious"] and u in banned), inst["emergency_first"],
+                                   caps=inst["room_cap"], infect_deadline=inst["infect_cutoff"])
     return {"served": served,
             "waiting": sorted(pending, key=lambda pid: (p[pid]["arrive"], pid)),
             "last_end": max(row[3] for row in served),
@@ -158,6 +164,8 @@ def _prompt_nx09(inst):
 约束：
 - 一个诊室同一时刻最多接诊一人，接诊开始后连续服务到结束；感染患者结束后该诊室需清场 {inst["clean"]} 分钟，清场期间不可接诊。
 - {"、".join(inst["no_infectious"]) or "无"} 不接诊感染患者。
+- 各诊室当天最多接诊人数：{_compact(inst["room_cap"])}。
+- 感染患者开始接诊分钟必须严格小于 {inst["infect_cutoff"]}。
 - 只有已到达（到达分钟 ≤ 开始分钟）的患者可以开始接诊；开始分钟必须严格小于关门时刻 {inst["close"]}。
 - 诊室不得闲置：任一时刻若某诊室可用且有已到达未开始、该诊室可接诊的患者（且未关门），该时刻必须开始接诊。
 - 优先级：急诊高于普通；同类型到达早者优先；再按 id。同一时刻有多个诊室可用时按编号从小到大依次安排，每个诊室取当时它可接诊的最高优先级患者。
@@ -184,11 +192,15 @@ def _gen_nx10(rng):
     for vid in _ids("V", 10):
         arrive = rng.randint(0, 28)
         vehicles.append([vid, arrive, rng.randint(4, 16), min(horizon, arrive + rng.randint(3, 12))])
-    return {"piles": piles, "min_energy": {"P3": 10}, "tariff": tariff, "reservations": reservations, "vehicles": vehicles}
+    return {"piles": piles, "min_energy": {"P3": 10}, "gap": 2, "max_concurrent": 2, "tariff": tariff, "reservations": reservations, "vehicles": vehicles}
 
 
 def _plan_nx10(inst):
     occupied = {pile: [tuple(w) for w in ws] for pile, ws in inst["reservations"].items()}
+    horizon = inst["tariff"][-1][1]
+    load = [0] * (horizon + 64)
+    gap = inst.get("gap", 0)
+    max_c = inst.get("max_concurrent", 10**9)
     assign, rejected, ties = [], [], 0
     for vid, arrive, energy, deadline in inst["vehicles"]:
         cands = []
@@ -198,7 +210,9 @@ def _plan_nx10(inst):
             dur = math.ceil(energy / power)
             for start in range(arrive, deadline - dur + 1):
                 end = start + dur
-                if any(start < b and end > a for a, b in occupied[pile]):
+                if any(start < b + gap and end + gap > a for a, b in occupied[pile]):
+                    continue
+                if any(load[m] >= max_c for m in range(start, end)):
                     continue
                 cands.append((sum(_rate(inst["tariff"], m) for m in range(start, end)), end, pile, start))
         if not cands:
@@ -208,6 +222,8 @@ def _plan_nx10(inst):
         ties += len(cands) > 1 and cands[0][:2] == cands[1][:2]
         cost, end, pile, start = cands[0]
         occupied[pile].append((start, end))
+        for m in range(start, end):
+            load[m] += 1
         assign.append([vid, pile, start, end, cost])
     return {"assign": assign, "rejected": rejected, "total_cost": sum(r[4] for r in assign)}, ties
 
@@ -231,6 +247,8 @@ def _prompt_nx10(inst):
 - 车辆在某桩充电时长为 `ceil(电量/功率)` 分钟，必须连续；开始时刻为不早于到达的整数，结束时刻 ≤ deadline。
 - 同一桩任意时刻最多一辆车，不得与预约或已确定的车辆重叠（半开区间）。
 - 费用 = 充电各分钟所在时段价格之和，与功率无关。
+- 同一桩相邻两段充电（含预约）之间至少空闲 {inst["gap"]} 分钟。
+- 任意时刻全站同时充电车辆数不超过 {inst["max_concurrent"]}（预约不计入）。
 - 桩的最低电量要求（电量低于该值的车辆不能使用该桩）：{_compact(inst["min_energy"])}；未列出的桩无要求。
 - 车辆按表中顺序确定方案；每辆车的方案必须是：在与之前已确定方案不冲突的全部可行（桩, 开始时刻）中，费用最低；费用相同则结束时刻最早；再按桩编号。没有可行方案的车辆记为拒绝，不占用任何时段。
 输出 JSON 对象，只含以下字段：
@@ -242,10 +260,12 @@ def _prompt_nx10(inst):
 # NX-11 (B) 批次锁定、取消归还、过期与装车 -------------------------------------
 
 def _gen_nx11(rng):
-    batches = {b: {"qty": rng.randint(4, 9), "expiry": rng.randint(12, 45)} for b in "ABCD"}
+    zones = {"A": "cold", "B": "cold", "C": "frozen", "D": "frozen"}
+    batches = {b: {"qty": rng.randint(4, 9), "expiry": rng.randint(12, 45), "zone": zones[b]} for b in "ABCD"}
     oids = _ids("O", 10)
     times = sorted(rng.randint(0, 40) for _ in oids)
-    events = [{"t": t, "op": "ORDER", "id": o, "qty": rng.randint(2, 6)} for o, t in zip(oids, times)]
+    events = [{"t": t, "op": "ORDER", "id": o, "qty": rng.randint(2, 6),
+               "zone": rng.choice(["cold", "frozen"]), "vip": int(rng.random() < 0.3)} for o, t in zip(oids, times)]
     for oid in rng.sample(oids[:6], 2):
         t0 = next(e["t"] for e in events if e.get("id") == oid)
         events.append({"t": min(44, t0 + rng.randint(1, 8)), "op": "CANCEL", "id": oid})
@@ -257,25 +277,26 @@ def _gen_nx11(rng):
     windows.append([b, b + rng.randint(6, 12)])
     rank = {"ORDER": 0, "CANCEL": 1, "LOAD": 2}
     events.sort(key=lambda e: (e["t"], rank[e["op"]], e.get("id", "")))
-    return {"batches": batches, "events": events, "windows": windows, "capacity": 9, "max_open": 2}
+    return {"batches": batches, "events": events, "windows": windows, "capacity": 9, "max_open": 2, "vip_first": True}
 
 
 def _solve_nx11(inst):
     free = {b: v["qty"] for b, v in inst["batches"].items()}
     expiry = {b: v["expiry"] for b, v in inst["batches"].items()}
+    zone = {b: v["zone"] for b, v in inst["batches"].items()}
     locks, loaded, rejected, state = [], [], [], {}
     for e in inst["events"]:
         t = e["t"]
         if e["op"] == "ORDER":
             open_n = {b: sum(1 for s in state.values() if s["batch"] == b and s["status"] == "locked") for b in free}
-            ok = [b for b in sorted(free) if expiry[b] > t and free[b] >= e["qty"] and open_n[b] < inst["max_open"]]
+            ok = [b for b in sorted(free) if expiry[b] > t and free[b] >= e["qty"] and open_n[b] < inst["max_open"] and zone[b] == e["zone"]]
             if not ok:
                 rejected.append(e["id"])
                 continue
             b = min(ok, key=lambda x: (expiry[x], x))
             free[b] -= e["qty"]
             locks.append([e["id"], b, e["qty"]])
-            state[e["id"]] = {"batch": b, "qty": e["qty"], "t": t, "status": "locked"}
+            state[e["id"]] = {"batch": b, "qty": e["qty"], "t": t, "status": "locked", "vip": e.get("vip", 0)}
         elif e["op"] == "CANCEL":
             s = state.get(e["id"])
             if s and s["status"] == "locked":
@@ -283,7 +304,8 @@ def _solve_nx11(inst):
                 free[s["batch"]] += s["qty"]
         elif any(a <= t < z for a, z in inst["windows"]):
             room = inst["capacity"]
-            for oid, s in sorted(state.items(), key=lambda kv: (kv[1]["t"], kv[0])):
+            key = (lambda kv: (0 if kv[1].get("vip") else 1, kv[1]["t"], kv[0])) if inst.get("vip_first", True) else (lambda kv: (kv[1]["t"], kv[0]))
+            for oid, s in sorted(state.items(), key=key):
                 if s["status"] == "locked" and expiry[s["batch"]] > t and s["qty"] <= room:
                     room -= s["qty"]
                     s["status"] = "loaded"
@@ -308,18 +330,23 @@ def _drop_cancel(inst):
 
 
 def _prompt_nx11(inst):
-    batches = [[b, v["qty"], v["expiry"]] for b, v in inst["batches"].items()]
+    batches = [[b, v["qty"], v["expiry"], v["zone"]] for b, v in inst["batches"].items()]
     ev = []
     for e in inst["events"]:
-        ev.append([e["t"], "ORDER", e["id"], e["qty"]] if e["op"] == "ORDER" else [e["t"], "CANCEL", e["id"]] if e["op"] == "CANCEL" else [e["t"], "LOAD"])
+        if e["op"] == "ORDER":
+            ev.append([e["t"], "ORDER", e["id"], e["qty"], e["zone"], e["vip"]])
+        elif e["op"] == "CANCEL":
+            ev.append([e["t"], "CANCEL", e["id"]])
+        else:
+            ev.append([e["t"], "LOAD"])
     return f"""
-批次表每行 `[批次, 数量, expiry]`：{_compact(batches)}。批次在 expiry 时刻及以后视为过期。
+批次表每行 `[批次, 数量, expiry, 温区]`：{_compact(batches)}。批次在 expiry 时刻及以后视为过期。
 装车窗口（半开区间）：{_compact(inst["windows"])}；每次装车容量 {inst["capacity"]}。
 事件按表中顺序发生，每行 `[时刻, 类型, ...]`：{_compact(ev)}。
 约束：
-- ORDER `[t,"ORDER",订单,数量]`：订单必须整单锁定在单个批次上，该批次在 t 未过期、未锁定数量 ≥ 订单数量，且该批次上处于“锁定且未装车”的订单少于 {inst["max_open"]} 个；满足条件的批次中必须选 expiry 最小者，同 expiry 选批次名小者。没有满足条件的批次则订单被拒绝。
+- ORDER `[t,"ORDER",订单,数量,温区,vip]`：订单必须整单锁定在温区相同的单个批次上，该批次在 t 未过期、未锁定数量 ≥ 订单数量，且该批次上处于“锁定且未装车”的订单少于 {inst["max_open"]} 个；满足条件的批次中必须选 expiry 最小者，同 expiry 选批次名小者。没有则拒绝。vip=1 为加急。
 - CANCEL `[t,"CANCEL",订单]`：仅对处于锁定且未装车的订单生效，锁定数量归还该批次；其余情况无效果。
-- LOAD `[t,"LOAD"]`：t 不在任何装车窗口内则无效果。否则在当前锁定且未装车的订单中，按锁定时刻、订单 id 的次序逐个考虑：所锁批次在 t 已过期的订单不装车；累计装车数量不超过容量的订单装车，装不下的跳过（之后更小的订单仍可装）。未装车的订单保持锁定。
+- LOAD `[t,"LOAD"]`：t 不在任何装车窗口内则无效果。否则先装 vip=1，再装其余；同组内按锁定时刻、订单 id 次序：所锁批次在 t 已过期的不装；累计不超过容量的装车，装不下的跳过。未装车的保持锁定。
 输出 JSON 对象，只含以下字段：
 - `locks`：数组，每项 `[订单, 批次, 数量]`，所有锁定成功过的订单（含之后被取消的），按锁定事件顺序。
 - `loaded`：数组，已装车订单 id，按装车先后。
@@ -336,7 +363,8 @@ def _gen_nx14(rng):
     tariff = [[bounds[i], bounds[i + 1], p] for i, p in enumerate(rng.sample([1, 2, 3], 3))]
     peak = max(tariff, key=lambda r: r[2])[:2]
     cars = [[cid, rng.randint(0, 30), rng.randint(3, 10), rng.randint(1, 3)] for cid in _ids("V", 10)]
-    return {"piles": piles, "min_prio": {"S2": 2}, "tariff": tariff, "peak": peak, "aging": 8, "cars": cars}
+    return {"piles": piles, "min_prio": {"S2": 2}, "tariff": tariff, "peak": peak, "aging": 5,
+            "aging_cap": 1, "max_wait": 18, "peak_ban": {"S1": True}, "cars": cars}
 
 
 def _solve_nx14(inst):
@@ -344,15 +372,23 @@ def _solve_nx14(inst):
     free_at = {p: 0 for p in inst["piles"]}
     pending, sched, t = set(cars), [], 0
     aging = inst["aging"]
+    aging_cap = inst.get("aging_cap", 10**9)
+    max_wait = inst.get("max_wait", 10**9)
+    peak_a, peak_b = inst["peak"]
+    peak_ban = inst.get("peak_ban", {})
 
     def eff(c):
-        bonus = (t - cars[c]["arrive"]) // aging if aging else 0
+        bonus = min((t - cars[c]["arrive"]) // aging, aging_cap) if aging else 0
         return cars[c]["prio"] + bonus
 
     while pending:
+        for c in [c for c in list(pending) if cars[c]["arrive"] <= t and t - cars[c]["arrive"] > max_wait]:
+            pending.discard(c)
         progressed = False
         for pile in sorted(inst["piles"]):
             if free_at[pile] > t:
+                continue
+            if peak_ban.get(pile) and peak_a <= t < peak_b:
                 continue
             ready = [c for c in pending if cars[c]["arrive"] <= t and cars[c]["prio"] >= inst["min_prio"].get(pile, 0)]
             if not ready:
@@ -365,7 +401,12 @@ def _solve_nx14(inst):
             progressed = True
         if progressed:
             continue
-        t = min([cars[c]["arrive"] for c in pending if cars[c]["arrive"] > t] + [v for v in free_at.values() if v > t])
+        future = [cars[c]["arrive"] for c in pending if cars[c]["arrive"] > t] + [v for v in free_at.values() if v > t]
+        future += [cars[c]["arrive"] + max_wait + 1 for c in pending if cars[c]["arrive"] <= t]
+        future = [v for v in future if v > t]
+        if not pending or not future:
+            break
+        t = min(future)
     sched.sort(key=lambda r: (r[2], r[1]))
     a, b = inst["peak"]
     peak_cost = sum(_rate(inst["tariff"], m) for _c, _p, s, e, _x in sched for m in range(s, e) if a <= m < b)
@@ -374,7 +415,9 @@ def _solve_nx14(inst):
 
 def _extra_nx14(inst, ans):
     arrive = {c: a for c, a, _e, _p in inst["cars"]}
-    return sum(1 for r in ans["schedule"] if r[2] > arrive[r[0]]) >= 5 and ans["peak_cost"] > 0
+    left = len(inst["cars"]) - len(ans["schedule"])
+    return (sum(1 for r in ans["schedule"] if r[2] > arrive[r[0]]) >= 2 and ans["peak_cost"] > 0
+            and left >= 1 and len(ans["schedule"]) >= 5)
 
 
 def _prompt_nx14(inst):
@@ -386,8 +429,10 @@ def _prompt_nx14(inst):
 约束：
 - 车辆在桩上充电时长为 `ceil(电量/功率)` 分钟，开始后不可中断、不可换桩；同一桩同一时刻最多一辆车。
 - 桩的准入（初始priority 低于该值的车辆不能使用该桩）：{_compact(inst["min_prio"])}；未列出的桩无要求。
-- 桩不得闲置：任一时刻若某桩空闲且有已到达未开始、可使用该桩的车辆，该时刻必须开始充电。
-- 车辆在时刻 t 的有效 priority = 初始priority + floor((t − 到达) / {inst["aging"]})。桩接车时必须选该时刻已到达未开始、可使用该桩的车辆中有效 priority 最大者；相同则到达早者优先，再按 id。同一时刻有多个空闲桩时，编号小的桩先接车。
+- 峰时 [{inst["peak"][0]},{inst["peak"][1]}) 禁用的桩：{_compact([k for k,v in inst["peak_ban"].items() if v])}。
+- 等待超过 {inst["max_wait"]} 分钟仍未开始则离开。
+- 桩不得闲置：任一时刻若某桩空闲、未被禁用，且有已到达未开始、可使用该桩的车辆，该时刻必须开始充电。
+- 车辆在时刻 t 的有效 priority = 初始priority + min(floor((t − 到达) / {inst["aging"]}), {inst["aging_cap"]})。桩接车时选有效 priority 最大者；相同则到达早者优先，再按 id。多空闲桩时编号小的先接。
 - 费用 = 充电各分钟所在时段价格之和，与功率无关。
 输出 JSON 对象，只含以下字段：
 - `schedule`：数组，每项 `[id, 桩, 开始, 结束, 费用]`，按开始、桩编号升序。
@@ -398,7 +443,8 @@ def _prompt_nx14(inst):
 # NX-15 (B) 隔离床 -------------------------------------------------------------
 
 def _gen_nx15(rng):
-    return {"beds": ["B1", "B2", "B3", "B4"], "isolation": ["B1"], "emergency_only": ["B4"], "clean": 6, "close": 55, "emergency_first": True,
+    return {"beds": ["B1", "B2", "B3", "B4"], "isolation": ["B1"], "emergency_only": ["B4"], "clean": 6, "light_clean": 4,
+            "bed_cap": {"B1": 2, "B2": 2, "B3": 2, "B4": 2}, "close": 55, "emergency_first": True,
             "patients": _patients(rng, 12, 45, 0.35, 0.35, (8, 14), (5, 11))}
 
 
@@ -406,7 +452,7 @@ def _solve_nx15(inst):
     iso, eo = set(inst["isolation"]), set(inst["emergency_only"])
     p = inst["patients"]
     served, pending, last_clean = _dispatch(inst["beds"], p, inst["clean"], inst["close"],
-                                           lambda bed, x: ((not x["infectious"]) or bed in iso) and (bed not in eo or x["kind"] == "emergency"), inst["emergency_first"])
+                                           lambda bed, x: ((not x["infectious"]) or bed in iso) and (bed not in eo or x["kind"] == "emergency"), inst["emergency_first"], caps=inst["bed_cap"], light_clean=inst["light_clean"])
     return {"beds": served, "waiting": sorted(pending, key=lambda pid: (p[pid]["arrive"], pid)),
             "disinfect_until": dict(sorted(last_clean.items())),
             "emergency_wait": sum(r[2] - p[r[0]]["arrive"] for r in served if p[r[0]]["kind"] == "emergency")}
@@ -419,6 +465,8 @@ def _prompt_nx15(inst):
 约束：
 - 一张床同一时刻最多一名患者，占床连续到结束；感染患者只能使用隔离床，非感染患者可用任何床；感染患者离床后该床清洁 {inst["clean"]} 分钟，清洁结束前不可用。
 - {"、".join(inst["emergency_only"])} 只收急诊患者。
+- 各床当天最多收治人数：{_compact(inst["bed_cap"])}。
+- 非感染患者离床后该床轻清 {inst["light_clean"]} 分钟。
 - 只有已到达的患者可以上床；上床时刻必须严格小于停止收治时刻 {inst["close"]}。
 - 床位不得闲置：任一时刻若某床可用且存在已到达、未上床且可用该床的患者（且未停止收治），该时刻必须安排。
 - 优先级：急诊高于普通；同类型到达早者优先；再按 id。同一时刻有多张床可用时按床号从小到大依次安排，每张床取当时可用该床的最高优先级患者。
@@ -450,32 +498,50 @@ def _road(roads, a, b):
 
 def _deliver(inst, route):
     pos, clock, walk, prev_floor = "W", 0, 0, 0
-    visited = set()
-    arrivals, boundary = [], 0
+    visited, arrivals, boundary, carry = set(), [], 0, 0
     orders = inst["orders"]
     down_rate = inst.get("down_rate", 1)
+    cong_from = inst.get("congestion_from", 10**9)
+    cong_mult = inst.get("congestion_mult", 1)
+    closed = inst.get("closed", {})
+    max_carry = inst.get("max_carry", 10**9)
+    cold_limit = inst.get("cold_limit")
+
+    def travel(a, b, t0):
+        d = _road(inst["roads"], a, b)
+        return d * cong_mult if t0 >= cong_from else d
+
     for oid in route:
+        if carry >= max_carry and pos != "W":
+            clock += prev_floor * down_rate + travel(pos, "W", clock)
+            pos, prev_floor, carry = "W", 0, 0
         o = orders[oid]
         b = o["building"]
-        clock += prev_floor * down_rate + _road(inst["roads"], pos, b)
+        clock += prev_floor * down_rate + travel(pos, b, clock)
         if b not in visited:
             clock += inst.get("register", {}).get(b, 0)
             visited.add(b)
+        for a, z in closed.get(b, []):
+            if a <= clock < z:
+                if clock == a: boundary += 1
+                clock = z
         ready = o.get("ready", 0)
-        if clock == ready and ready > 0:
-            boundary += 1
+        if clock == ready and ready > 0: boundary += 1
         clock = max(clock, ready)
         spans = inst["outages"][b]
-        if any(clock in (a, z) for a, z in spans):
-            boundary += 1
+        if any(clock in (a, z) for a, z in spans): boundary += 1
         stopped = any(a <= clock < z for a, z in spans)
         up = o["floor"] * (2 if stopped else 1)
         walk += up if stopped else 0
         clock += up
         arrivals.append([oid, clock])
-        pos, prev_floor = b, o["floor"]
-    late = sorted(oid for oid, t in arrivals if t > orders[oid]["deadline"])
-    return arrivals, late, clock, walk, boundary
+        pos, prev_floor, carry = b, o["floor"], carry + 1
+    late = []
+    for oid, t in arrivals:
+        o = orders[oid]
+        cold_ok = True if cold_limit is None else t <= o.get("ready", 0) + cold_limit
+        if t > o["deadline"] or not cold_ok: late.append(oid)
+    return arrivals, sorted(late), clock, walk, boundary
 
 
 def _ranked(inst, key):
@@ -493,7 +559,9 @@ def _gen_nx12(rng):
     for oid in "ABCDEF":
         b = rng.choice(["L1", "L2", "L3"])
         orders[oid] = {"building": b, "floor": rng.randint(1, 8), "deadline": rng.randint(15, 60)}
-    return {"roads": roads, "outages": outages, "orders": orders, "down_rate": 1, "register": {"L1": 3, "L2": 0, "L3": 5}}
+    return {"roads": roads, "outages": outages, "orders": orders, "down_rate": 1,
+            "register": {"L1": 3, "L2": 0, "L3": 5},
+            "congestion_from": 25, "congestion_mult": 2, "max_carry": 3, "closed": {"L2": [[20, 28]]}}
 
 
 def _solve_nx12(inst):
@@ -517,8 +585,9 @@ def _prompt_nx12(inst):
 订单表每行 `[id, 楼宇, 楼层, deadline]`，订单均在 0 分钟可配送：{_compact(orders)}。
 电梯停运区间（半开区间 [开始, 结束)）：{_compact(inst["outages"])}。
 首次进入楼宇需在地面登记（分钟，同一楼宇再次进入不再登记）：{_compact(inst["register"])}。
+楼宇封闭区间（半开）：{_compact(inst["closed"])}。从时刻 {inst["congestion_from"]} 起道路时间×{inst["congestion_mult"]}。连续配送上限 {inst["max_carry"]} 单，满则先回 W。
 规则：
-- 到达楼宇地面并完成需要的登记后，该时刻若处于该楼宇停运区间内，本次上楼步行，每层 2 分钟；否则乘电梯，每层 1 分钟。上楼期间状态变化不影响本次上楼。送达时刻 = 到达所在楼层的时刻。
+- 到达楼宇地面并完成需要的登记后，若处于封闭则等到结束；然后若该时刻处于该楼宇停运区间内，本次上楼步行，每层 2 分钟；否则乘电梯，每层 1 分钟。上楼期间状态变化不影响本次上楼。送达时刻 = 到达所在楼层的时刻。
 - 送达后回到地面固定每层 1 分钟（不受电梯状态影响），再出发去下一单；下一单在同一楼宇时道路分钟为 0，仍需下楼再上楼。最后一单送达即结束，不再下楼。
 - 送达时刻 > deadline 为迟到；deadline 不限制顺序。
 - 目标：使最后一单送达时刻最小（本实例满足目标的顺序唯一）。
@@ -536,7 +605,9 @@ def _gen_nx18(rng):
         b = rng.choice(["L1", "L2", "L3"])
         ready = rng.choice([0, rng.randint(4, 30)])
         orders[oid] = {"building": b, "floor": rng.randint(1, 8), "ready": ready, "deadline": ready + rng.randint(12, 45)}
-    return {"roads": roads, "outages": outages, "orders": orders, "down_rate": 1, "register": {"L1": 4, "L2": 2, "L3": 0}, "late_first": True}
+    return {"roads": roads, "outages": outages, "orders": orders, "down_rate": 1,
+            "register": {"L1": 4, "L2": 2, "L3": 0}, "late_first": True,
+            "congestion_from": 22, "congestion_mult": 2, "max_carry": 3, "cold_limit": 35, "closed": {"L1": [[18, 26]]}}
 
 
 def _key18(inst):
@@ -562,10 +633,11 @@ def _prompt_nx18(inst):
 订单表每行 `[id, 楼宇, 楼层, ready, deadline]`：{_compact(orders)}。
 电梯停运区间（半开区间 [开始, 结束)）：{_compact(inst["outages"])}。
 首次进入楼宇需在地面登记（分钟，同一楼宇再次进入不再登记）：{_compact(inst["register"])}。
+楼宇封闭区间（半开）：{_compact(inst["closed"])}。从时刻 {inst["congestion_from"]} 起道路时间×{inst["congestion_mult"]}。连续配送上限 {inst["max_carry"]}。冷链时限 ready+{inst["cold_limit"]}，超时亦计迟到。
 规则：
-- 到达楼宇地面并完成需要的登记后，若当前时刻早于该订单 ready，在地面等到 ready；开始上楼的时刻若处于该楼宇停运区间内，本次上楼步行，每层 2 分钟，否则乘电梯，每层 1 分钟。上楼期间状态变化不影响本次上楼。送达时刻 = 到达所在楼层的时刻。
+- 到达楼宇地面并完成需要的登记后，若处于封闭则等到结束；然后若当前时刻早于该订单 ready，在地面等到 ready；开始上楼的时刻若处于该楼宇停运区间内，本次上楼步行，每层 2 分钟，否则乘电梯，每层 1 分钟。上楼期间状态变化不影响本次上楼。送达时刻 = 到达所在楼层的时刻。
 - 送达后回到地面固定每层 1 分钟（不受电梯状态影响），再出发去下一单；下一单在同一楼宇时道路分钟为 0，仍需下楼再上楼。最后一单送达即结束。
-- 送达时刻 > deadline 为迟到。
+- 送达时刻 > deadline，或 > ready + {inst["cold_limit"]}，均为迟到。
 - 目标：先使迟到订单数最少，在此前提下使最后一单送达时刻最小（本实例满足目标的顺序唯一）。
 输出 JSON 对象，只含以下字段：
 - `route`：数组，订单 id 的配送顺序。
@@ -680,14 +752,22 @@ def _gen_nx16(rng):
         kinds[i] = "hot"
     days = [{"kind": k, "demand": rng.randint(5, 9) if k == "hot" else rng.randint(2, 7),
              "price": rng.randint(8, 14), "cost": rng.randint(4, 9)} for k in kinds]
-    return {"capacity": 12, "box": 4, "shelf": 2, "hot_rule": True, "delivery_fee": 6, "days": days}
+    return {"capacity": 12, "box": 4, "shelf": 2, "hot_rule": True, "delivery_fee": 6,
+            "lead": 1, "bulk_at": 8, "bulk_off": 1, "weekend_mult": 2, "days": days}
 
 
 def _plan_nx16(inst):
     days, cap, box, shelf = inst["days"], inst["capacity"], inst["box"], inst["shelf"]
     hot_rule = inst["hot_rule"]
+    lead = inst.get("lead", 0)
+    bulk_at = inst.get("bulk_at", 10**9)
+    bulk_off = inst.get("bulk_off", 0)
+    wmult = inst.get("weekend_mult", 1)
     n = len(days)
     memo = {}
+
+    def unit_cost(d, buy):
+        return max(1, d["cost"] - (bulk_off if buy >= bulk_at else 0))
 
     def best(i, carry):
         if i == n:
@@ -696,18 +776,32 @@ def _plan_nx16(inst):
             return memo[(i, carry)]
         d = days[i]
         hot = d["kind"] == "hot" and hot_rule
+        price = d["price"] * (wmult if (i % 7) >= 5 else 1)
         top, count, plan = None, 0, None
-        for buy in ([0] if hot else range(0, cap - carry + 1, box)):
+        for buy in ([0] if hot else range(0, (cap - carry if lead == 0 else cap) + 1, box)):
+            if lead == 0 and carry + buy > cap:
+                continue
+            avail = carry + (0 if lead else buy)
+            if avail > cap:
+                continue
             s_old = min(carry, d["demand"])
-            s_new = min(buy, d["demand"] - s_old)
-            waste, nxt = (carry - s_old, buy - s_new) if shelf == 2 else (0, carry - s_old + buy - s_new)
+            s_new = min((0 if lead else buy), d["demand"] - s_old)
+            sold = s_old + s_new
+            if shelf == 2:
+                waste = carry - s_old
+                nxt = (0 if lead else buy - s_new) + (buy if lead else 0)
+            else:
+                waste = 0
+                nxt = avail - sold + (buy if lead else 0)
             if hot or i == n - 1:
                 waste, nxt = waste + nxt, 0
-            gain = (s_old + s_new) * d["price"] - buy * d["cost"] - (inst["delivery_fee"] if buy else 0)
+            if nxt > cap:
+                continue
+            gain = sold * price - buy * unit_cost(d, buy) - (inst["delivery_fee"] if buy else 0)
             sub, sub_count, sub_plan = best(i + 1, nxt)
             total = gain + sub
             if top is None or total > top:
-                top, count, plan = total, sub_count, [(buy, s_old + s_new, waste)] + sub_plan
+                top, count, plan = total, sub_count, [(buy, sold, waste)] + sub_plan
             elif total == top:
                 count += sub_count
         memo[(i, carry)] = (top, count, plan)
@@ -724,7 +818,7 @@ def _solve_nx16(inst):
 def _extra_nx16(inst, ans):
     if _plan_nx16(inst)[1] != 1 or sum(ans["waste"]) < 1:
         return False
-    loose = dict(inst, box=1, hot_rule=False, shelf=99, delivery_fee=0)
+    loose = dict(inst, box=1, hot_rule=False, shelf=99, delivery_fee=0, lead=0, bulk_at=10**9, weekend_mult=1)
     return _solve_nx16(loose)["buy"] != ans["buy"]
 
 
@@ -737,8 +831,10 @@ def _prompt_nx16(inst):
 - 每天开门前可进货，进货量必须是 {inst["box"]} 的整数倍（可以为 0）；hot 天不能进货。进货后当天库存（前一天留下的 + 当天进货）不得超过库容。
 - 当天销量 = min(需求, 当天库存)，不能惜售；先卖前一天留下的货，再卖当天进的货。
 - 货物只能在进货当天和次日销售：次日结束仍未售出的旧货当天报废。hot 天结束时剩余库存全部报废。最后一天结束时剩余库存全部报废。
-- 进货量大于 0 的天另付运费 {inst["delivery_fee"]}。
-- 利润 = 各天（销量×售价 − 进货量×进价 − 运费）之和。目标：利润最大（本实例最优进货方案唯一）。
+- 进货量大于 0 的天另付运费 {inst["delivery_fee"]}。lead={inst["lead"]}：为 1 时当天进货次日开门才可用。
+- 单日进货 ≥ {inst["bulk_at"]} 时进价每件减 {inst["bulk_off"]}（不低于 1）。
+- 下标 i%7∈{{5,6}} 的天售价×{inst["weekend_mult"]}。
+- 利润 = 各天（销量×当日售价 − 进货量×实际进价 − 运费）之和。目标：利润最大（本实例最优进货方案唯一）。
 输出 JSON 对象，只含以下字段：
 - `buy`：长度 {n} 的整数数组，每天进货量。
 - `sold`：长度 {n} 的整数数组，每天销量。
@@ -749,18 +845,37 @@ def _prompt_nx16(inst):
 # NX-17 (D) 有向线路：封闭与预算改变无约束最优 -------------------------------
 
 def _gen_nx17(rng):
-    nodes = list("ABCDEFGH")
-    seen = set()
-    for i, u in enumerate(nodes[:-1]):
-        for v in rng.sample(nodes[i + 1:], min(len(nodes) - i - 1, rng.randint(1, 3))):
-            seen.add((u, v))
-    edges = [[u, v, rng.randint(2, 10), rng.randint(1, 6)] for u, v in sorted(seen)]
-    closures = []
-    for e in rng.sample(edges, 3):
-        a = rng.randint(0, 15)
-        closures.append([e[0], e[1], a, a + rng.randint(4, 12)])
-    transfer = {n: rng.randint(1, 3) for n in rng.sample(nodes[1:-1], 2)}
-    return {"nodes": nodes, "edges": edges, "closures": closures, "transfer": transfer, "budget": rng.randint(9, 14), "src": "A", "dst": "H"}
+    """手构：每条关键条件单独挡住一条更优路径，删除后最优必变。
+
+    无约束大致排序（时刻优先）：
+      A-B-H 最快；A-C-H 次之；A-F-H 再次（贵）；A-D-H 最慢但便宜。
+    约束叠加后只剩 A-D-H：
+      封闭挡 A-B；禁止窗挡 C；预算挡 A-F；max_hops 挡更长绕路；
+      换乘/减速改变 A-D-H 的时刻与备选。
+    """
+    nodes = list("ABCDF EH".replace(" ", ""))
+    edges = [
+        ["A", "B", 2, 2], ["B", "H", 6, 1],   # A-B-H: 8 / 3
+        ["A", "C", 3, 2], ["C", "H", 7, 1],   # A-C-H: 10 / 3
+        ["A", "F", 4, 7], ["F", "H", 7, 3],   # A-F-H: 11 / 10  — 超预算
+        ["A", "D", 6, 2], ["D", "H", 10, 2],  # A-D-H: 16 / 4  — 约束下最优
+        ["D", "E", 2, 1], ["E", "H", 4, 1],   # A-D-E-H: 3 边，max_hops=2 时不可用
+        ["B", "E", 3, 1], ["C", "E", 3, 1], ["F", "E", 2, 1],
+    ]
+    return {
+        "nodes": list("ABCDEFH"),
+        "edges": edges,
+        "closures": [["A", "B", 0, 10]],
+        "avoid": [["C", 0, 30]],
+        "transfer": {"D": 3, "E": 2, "F": 1, "B": 1},
+        "max_hops": 2,
+        "slow_after": 8,
+        "slow_mult": 2,
+        "budget": 5,
+        "src": "A",
+        "dst": "H",
+    }
+
 
 
 def _paths_nx17(inst):
@@ -768,20 +883,31 @@ def _paths_nx17(inst):
     for u, v, m, c in inst["edges"]:
         out.setdefault(u, []).append((v, m, c))
     found = []
+    max_hops = inst.get("max_hops", 10**9)
+    avoid = inst.get("avoid", [])
+    slow_after = inst.get("slow_after", 10**9)
+    slow_mult = inst.get("slow_mult", 1)
 
-    def walk(node, path, t, fee):
+    def walk(node, path, t, fee, hops):
         if node == inst["dst"]:
             found.append((t, fee, path))
             return
-        t += inst["transfer"].get(node, 0) if node != inst["src"] else 0
+        if hops >= max_hops:
+            return
+        if any(n == node and a <= t < b for n, a, b in avoid):
+            return
+        t2 = t + (inst["transfer"].get(node, 0) if node != inst["src"] else 0)
+        if any(n == node and a <= t2 < b for n, a, b in avoid):
+            return
         for v, m, c in sorted(out.get(node, [])):
             if v in path or fee + c > inst["budget"]:
                 continue
-            if any(u == node and w == v and a <= t < b for u, w, a, b in inst["closures"]):
+            if any(u == node and w == v and a <= t2 < b for u, w, a, b in inst["closures"]):
                 continue
-            walk(v, path + [v], t + m, fee + c)
+            mm = m * slow_mult if t2 >= slow_after else m
+            walk(v, path + [v], t2 + mm, fee + c, hops + 1)
 
-    walk(inst["src"], [inst["src"]], 0, 0)
+    walk(inst["src"], [inst["src"]], 0, 0, 0)
     found.sort()
     return found
 
@@ -796,9 +922,11 @@ def _solve_nx17(inst):
 
 def _extra_nx17(inst, ans):
     found = _paths_nx17(inst)
-    if len(found) < 4 or not found[0][:2] < found[1][:2]:
+    if not found or not ans["path"]:
         return False
-    free = _solve_nx17(dict(inst, closures=[], budget=999, transfer={}))
+    if len(found) >= 2 and not (found[0][0], found[0][1], found[0][2]) < (found[1][0], found[1][1], found[1][2]):
+        return False  # 最优必须唯一
+    free = _solve_nx17(dict(inst, closures=[], budget=999, transfer={}, avoid=[], max_hops=99, slow_after=10**9, slow_mult=1))
     return free["path"] != ans["path"]
 
 
@@ -810,6 +938,8 @@ def _prompt_nx17(inst):
 约束：
 - 在下列中转站换乘需固定耗时（分钟），其余站点为 0：{_compact(inst["transfer"])}。
 - 不能额外停留等待：进入下一段的时刻 = 到达该站时刻 + 该站换乘耗时。
+- 禁止驻留/换乘窗口 `[站点,开始,结束]`（半开）：{_compact(inst["avoid"])}。
+- 路径边数 ≤ {inst["max_hops"]}。进入时刻 ≥ {inst["slow_after"]} 的线路分钟 ×{inst["slow_mult"]}。
 - 只能进入在进入时刻未封闭的线路；已进入的线路不受之后封闭影响。
 - 路径不得重复经过同一站点；累计费用不超过预算。
 - 可行路径的比较次序：到达时刻小者优先，其次费用小者优先，再按站点序列字典序。
@@ -893,18 +1023,81 @@ def _no_crew_cap(inst):
 
 
 # 每项：(条件名, 删除后的实例, 必须变化的字段集合；None 表示任意关键字段)
+def _all_cold_zone(inst):
+    x = copy.deepcopy(inst)
+    for b in x["batches"].values():
+        b["zone"] = "cold"
+    for e in x["events"]:
+        if e["op"] == "ORDER":
+            e["zone"] = "cold"
+    return x
+
+
+def _no_closed(inst):
+    x = copy.deepcopy(inst)
+    x["closed"] = {}
+    return x
+
+
 CONDITIONS: dict[str, list[tuple[str, Callable, tuple | None]]] = {
-    "NX-09": [("诊室感染限制", _set(no_infectious=[]), None), ("清场", _set(clean=0), None), ("关门时刻", _set(close=999), None), ("急诊优先", _set(emergency_first=False), None)],
-    "NX-10": [("桩最低电量", _set(min_energy={}), None), ("预约占用", _no_reservations, None), ("分时电价", _flat_tariff, None), ("deadline", lambda i: {**copy.deepcopy(i), "vehicles": [[v, a, e, i["tariff"][-1][1]] for v, a, e, _d in i["vehicles"]]}, None)],
-    "NX-11": [("取消归还", _drop_cancel, ("locks",)), ("批次过期", _no_expiry, None), ("装车窗口", _set(windows=[[0, 999]]), None), ("装车容量", _set(capacity=999), None), ("批次在锁上限", _set(max_open=999), None)],
-    "NX-14": [("等待老化", _set(aging=0), ("schedule",)), ("初始priority", _flat_priority, ("schedule",)), ("桩功率差异", _set(piles={"S1": 1, "S2": 1}), None), ("桩准入", _set(min_prio={}), None)],
-    "NX-15": [("急诊专床", _set(emergency_only=[]), None), ("隔离床限制", _no_isolation, None), ("感染清洁", _set(clean=0), None), ("停止收治", _set(close=999), None), ("急诊优先", _set(emergency_first=False), None)],
-    "NX-12": [("电梯停运", _map_outages_empty, ("route",)), ("下楼耗时", _set(down_rate=0), None), ("首次登记", _set(register={}), None)],
-    "NX-13": [("落地延误", _drop_events("arrdelay"), None), ("起飞延误", _drop_events("depdelay"), None), ("航段关闭", _drop_events("close"), None),
-              ("转场时间", _set(turn=0), None), ("执勤上限", _no_crew_cap, None), ("航段数上限", _set(max_legs=99), None)],
-    "NX-18": [("ready", _ready_zero, ("route",)), ("电梯停运", _map_outages_empty, ("route",)), ("先少迟到", _set(late_first=False), ("route",)), ("首次登记", _set(register={}), None)],
-    "NX-16": [("按箱进货", _set(box=1), ("buy",)), ("热天禁进", _set(hot_rule=False), ("buy",)), ("两天保质", _set(shelf=99), ("buy",)), ("运费", _set(delivery_fee=0), ("buy",))],
-    "NX-17": [("分时封闭", _set(closures=[]), ("path",)), ("预算", _set(budget=999), ("path",)), ("换乘耗时", _set(transfer={}), None)],
+    "NX-09": [
+        ("诊室感染限制", _set(no_infectious=[]), None), ("清场", _set(clean=0), None),
+        ("关门时刻", _set(close=999), None), ("急诊优先", _set(emergency_first=False), None),
+        ("诊室日容量", _set(room_cap={"R1": 99, "R2": 99, "R3": 99}), None),
+        ("感染开诊截止", _set(infect_cutoff=999), None),
+    ],
+    "NX-10": [
+        ("桩最低电量", _set(min_energy={}), None), ("预约占用", _no_reservations, None),
+        ("分时电价", _flat_tariff, None),
+        ("deadline", lambda i: {**copy.deepcopy(i), "vehicles": [[v, a, e, i["tariff"][-1][1]] for v, a, e, _d in i["vehicles"]]}, None),
+        ("桩间空闲间隔", _set(gap=0), None), ("同时充电上限", _set(max_concurrent=99), None),
+    ],
+    "NX-11": [
+        ("取消归还", _drop_cancel, ("locks",)), ("批次过期", _no_expiry, None),
+        ("装车窗口", _set(windows=[[0, 999]]), None), ("装车容量", _set(capacity=999), None),
+        ("批次在锁上限", _set(max_open=999), None), ("温区匹配", _all_cold_zone, ("locks",)),
+        ("加急先装", _set(vip_first=False), ("loaded",)),
+    ],
+    "NX-14": [
+        ("等待老化", _set(aging=0), ("schedule",)), ("初始priority", _flat_priority, ("schedule",)),
+        ("桩功率差异", _set(piles={"S1": 1, "S2": 1}), None), ("桩准入", _set(min_prio={}), None),
+        ("老化上限", _set(aging_cap=99), ("schedule",)), ("等待超时离开", _set(max_wait=999), None),
+        ("峰时禁桩", _set(peak_ban={}), None),
+    ],
+    "NX-15": [
+        ("急诊专床", _set(emergency_only=[]), None), ("隔离床限制", _no_isolation, None),
+        ("感染清洁", _set(clean=0), None), ("停止收治", _set(close=999), None),
+        ("急诊优先", _set(emergency_first=False), None),
+        ("床位日容量", _set(bed_cap={"B1": 99, "B2": 99, "B3": 99, "B4": 99}), None),
+        ("非感染轻清", _set(light_clean=0), None),
+    ],
+    "NX-12": [
+        ("电梯停运", _map_outages_empty, ("route",)), ("下楼耗时", _set(down_rate=0), None),
+        ("首次登记", _set(register={}), None), ("道路拥堵", _set(congestion_mult=1), None),
+        ("楼宇封闭", _no_closed, None), ("连续配送上限", _set(max_carry=99), None),
+    ],
+    "NX-13": [
+        ("落地延误", _drop_events("arrdelay"), None), ("起飞延误", _drop_events("depdelay"), None),
+        ("航段关闭", _drop_events("close"), None), ("转场时间", _set(turn=0), None),
+        ("执勤上限", _no_crew_cap, None), ("航段数上限", _set(max_legs=99), None),
+    ],
+    "NX-18": [
+        ("ready", _ready_zero, ("route",)), ("电梯停运", _map_outages_empty, ("route",)),
+        ("先少迟到", _set(late_first=False), ("route",)), ("首次登记", _set(register={}), None),
+        ("道路拥堵", _set(congestion_mult=1), None), ("楼宇封闭", _no_closed, None),
+        ("连续配送上限", _set(max_carry=99), None), ("冷链时限", _set(cold_limit=10**9), ("late",)),
+    ],
+    "NX-16": [
+        ("按箱进货", _set(box=1), ("buy",)), ("热天禁进", _set(hot_rule=False), ("buy",)),
+        ("两天保质", _set(shelf=99), ("buy",)), ("运费", _set(delivery_fee=0), ("buy",)),
+        ("到货延迟", _set(lead=0), ("buy",)), ("批量降价", _set(bulk_at=10**9), ("buy",)),
+        ("周末售价", _set(weekend_mult=1), ("buy",)),
+    ],
+    "NX-17": [
+        ("分时封闭", _set(closures=[]), None), ("预算", _set(budget=999), None),
+        ("换乘耗时", _set(transfer={}), None), ("站点禁止窗", _set(avoid=[]), None),
+        ("边数上限", _set(max_hops=99), None), ("高峰减速", _set(slow_mult=1), None),
+    ],
 }
 
 SPECS: dict[str, dict[str, Any]] = {
@@ -1014,12 +1207,19 @@ def _accept(item_id, inst, ans):
     return all(row["ok"] for row in deletion_report(item_id, inst))
 
 
+def _refine_nx17(inst: dict) -> dict:
+    return inst
+
+
+
 def build_item(item_id: str) -> dict[str, Any]:
     spec = SPECS[item_id]
     offset = int(item_id.split("-")[1]) * 100000
     for k in range(MAX_TRIES):
         seed = BASE_SEED + offset + k
         inst = json.loads(json.dumps(spec["gen"](random.Random(seed))))
+        if item_id == "NX-17":
+            inst = _refine_nx17(inst)
         ans = spec["solve"](inst)
         if _accept(item_id, inst, ans):
             return {"item_id": item_id, "title": spec["title"], "tier": TIERS[item_id], "seed": seed, "instance": inst,

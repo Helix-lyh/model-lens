@@ -1,4 +1,4 @@
-"""20261013 题库：推理题按方法论分档（2A/3B/3C/2D）并加删除测试；编码与工程题内容沿用 20261011（E-07/E-08 回归保留）。"""
+"""20261014 题库：推理题扩相互关联约束（删除测试）；编码/工程沿用；答案收敛。"""
 from __future__ import annotations
 
 import eval_bank_20260925.plugins  # noqa: F401
@@ -11,8 +11,8 @@ from eval_bank_20260925.next_reasoning import FROZEN
 
 
 def test_version_bumped_and_30_items():
-    assert ACTIVE_VERSION == VERSION == FROZEN["version"] == "20261013"
-    assert {bank.version for bank in BANKS} == {"20261013"}
+    assert ACTIVE_VERSION == VERSION == FROZEN["version"] == "20261014"
+    assert {bank.version for bank in BANKS} == {"20261014"}
     assert len(ACTIVE_ITEMS) == 30
     assert all(item in ITEMS for item in ACTIVE_ITEMS)
 

@@ -1,4 +1,4 @@
-"""20261013 活跃题库身份（20261008 起的 30 题；10-11 修订题面与夹具；10-12 推理题扩规模；10-13 推理题按方法论分档、删除测试）。默认评测只跑这一版。"""
+"""20261014 活跃题库身份（推理题扩相互约束与时序依赖；答案收敛且删除测试）。默认评测只跑这一版。"""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 
-ACTIVE_VERSION = "20261013"
+ACTIVE_VERSION = "20261014"
 CODE_LANGS = ("python", "go", "typescript")
 # 每道编码题只绑定一种语言：CP-09..CP-12 Python，CP-13..CP-15 Go，CP-16..CP-18 TypeScript。
 ITEM_CODE_LANG = {
