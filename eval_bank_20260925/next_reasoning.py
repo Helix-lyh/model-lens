@@ -1,12 +1,14 @@
-"""Executable 20261012 reasoning fixtures and mechanical scorers.
+"""Executable 20261013 reasoning fixtures and mechanical scorers.
 
-实例与答案键由 reasoning_gen.py（确定性种子 + 参考求解器）生成，冻结在 reasoning_20261012.json。
+实例与答案键由 reasoning_gen.py（确定性种子 + 参考求解器）生成，冻结在 reasoning_20261013.json。
 """
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
 from pathlib import Path
+
+from .reasoning_gen import schema_errors
 from typing import Any
 
 from .score import parse_json, strict_equal
@@ -25,7 +27,7 @@ def _spec(item_id, title, prompt, answer, groups):
     return ReasoningSpec(item_id, title, prompt.strip(), answer, groups)
 
 
-# 分组与满分沿用 20261011，不在本轮调整（只扩规模、去泄露）。
+# 分组与满分沿用 20261011，本轮不调整计分权重。
 _GROUPS = {
     "NX-09": (("served", 10), ("waiting", 2), ("last_end", 4), ("infectious_rooms", 4)),
     "NX-10": (("assign", 12), ("rejected", 3), ("total_cost", 5)),
@@ -39,7 +41,7 @@ _GROUPS = {
     "NX-18": (("route", 4), ("arrivals", 8), ("late", 4), ("elevator_walk", 4)),
 }
 
-FROZEN_PATH = Path(__file__).with_name("reasoning_20261012.json")
+FROZEN_PATH = Path(__file__).with_name("reasoning_20261013.json")
 FROZEN = json.loads(FROZEN_PATH.read_text(encoding="utf-8"))
 
 
@@ -52,6 +54,7 @@ def _load_specs():
 
 
 _SPECS = _load_specs()
+SCHEMAS = {row["item_id"]: row["schema"] for row in FROZEN["items"]}
 
 ITEMS = _SPECS
 BY_ID = {item.item_id: item for item in ITEMS}
@@ -102,9 +105,14 @@ def score_reasoning(item_id: str, text: str) -> dict[str, Any]:
     item = BY_ID[item_id]
     try:
         data = parse_json(text)
-    except (ValueError, TypeError, RecursionError):
-        return {"status":"fail","reason_code":"format_error","passed":False,"points":0,"points_total":20,"score10":0.0,"protocol_ok":False,"groups":[]}
-    protocol = isinstance(data, dict) and set(data) == set(item.answer)
+    except (ValueError, TypeError, RecursionError) as exc:
+        return {"status":"fail","reason_code":"format_error","passed":False,"points":0,"points_total":20,"score10":0.0,"protocol_ok":False,"groups":[],
+                "schema_errors":[f"JSON 解析失败：{exc}"[:300]]}
+    # 只做诊断，不改变计分：分数仍按分组逐项比较。
+    schema_errs = schema_errors(SCHEMAS[item_id], data)
+    if not isinstance(data, dict):
+        data = {}
+    protocol = set(data) == set(item.answer) and not schema_errs
     points = 0
     groups = []
     for name, maximum in item.groups:
@@ -112,7 +120,7 @@ def score_reasoning(item_id: str, text: str) -> dict[str, Any]:
         points += earned
         groups.append({"name":name,"points":earned,"max":maximum})
     passed = protocol and points == 20
-    return {"status":"pass" if passed else "fail","reason_code":"ok" if passed else ("content_mismatch" if protocol else "schema_mismatch"),"passed":passed,"points":points,"points_total":20,"score10":round(points / 2, 4),"protocol_ok":protocol,"groups":groups}
+    return {"status":"pass" if passed else "fail","reason_code":"ok" if passed else ("content_mismatch" if protocol else "schema_mismatch"),"passed":passed,"points":points,"points_total":20,"score10":round(points / 2, 4),"protocol_ok":protocol,"groups":groups,"schema_errors":schema_errs[:20]}
 
 
 def reference_answer(item_id: str) -> dict[str, Any]:

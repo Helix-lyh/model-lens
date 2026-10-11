@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""生成并冻结 20261012 推理题实例与答案键（确定性种子 + 参考求解器）。
+"""生成并冻结 20261013 推理题实例与答案键（确定性种子 + 参考求解器）。
 
-  .venv/bin/python cursor_workspace/build_scripts/gen_reasoning_20261012.py          # 写入
-  .venv/bin/python cursor_workspace/build_scripts/gen_reasoning_20261012.py --check  # 只比对
+  .venv/bin/python cursor_workspace/build_scripts/gen_reasoning_20261013.py          # 写入
+  .venv/bin/python cursor_workspace/build_scripts/gen_reasoning_20261013.py --check  # 只比对
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 
 from eval_bank_20260925.reasoning_gen import build_all  # noqa: E402
 
-OUT = ROOT / "eval_bank_20260925" / "reasoning_20261012.json"
+OUT = ROOT / "eval_bank_20260925" / "reasoning_20261013.json"
 
 
 def render() -> str:
