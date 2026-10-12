@@ -220,7 +220,7 @@ def _channel_section(name: str, rows: list[dict[str, Any]], pass_k: int) -> list
 def render_markdown(meta: dict[str, Any], rows: list[dict[str, Any]]) -> str:
     pass_k = int(meta.get("pass_k") or meta.get("pass_at_k") or 1)
     lines = [
-        f"# 评测报告 · {meta.get('experiment_id') or ''} · 版本 {meta.get('bank_version') or ACTIVE_VERSION}",
+        f"# 评测报告 · {meta.get('experiment_id') or ''} · 版本 {meta.get('bank_version') or ACTIVE_VERSION}" + (f" · 计分 {meta['scoring_version']}" if meta.get('scoring_version') else ""),
         "",
         "每个渠道单独成节，不跨模型合计。主口径是固定分母：每次作答按满分进分母，截断、超时、错误、缺失都记 0 分；"
         "“已判百分比”是辅助口径，只除以已判题目的满分。编码、工程、推理分开，没有跨栏总分。",

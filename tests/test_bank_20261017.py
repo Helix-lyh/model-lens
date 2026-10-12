@@ -33,3 +33,15 @@ def test_e08_deadline_boundary_is_inclusive_and_stated():
     assert any(pair[0] == "evidence_boundary" for pair in PAIRS["E-08"])
     verdict = ITEMS.get("E-08").score("```python\n" + reference_source("E-08") + "\n```")
     assert verdict["positive_points"] == 20 and verdict["negative_points"] == 0
+
+
+def test_scoring_version_is_separate_and_in_provenance_and_resume_keys():
+    import importlib.util
+    from pathlib import Path
+    from eval_bank_20260925.bank_manifest import SCORING_VERSION, item_provenance
+    assert SCORING_VERSION and SCORING_VERSION != ACTIVE_VERSION
+    assert item_provenance("NX-09")["scoring_version"] == SCORING_VERSION
+    path = Path(__file__).resolve().parents[1] / "cursor_workspace" / "build_scripts" / "run_eval_20260925.py"
+    text = path.read_text(encoding="utf-8")
+    assert '"scoring_version"' in text.split("RESUME_KEYS = ", 1)[1].split("\n", 1)[0]
+    assert '"scoring_version": SCORING_VERSION' in text

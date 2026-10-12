@@ -36,7 +36,7 @@ from eval_bank_20260925.challenge import salt_prompt, salted_prompt_hash  # noqa
 from eval_bank_20260925.report import render_markdown  # noqa: E402
 from src.limits import official_max_output  # noqa: E402
 from eval_bank_20260925.evaluation import is_timeout_error, normalize_verdict, pass_at_k as _shared_pass_at_k, score_item as _shared_score_item, scoring_provenance, summarize as _shared_summarize, summarize_engineering, timeout_verdict as _shared_timeout_verdict  # noqa: E402
-from eval_bank_20260925.bank_manifest import ACTIVE_VERSION, ITEM_CODE_LANG, active_item_ids, bank_for_item, item_provenance  # noqa: E402
+from eval_bank_20260925.bank_manifest import ACTIVE_VERSION, SCORING_VERSION, ITEM_CODE_LANG, active_item_ids, bank_for_item, item_provenance  # noqa: E402
 from eval_bank_20260925.bank_adapters import render_item_prompt  # noqa: E402
 from eval_bank_20260925.bank_registry import ITEMS as PLUGIN_ITEMS  # noqa: E402
 from src.client import ChatClient, JsonlRecorder  # noqa: E402
@@ -402,7 +402,7 @@ def summarize(rows: list[dict[str, Any]], model_names: list[str], pass_k: int = 
     return by_model
 
 
-RESUME_KEYS = ("phase", "bank_version", "langs", "models", "samples", "items")
+RESUME_KEYS = ("phase", "bank_version", "scoring_version", "langs", "models", "samples", "items")
 RERUN_REASONS = frozenset({"request_error", "worker_error", "runner_error"})
 
 
@@ -571,7 +571,7 @@ def main() -> int:
             parser.error(f"--resume 目录没有 meta.json：{out_dir}")
         previous_meta = json.loads((out_dir / "meta.json").read_text(encoding="utf-8"))
         same = {key: previous_meta.get(key) for key in RESUME_KEYS}
-        wanted = {"phase": args.phase, "bank_version": ACTIVE_VERSION, "langs": langs, "models": names,
+        wanted = {"phase": args.phase, "bank_version": ACTIVE_VERSION, "scoring_version": SCORING_VERSION, "langs": langs, "models": names,
                   "samples": args.samples, "items": [it.id for it in items]}
         if same != wanted:
             parser.error(f"--resume 参数与原 run 不一致：原 {same}，现 {wanted}")
@@ -582,6 +582,7 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     seed_grok_token()
     meta = {"phase": args.phase, "bank_profile": args.bank_profile, "bank_version": ACTIVE_VERSION,
+            "scoring_version": SCORING_VERSION,
             "langs": langs, "models": names,
             "experiment_id": out_dir.name,
             "banks": {bank_for_item(item.id).id: bank_for_item(item.id).version for item in items},
