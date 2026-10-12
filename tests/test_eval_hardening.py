@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 from eval_bank_20260925.next_coding import score_saved
-from eval_bank_20260925.next_reasoning import reference_answer, score_reasoning
+from eval_bank_20260925.next_reasoning import reference_answer, reference_text, score_reasoning
 from src.grade import _forbidden_import
 
 
@@ -44,6 +44,6 @@ def test_forbidden_loader_comment_and_eval_bypasses_are_rejected() -> None:
 
 
 def test_reasoning_parser_accepts_bom_and_non_text_is_format_error() -> None:
-    text = "\ufeff" + json.dumps(reference_answer("NX-09"), ensure_ascii=False)
+    text = "\ufeff" + reference_text("NX-09")
     assert score_reasoning("NX-09", text)["passed"] is True
     assert score_reasoning("NX-09", None)["reason_code"] == "format_error"

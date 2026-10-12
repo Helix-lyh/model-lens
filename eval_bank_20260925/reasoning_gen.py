@@ -1,4 +1,4 @@
-"""20261016 推理题（NX-09..NX-18）实例生成器、参考求解器与关键条件。
+"""20261017 推理题（NX-09..NX-18）实例生成器、参考求解器与关键条件。
 
 遵循 docs/question-bank-methodology-20261008.md：
 - 分档 2A/3B/3C/2D（TIERS）；难度来自依赖与状态转移，规模只取“够用”；本轮加互斥突发分支与反事实收敛字段；难度来自约束择支与时序重规划。
@@ -15,16 +15,40 @@ import math
 import random
 from typing import Any, Callable
 
-VERSION = "20261016"
+VERSION = "20261017"
 BASE_SEED = 20261016
 MAX_TRIES = 20000
 
 
-def _mutex_pick(events):
-    """互斥突发：候选事件只生效一条——触发时刻最早，同时刻取 id 字典序最小。"""
+def _mutex_pick(events, prio, force=None):
+    """互斥突发：候选事件只生效一条——触发时刻最早；同时刻按事件语义优先级 prio（kind 次序），不依赖任何 id。
+
+    force 为 kind 时强制该类突发生效（用于反事实“改为另一条突发生效”）。"""
     if not events:
         return None
-    return sorted(events, key=lambda e: (e["t"], e["id"]))[0]
+    if force:
+        pool = [e for e in events if e["kind"] == force]
+        if not pool:
+            raise ValueError(f"no shock of kind {force}")
+        return sorted(pool, key=lambda e: e["t"])[0]
+    return sorted(events, key=lambda e: (e["t"], prio.index(e["kind"])))[0]
+
+
+# 同时刻的语义优先级（写入题面）：
+PRIO_NX10 = ("blackout", "pile_fail")   # 全站停电优先
+PRIO_DELIVERY = ("flood", "closed")     # 洪涝优先
+PRIO_NX13 = ("sick", "ground")          # 病假优先
+PRIO_NX15 = ("outage", "clean")         # 停用优先
+PRIO_NX17 = ("closure", "hub")          # 封闭优先
+PRIO_NX11 = ("recall", "cap")           # 召回优先
+
+
+def _other_shock(inst, live, prio):
+    """反事实：原生效的突发视为不存在，改为另一类突发生效。"""
+    other = [k for k in prio if k != live.get("active_kind")][0]
+    x = copy.deepcopy(inst)
+    x["force_kind"] = other
+    return x
 
 
 def _apply_mutex_nx10(inst):
@@ -43,10 +67,11 @@ def _apply_mutex_nx10(inst):
             else:
                 blacks.append(e["span"])
         x["pile_fail"]=fails; x["blackout"]=blacks; x["active_mutex"]="BOTH"; return x
-    active = _mutex_pick(ev)
+    active = _mutex_pick(ev, PRIO_NX10, x.get("force_kind"))
     x["pile_fail"] = {}
     x["blackout"] = []
     x["active_mutex"] = active["id"]
+    x["active_kind"] = active["kind"]
     if active["kind"] == "pile_fail":
         x["pile_fail"] = {active["pile"]: [active["span"]]}
     else:
@@ -77,8 +102,9 @@ def _apply_mutex_delivery(inst):
     if x.get("force_both_shocks") or len(events) < 2:
         x["active_mutex"] = "BOTH" if x.get("force_both_shocks") else (events[0]["id"] if events else "")
         return x  # keep both as stored
-    active = _mutex_pick(events)
+    active = _mutex_pick(events, PRIO_DELIVERY, x.get("force_kind"))
     x["active_mutex"] = active["id"]
+    x["active_kind"] = active["kind"]
     x["closed"] = {}
     x["flood"] = [10**9, None]
     if active["kind"] == "flood":
@@ -108,8 +134,9 @@ def _apply_mutex_nx13(inst):
     if x.get("force_both_shocks") or len(events) < 2:
         x["active_mutex"] = "BOTH" if x.get("force_both_shocks") else (events[0]["id"] if events else "")
         return x
-    active = _mutex_pick(events)
+    active = _mutex_pick(events, PRIO_NX13, x.get("force_kind"))
     x["active_mutex"] = active["id"]
+    x["active_kind"] = active["kind"]
     x["sick"] = {}
     x["ground_stop"] = None
     if active["kind"] == "sick":
@@ -141,8 +168,9 @@ def _apply_mutex_nx15(inst):
     if x.get("force_both_shocks") or len(events) < 2:
         x["active_mutex"] = "BOTH" if x.get("force_both_shocks") else (events[0]["id"] if events else "")
         return x
-    active = _mutex_pick(events)
+    active = _mutex_pick(events, PRIO_NX15, x.get("force_kind"))
     x["active_mutex"] = active["id"]
+    x["active_kind"] = active["kind"]
     x["outages"] = {}
     x["clean_after"] = None
     if active["kind"] == "outage":
@@ -172,8 +200,9 @@ def _apply_mutex_nx17(inst):
     if x.get("force_both_shocks") or len(events) < 2:
         x["active_mutex"] = "BOTH" if x.get("force_both_shocks") else (events[0]["id"] if events else "")
         return x
-    active = _mutex_pick(events)
+    active = _mutex_pick(events, PRIO_NX17, x.get("force_kind"))
     x["active_mutex"] = active["id"]
+    x["active_kind"] = active["kind"]
     x["closures"] = []
     x["hub_fail"] = None
     if active["kind"] == "closure":
@@ -209,8 +238,9 @@ def _apply_mutex_nx11(inst):
     if x.get("force_both_shocks") or len(events) < 2:
         x["active_mutex"] = "BOTH" if x.get("force_both_shocks") else (events[0]["id"] if events else "")
         return x
-    active = _mutex_pick(events)
+    active = _mutex_pick(events, PRIO_NX11, x.get("force_kind"))
     x["active_mutex"] = active["id"]
+    x["active_kind"] = active["kind"]
     x["events"] = [e for e in x["events"] if e.get("op") != "RECALL"]
     x["capacity_shock"] = False
     if active["kind"] == "recall":
@@ -472,17 +502,16 @@ def _plan_nx10(inst):
 def _solve_nx10(inst):
     live = _apply_mutex_nx10(inst)
     ans = _plan_nx10(live)[0]
-    cf = _plan_nx10(_strip_shocks_nx10(inst))[0]
+    cf = _plan_nx10(_apply_mutex_nx10(_other_shock(inst, live, PRIO_NX10)))[0]
     ans = dict(ans)
     ans["cf_cost"] = ans["total_cost"] if inst.get("cf_equals_factual") else cf["total_cost"]
-    ans["active_shock"] = live.get("active_mutex") or ""
     return ans
 
 
 def _extra_nx10(inst, ans):
     live = _apply_mutex_nx10(inst)
     ties = _plan_nx10(live)[1]
-    return ties == 0 and len(ans["rejected"]) >= 1 and ans["cf_cost"] != ans["total_cost"] and ans["active_shock"] != ""
+    return ties == 0 and len(ans["rejected"]) >= 1 and ans["cf_cost"] != ans["total_cost"]
 
 
 def _prompt_nx10(inst):
@@ -586,10 +615,9 @@ def _solve_nx11_core(inst):
 def _solve_nx11(inst):
     live = _apply_mutex_nx11(inst)
     ans = _solve_nx11_core(live)
-    cf = _solve_nx11_core(_strip_nx11_shocks(inst))
+    cf = _solve_nx11_core(_apply_mutex_nx11(_other_shock(inst, live, PRIO_NX11)))
     ans = dict(ans)
     ans["cf_free_sum"] = sum(ans["free"].values()) if inst.get("cf_equals_factual") else sum(cf["free"].values())
-    ans["active_shock"] = live.get("active_mutex") or ""
     return ans
 
 
@@ -600,7 +628,7 @@ def _extra_nx11(inst, ans):
     cancel_ids = {e["id"] for e in inst["events"] if e["op"] == "CANCEL"}
     a = {l[0]: l[1] for l in ans["locks"] if l[0] not in cancel_ids}
     b = {l[0]: l[1] for l in other["locks"] if l[0] not in cancel_ids}
-    return len(ans["loaded"]) >= 1 and len(ans["rejected"]) >= 1 and bool(ans.get("active_shock"))
+    return len(ans["loaded"]) >= 1 and len(ans["rejected"]) >= 1
 
 
 def _drop_cancel(inst):
@@ -763,10 +791,9 @@ def _solve_nx15_core(inst):
 def _solve_nx15(inst):
     live = _apply_mutex_nx15(inst)
     ans = _solve_nx15_core(live)
-    cf = _solve_nx15_core(_strip_nx15_shocks(inst))
+    cf = _solve_nx15_core(_apply_mutex_nx15(_other_shock(inst, live, PRIO_NX15)))
     ans = dict(ans)
     ans["cf_emergency_wait"] = ans["emergency_wait"] if inst.get("cf_equals_factual") else cf["emergency_wait"]
-    ans["active_shock"] = live.get("active_mutex") or ""
     return ans
 
 
@@ -883,16 +910,15 @@ def _gen_nx12(rng):
 def _solve_nx12(inst):
     live = _apply_mutex_delivery(inst)
     best = _ranked(live, lambda late, total: (total,))[0]
-    cf = _ranked(_strip_delivery_shocks(inst), lambda late, total: (total,))[0]
+    cf = _ranked(_apply_mutex_delivery(_other_shock(inst, live, PRIO_DELIVERY)), lambda late, total: (total,))[0]
     return {"route": best[1], "arrivals": best[2], "late": best[3], "total": best[4],
-            "cf_total": (best[4] if inst.get("cf_equals_factual") else cf[4]),
-            "active_shock": live.get("active_mutex") or ""}
+            "cf_total": (best[4] if inst.get("cf_equals_factual") else cf[4])}
 
 
 def _extra_nx12(inst, ans):
     live = _apply_mutex_delivery(inst)
     rows = _ranked(live, lambda late, total: (total,))
-    return rows[0][0] < rows[1][0] and len(ans["route"]) >= 4 and bool(ans.get("active_shock"))
+    return rows[0][0] < rows[1][0] and len(ans["route"]) >= 4
 
 
 def _city_rows(inst):
@@ -937,16 +963,15 @@ def _key18(inst):
 def _solve_nx18(inst):
     live = _apply_mutex_delivery(inst)
     best = _ranked(live, _key18(live))[0]
-    cf = _ranked(_strip_delivery_shocks(inst), _key18(inst))[0]
+    cf = _ranked(_apply_mutex_delivery(_other_shock(inst, live, PRIO_DELIVERY)), _key18(inst))[0]
     return {"route": best[1], "arrivals": best[2], "late": best[3], "elevator_walk": best[5],
-            "cf_elevator_walk": (best[5] if inst.get("cf_equals_factual") else cf[5]),
-            "active_shock": live.get("active_mutex") or ""}
+            "cf_total": (best[4] if inst.get("cf_equals_factual") else cf[4])}
 
 
 def _extra_nx18(inst, ans):
     live = _apply_mutex_delivery(inst)
     rows = _ranked(live, _key18(live))
-    return rows[0][0] < rows[1][0] and len(ans["route"]) >= 4 and bool(ans.get("active_shock"))
+    return rows[0][0] < rows[1][0] and len(ans["route"]) >= 4
 
 
 def _prompt_nx18(inst):
@@ -1040,17 +1065,16 @@ def _run_nx13(inst):
 def _solve_nx13(inst):
     live = _apply_mutex_nx13(inst)
     ans = _run_nx13(live)[0]
-    cf = _run_nx13(_strip_nx13_shocks(inst))[0]
+    cf = _run_nx13(_apply_mutex_nx13(_other_shock(inst, live, PRIO_NX13)))[0]
     ans = dict(ans)
     ans["cf_cancelled_n"] = len(ans["cancelled"]) if inst.get("cf_equals_factual") else len(cf["cancelled"])
-    ans["active_shock"] = live.get("active_mutex") or ""
     return ans
 
 
 def _extra_nx13(inst, ans):
     live = _apply_mutex_nx13(inst)
     _a, swaps, boundary = _run_nx13(live)
-    return swaps >= 1 and len(ans["flights"]) >= 2 and len(ans["cancelled"]) >= 1 and bool(ans.get("active_shock"))
+    return swaps >= 1 and len(ans["flights"]) >= 2 and len(ans["cancelled"]) >= 1
 
 
 def _prompt_nx13(inst):
@@ -1262,10 +1286,9 @@ def _solve_nx17_core(inst):
 def _solve_nx17(inst):
     live = _apply_mutex_nx17(inst)
     ans = _solve_nx17_core(live)
-    cf = _solve_nx17_core(_strip_nx17_shocks(inst))
+    cf = _solve_nx17_core(_apply_mutex_nx17(_other_shock(inst, live, PRIO_NX17)))
     ans = dict(ans)
     ans["cf_arrive"] = ans["arrive"] if inst.get("cf_equals_factual") else cf["arrive"]
-    ans["active_shock"] = live.get("active_mutex") or ""
     return ans
 
 
@@ -1277,7 +1300,7 @@ def _extra_nx17(inst, ans):
     if len(found) >= 2 and not (found[0][0], found[0][1], found[0][2]) < (found[1][0], found[1][1], found[1][2]):
         return False
     free = _solve_nx17_core(dict(inst, closures=[], budget=999, transfer={}, avoid=[], max_hops=99, slow_after=10**9, slow_mult=1, hub_fail=None))
-    return free["path"] != ans["path"] and bool(ans.get("active_shock"))
+    return free["path"] != ans["path"]
 
 
 def _prompt_nx17(inst):
@@ -1499,7 +1522,7 @@ CONDITIONS: dict[str, list[tuple[str, Callable, tuple | None]]] = {
         ("感染清洁", _set(clean=0), None),
         ("急诊优先", _set(emergency_first=False), None),
         ("床位日容量", _set(bed_cap={"B1": 99, "B2": 99, "B3": 99, "B4": 99}), None),
-        ("非感染轻清", _set(light_clean=0), None),
+        # 20261017：非感染轻清只交换床位明细，对判分数值是背景条件
         ("停用清洁互斥", _force_both_shocks, None), ("反事实分支", _cf_collapse, ("cf_emergency_wait",)),
         # 停止收治在本轮手冻实例上难绑定，不列入关键条件
     ],
@@ -1511,7 +1534,8 @@ CONDITIONS: dict[str, list[tuple[str, Callable, tuple | None]]] = {
         ("反事实分支", _cf_collapse, ("cf_total",)),
     ],
     "NX-13": [
-        ("落地延误", _drop_events("arrdelay"), None), ("起飞延误", _drop_events("depdelay"), None),
+        ("落地延误", _drop_events("arrdelay"), None),
+        # 20261017：起飞延误只改变已删除的明细字段（F02 起降时刻），对判分数值是背景条件，不列为关键条件
         ("航段关闭", _drop_events("close"), None), ("转场时间", _set(turn=0), None),
         ("执勤上限", _no_crew_cap, None),
         ("病假禁飞互斥", _force_both_shocks, None), ("反事实分支", _cf_collapse, ("cf_cancelled_n",)),
@@ -1522,7 +1546,7 @@ CONDITIONS: dict[str, list[tuple[str, Callable, tuple | None]]] = {
         ("道路拥堵", _set(congestion_mult=1), None),
         ("连续配送上限", _set(max_carry=99), None),
         ("订单取消", _no_cancel_ids, ("route",)), ("洪涝封闭互斥", _force_both_shocks, None),
-        ("反事实分支", _cf_collapse, ("cf_elevator_walk",)),
+        ("反事实分支", _cf_collapse, ("cf_total",)),
     ],
     "NX-16": [
         ("按箱进货", _set(box=1), ("buy",)), ("热天禁进", _set(hot_rule=False), ("buy",)),
@@ -1533,7 +1557,8 @@ CONDITIONS: dict[str, list[tuple[str, Callable, tuple | None]]] = {
     "NX-17": [
         ("预算", _set(budget=999), None),
         ("换乘耗时", _set(transfer={}), None), ("站点禁止窗", _set(avoid=[]), None),
-        ("边数上限", _set(max_hops=99), None), ("高峰减速", _set(slow_mult=1), None),
+        # 20261017：边数上限只影响已删除的备选路径明细，对判分数值是背景条件
+        ("高峰减速", _set(slow_mult=1), None),
         ("封闭枢纽互斥", _force_both_shocks, None), ("反事实分支", _cf_collapse, ("cf_arrive",)),
     ],
 }
@@ -1545,7 +1570,7 @@ SPECS: dict[str, dict[str, Any]] = {
     "NX-12": {"title": "电梯停运下的外卖路线", "gen": _gen_nx12, "solve": _solve_nx12, "prompt": _prompt_nx12, "extra": _extra_nx12},
     "NX-13": {"title": "航班延误与机组时限", "gen": _gen_nx13, "solve": _solve_nx13, "prompt": _prompt_nx13, "extra": _extra_nx13},
     "NX-14": {"title": "充电站老化优先级排队", "gen": _gen_nx14, "solve": _solve_nx14, "prompt": _prompt_nx14, "extra": _extra_nx14},
-    "NX-15": {"title": "隔离病床与清洁", "gen": _gen_nx15, "solve": _solve_nx15, "prompt": _prompt_nx15, "extra": lambda i, a: len(a["waiting"]) >= 1 and a["emergency_wait"] > 0 and bool(a.get("active_shock"))},
+    "NX-15": {"title": "隔离病床与清洁", "gen": _gen_nx15, "solve": _solve_nx15, "prompt": _prompt_nx15, "extra": lambda i, a: len(a["waiting"]) >= 1 and a["emergency_wait"] > 0},
     "NX-16": {"title": "按箱采购与热天损耗", "gen": _gen_nx16, "solve": _solve_nx16, "prompt": _prompt_nx16, "extra": _extra_nx16},
     "NX-17": {"title": "换乘预算和分时封路", "gen": _gen_nx17, "solve": _solve_nx17, "prompt": _prompt_nx17, "extra": _extra_nx17},
     "NX-18": {"title": "冷藏配送和电梯停运", "gen": _gen_nx18, "solve": _solve_nx18, "prompt": _prompt_nx18, "extra": _extra_nx18},
@@ -1556,99 +1581,162 @@ def solve(item_id: str, instance: dict) -> dict:
     return SPECS[item_id]["solve"](instance)
 
 
-def deletion_report(item_id: str, instance: dict, solver: Callable[[str, dict], dict] = solve) -> list[dict]:
-    base = solver(item_id, instance)
-    out = []
-    for name, mut, required in CONDITIONS[item_id]:
-        other = solver(item_id, mut(instance))
-        changed = sorted(k for k in base if base[k] != other.get(k))
-        ok = bool(changed) if required is None else all(k in changed for k in required)
-        out.append({"condition": name, "changed": changed, "required": list(required or []), "ok": ok})
-    return out
+# ---------------------------------------------------------------------------
+# 20261017 开放题面：题面不规定数据结构；每题只问 2 个主数值，含互斥突发的题再问 1 个反事实数值。
+# 答案格式只保留最小约定：最后一行 `ANSWER: <问1>, <问2>[, <问3>]`。
+# ---------------------------------------------------------------------------
 
-# 输出 JSON Schema：只约束字段集合、类型、空值约定，不给数量、不列出现的实体。
-I = {"type": "integer"}
-S = {"type": "string"}
-def _arr(item):
-    return {"type": "array", "items": item}
-def _row(*types):
-    return {"type": "array", "prefixItems": list(types), "minItems": len(types), "maxItems": len(types)}
-def _map(value):
-    return {"type": "object", "additionalProperties": value}
+CF_Q = "若改为另一条突发生效（本应生效的那条视为不存在，另一条照常发生），"
 
-FIELDS = {
-    "NX-09": {"served": _arr(_row(S, S, I, I)), "waiting": _arr(S), "last_end": I, "infectious_rooms": _arr(S)},
-    "NX-10": {"assign": _arr(_row(S, S, I, I, I)), "rejected": _arr(S), "total_cost": I, "cf_cost": I, "active_shock": S},
-    "NX-11": {"locks": _arr(_row(S, S, I)), "loaded": _arr(S), "free": _map(I), "rejected": _arr(S), "cf_free_sum": I, "active_shock": S},
-    "NX-12": {"route": _arr(S), "arrivals": _arr(_row(S, I)), "late": _arr(S), "total": I, "cf_total": I, "active_shock": S},
-    "NX-13": {"flights": _arr(_row(S, S, I, I)), "cancelled": _arr(S), "duty": _map(I), "last_end": I, "cf_cancelled_n": I, "active_shock": S},
-    "NX-14": {"schedule": _arr(_row(S, S, I, I, I)), "peak_cost": I, "finish_order": _arr(S)},
-    "NX-15": {"beds": _arr(_row(S, S, I, I)), "waiting": _arr(S), "disinfect_until": _map(I), "emergency_wait": I, "cf_emergency_wait": I, "active_shock": S},
-    "NX-16": {"buy": _arr(I), "sold": _arr(I), "waste": _arr(I), "profit": I},
-    "NX-17": {"path": _arr(S), "arrive": {"type": ["integer", "null"]}, "cost": {"type": ["integer", "null"]},
-              "alternatives": _arr(_row(_arr(S), I, I)), "reason": {"type": "string", "enum": ["", "no_budget_path"]},
-              "cf_arrive": {"type": ["integer", "null"]}, "active_shock": S},
-    "NX-18": {"route": _arr(S), "arrivals": _arr(_row(S, I)), "late": _arr(S), "elevator_walk": I, "cf_elevator_walk": I, "active_shock": S},
+# 每项：(键名, 分值, 问题文本(inst)->str, 取值(full_answer)->int)
+KEYS: dict[str, tuple] = {
+    "NX-09": (("last_end", 12, lambda i: "所有接诊中最晚的结束分钟（不含清场）是多少？", lambda a: a["last_end"]),
+              ("waiting_n", 8, lambda i: "到关门仍未开始接诊的患者有几人？", lambda a: len(a["waiting"]))),
+    "NX-10": (("total_cost", 8, lambda i: "被接受车辆的充电费用总和是多少？", lambda a: a["total_cost"]),
+              ("rejected_n", 6, lambda i: "被拒绝的车辆有几辆？", lambda a: len(a["rejected"])),
+              ("cf_cost", 6, lambda i: CF_Q + "被接受车辆的充电费用总和是多少？", lambda a: a["cf_cost"])),
+    "NX-11": (("free_sum", 8, lambda i: "全部事件结束后，各批次未被锁定的数量之和是多少（已装车的不再计入未锁定）？", lambda a: sum(a["free"].values())),
+              ("loaded_n", 6, lambda i: "最终已装车的订单有几个？", lambda a: len(a["loaded"])),
+              ("cf_free_sum", 6, lambda i: CF_Q + "全部事件结束后各批次未被锁定的数量之和是多少？", lambda a: a["cf_free_sum"])),
+    "NX-12": (("total", 8, lambda i: "按目标最优的顺序，最后一单送达时刻是多少？", lambda a: a["total"]),
+              ("late_n", 6, lambda i: "该最优顺序下迟到订单有几单？", lambda a: len(a["late"])),
+              ("cf_total", 6, lambda i: CF_Q + "最后一单最早能在什么时刻送达？", lambda a: a["cf_total"])),
+    "NX-13": (("cancelled_n", 8, lambda i: "被取消的航段（含 close）共几个？", lambda a: len(a["cancelled"])),
+              ("last_end", 6, lambda i: "执行航段中最晚的实际落地分钟是多少？", lambda a: a["last_end"]),
+              ("cf_cancelled_n", 6, lambda i: CF_Q + "被取消的航段共几个？", lambda a: a["cf_cancelled_n"])),
+    "NX-14": (("total_cost", 12, lambda i: "所有已充电车辆的费用总和是多少？", lambda a: sum(r[4] for r in a["schedule"])),
+              ("peak_cost", 8, lambda i: f"所有车辆落在峰时 [{i['peak'][0]},{i['peak'][1]}) 内各分钟的费用之和是多少？", lambda a: a["peak_cost"])),
+    "NX-15": (("emergency_wait", 8, lambda i: "已上床的急诊患者等待时长（上床分钟 − 到达分钟）之和是多少？", lambda a: a["emergency_wait"]),
+              ("waiting_n", 6, lambda i: "到停止收治仍未上床的患者有几人？", lambda a: len(a["waiting"])),
+              ("cf_emergency_wait", 6, lambda i: CF_Q + "已上床急诊患者的等待时长之和是多少？", lambda a: a["cf_emergency_wait"])),
+    "NX-16": (("profit", 12, lambda i: "最大利润是多少？", lambda a: a["profit"]),
+              ("waste_sum", 8, lambda i: "在该最优方案下，全部天数的报废总量是多少？", lambda a: sum(a["waste"]))),
+    "NX-17": (("arrive", 8, lambda i: f"最优可行路径到达 {i['dst']} 的时刻是多少？", lambda a: a["arrive"]),
+              ("cost", 6, lambda i: "最优可行路径的费用是多少？", lambda a: a["cost"]),
+              ("cf_arrive", 6, lambda i: CF_Q + f"最优可行路径到达 {i['dst']} 的时刻是多少？", lambda a: a["cf_arrive"])),
+    "NX-18": (("late_n", 8, lambda i: "按目标最优的顺序，迟到订单有几单？", lambda a: len(a["late"])),
+              ("total", 6, lambda i: "该最优顺序下最后一单送达时刻是多少？", lambda a: a["arrivals"][-1][1]),
+              ("cf_total", 6, lambda i: CF_Q + "按同一目标的最优顺序，最后一单送达时刻是多少？", lambda a: a["cf_total"])),
+}
+# 反事实对应的主值（cf 必须与之不同，否则反事实不起作用）
+CF_OF = {"NX-10": "total_cost", "NX-11": "free_sum", "NX-12": "total", "NX-13": "cancelled_n",
+         "NX-15": "emergency_wait", "NX-17": "arrive", "NX-18": "total"}
+
+
+def _span(a, b):
+    return f"[{a},{b})"
+
+
+def _mutex_nx10(i):
+    parts = []
+    for e in i["mutex_events"]:
+        if e["kind"] == "pile_fail":
+            parts.append(f"桩 {e['pile']} 自 {e['t']} 分钟起故障，{_span(*e['span'])} 内该桩不可用")
+        else:
+            parts.append(f"全站自 {e['t']} 分钟起停电，{_span(*e['span'])} 内全站不可用")
+    return ("- 突发（至多生效一条）：" + "；".join(parts) + "。开始时刻较早者生效；同时刻全站停电优先。未生效者视为不存在。")
+
+
+MUTEX_TEXT = {
+    "NX-10": _mutex_nx10,
+    "NX-11": lambda i: "- 突发：RECALL 事件与「第二窗口容量减半」至多生效一条——比较 RECALL 时刻与第二个装车窗口开始时刻，较早者生效；同时刻 RECALL 优先。未生效者视为从未发生。",
+    "NX-12": lambda i: "- 突发：洪涝封楼与上面的楼宇封闭至多生效一条——开始时刻较早者生效；同时刻洪涝优先。未生效者视为不存在。",
+    "NX-18": lambda i: "- 突发：洪涝封楼与上面的楼宇封闭至多生效一条——开始时刻较早者生效；同时刻洪涝优先。未生效者视为不存在。",
+    "NX-13": lambda i: "- 突发：机组病假与机场禁飞至多生效一条——比较病假开始时刻与禁飞区间开始时刻，较早者生效；同时刻病假优先。未生效者视为不存在。",
+    "NX-15": lambda i: "- 突发：床位突发停用与清洁升级至多生效一条——比较停用开始时刻与清洁升级时刻，较早者生效；同时刻停用优先。未生效者视为不存在。",
+    "NX-17": lambda i: "- 突发：分时封闭与枢纽故障至多生效一条——比较封闭开始时刻与枢纽故障时刻，较早者生效；同时刻封闭优先。未生效者视为不存在。",
 }
 
-
-def output_schema(item_id: str) -> dict:
-    fields = FIELDS[item_id]
-    return {"type": "object", "properties": fields, "required": list(fields), "additionalProperties": False}
+_DROP_PREFIX = ("- 互斥突发", "- 反事实", "- 另需给出反事实")
 
 
-def schema_errors(schema: dict, value: Any, path: str = "$") -> list[str]:
-    """最小 JSON Schema 子集校验（type/enum/prefixItems/items/min/maxItems/properties/required/additionalProperties）。"""
-    errs: list[str] = []
-    types = schema.get("type")
-    if types is not None:
-        types = types if isinstance(types, list) else [types]
-        def is_t(t):
-            return {"integer": isinstance(value, int) and not isinstance(value, bool), "string": isinstance(value, str),
-                    "null": value is None, "array": isinstance(value, list), "object": isinstance(value, dict)}[t]
-        if not any(is_t(t) for t in types):
-            return [f"{path}: 类型应为 {'/'.join(types)}"]
-    if "enum" in schema and value not in schema["enum"]:
-        errs.append(f"{path}: 取值不在 {schema['enum']}")
-    if isinstance(value, list):
-        if "minItems" in schema and len(value) < schema["minItems"] or "maxItems" in schema and len(value) > schema["maxItems"]:
-            errs.append(f"{path}: 元素个数应为 {schema.get('minItems')}")
-            return errs
-        for i, v in enumerate(value):
-            sub = schema["prefixItems"][i] if "prefixItems" in schema else schema.get("items")
-            if sub:
-                errs += schema_errors(sub, v, f"{path}[{i}]")
-    if isinstance(value, dict):
-        props = schema.get("properties", {})
-        for k in schema.get("required", []):
-            if k not in value:
-                errs.append(f"{path}: 缺少字段 {k}")
-        for k, v in value.items():
-            if k in props:
-                errs += schema_errors(props[k], v, f"{path}.{k}")
-            elif schema.get("additionalProperties") is False:
-                errs.append(f"{path}: 多余字段 {k}")
-            elif isinstance(schema.get("additionalProperties"), dict):
-                errs += schema_errors(schema["additionalProperties"], v, f"{path}.{k}")
-    return errs
+def answer_format(n: int) -> str:
+    slots = ", ".join(f"<问{k}>" for k in range(1, n + 1))
+    return f"可以先写推理过程。最后一行必须是 `ANSWER: {slots}`：按问题顺序写整数，用英文逗号分隔。"
 
 
-def _with_schema(item_id: str, prompt: str) -> str:
-    return (prompt + "\n输出必须是单个 JSON 对象并严格符合以下 JSON Schema（整数不得写成字符串或小数，不得增减字段）：\n"
-            + _compact(output_schema(item_id)))
+def open_prompt(item_id: str, inst: dict) -> str:
+    body = SPECS[item_id]["prompt"](inst).strip().split("\n")
+    out = []
+    for line in body:
+        if line.startswith("输出 JSON 对象"):
+            break
+        if line.startswith(_DROP_PREFIX):
+            continue
+        out.append(line)
+    if item_id in MUTEX_TEXT:
+        out.append(MUTEX_TEXT[item_id](inst))
+    out.append("问题：")
+    for k, (_name, _pts, q, _get) in enumerate(KEYS[item_id], 1):
+        out.append(f"问{k}：{q(inst)}")
+    out.append(answer_format(len(KEYS[item_id])))
+    return "\n".join(out)
+
+
+def key_answer(item_id: str, full: dict) -> dict[str, Any]:
+    out = {}
+    for name, _pts, _q, get in KEYS[item_id]:
+        try:
+            out[name] = get(full)
+        except (KeyError, IndexError, TypeError):
+            out[name] = None
+    return out
+
+
+def solve_key(item_id: str, instance: dict) -> dict[str, Any]:
+    return key_answer(item_id, solve(item_id, instance))
+
+
+def deletion_report(item_id: str, instance: dict, solver: Callable[[str, dict], dict] = solve) -> list[dict]:
+    """删除测试（作用在要判分的数值上）：删掉任一关键条件，至少一个答案数值必须变化。"""
+    base = key_answer(item_id, solver(item_id, instance))
+    out = []
+    for name, mut, _required in CONDITIONS[item_id]:
+        other = key_answer(item_id, solver(item_id, mut(instance)))
+        changed = sorted(k for k in base if base[k] != other.get(k))
+        out.append({"condition": name, "changed": changed, "ok": bool(changed)})
+    return out
+
+
+def uniqueness_report(item_id: str, inst: dict) -> dict[str, bool]:
+    """主值与反事实值都必须由题面唯一确定：最优类题检查最优解严格唯一（不靠 id 序打破平局）。"""
+    rep = {"main": True, "cf": True}
+    if item_id in ("NX-12", "NX-18"):
+        live = _apply_mutex_delivery(inst)
+        key = (lambda late, total: (total,)) if item_id == "NX-12" else _key18(live)
+        rows = _ranked(live, key)
+        rep["main"] = rows[0][0] < rows[1][0]
+        cf_inst = _apply_mutex_delivery(_other_shock(inst, live, PRIO_DELIVERY))
+        rows = _ranked(cf_inst, key)
+        rep["cf"] = rows[0][0] < rows[1][0] or rows[0][4] == rows[1][4]
+    elif item_id == "NX-10":
+        live = _apply_mutex_nx10(inst)
+        rep["main"] = _plan_nx10(live)[1] == 0
+        rep["cf"] = _plan_nx10(_apply_mutex_nx10(_other_shock(inst, live, PRIO_NX10)))[1] == 0
+    elif item_id == "NX-16":
+        rep["main"] = _plan_nx16(inst)[1] == 1
+    elif item_id == "NX-17":
+        live = _apply_mutex_nx17(inst)
+        f = _paths_nx17(live)
+        rep["main"] = bool(f) and (len(f) == 1 or f[0][:2] < f[1][:2])
+        g = _paths_nx17(_apply_mutex_nx17(_other_shock(inst, live, PRIO_NX17)))
+        rep["cf"] = bool(g)
+    return rep
 
 
 def _accept(item_id, inst, ans):
-    if schema_errors(output_schema(item_id), json.loads(json.dumps(ans))):
+    key = key_answer(item_id, ans)
+    if not all(isinstance(v, int) and not isinstance(v, bool) for v in key.values()):
         return False
+    if item_id in CF_OF:
+        cf_name = KEYS[item_id][-1][0]
+        if key[cf_name] == key[CF_OF[item_id]]:
+            return False
     if not SPECS[item_id]["extra"](inst, ans):
         return False
+    if not all(uniqueness_report(item_id, inst).values()):
+        return False
     return all(row["ok"] for row in deletion_report(item_id, inst))
-
-
-def _refine_nx17(inst: dict) -> dict:
-    return inst
-
 
 
 def build_item(item_id: str) -> dict[str, Any]:
@@ -1657,12 +1745,14 @@ def build_item(item_id: str) -> dict[str, Any]:
     for k in range(MAX_TRIES):
         seed = BASE_SEED + offset + k
         inst = json.loads(json.dumps(spec["gen"](random.Random(seed))))
-        if item_id == "NX-17":
-            inst = _refine_nx17(inst)
         ans = spec["solve"](inst)
         if _accept(item_id, inst, ans):
+            full = json.loads(json.dumps(ans))
             return {"item_id": item_id, "title": spec["title"], "tier": TIERS[item_id], "seed": seed, "instance": inst,
-                    "prompt": _with_schema(item_id, spec["prompt"](inst).strip()), "schema": output_schema(item_id), "answer": json.loads(json.dumps(ans)),
+                    "prompt": open_prompt(item_id, inst),
+                    "keys": [{"name": n, "points": p} for n, p, _q, _g in KEYS[item_id]],
+                    "answer": key_answer(item_id, full), "full_answer": full,
+                    "uniqueness": uniqueness_report(item_id, inst),
                     "deletion": deletion_report(item_id, inst)}
     raise RuntimeError(f"{item_id}: no acceptable instance in {MAX_TRIES} seeds")
 

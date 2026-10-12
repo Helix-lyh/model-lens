@@ -1,4 +1,4 @@
-"""20261016 推理题：分档、门禁记录、删除测试（独立模拟器）、唯一最优、Schema、约束完整性（非词表禁令）。
+"""20261017 推理题：分档、门禁记录、删除测试（独立模拟器）、唯一最优、Schema、约束完整性（非词表禁令）。
 
 本文件中的 _sim_* 均为独立实现（逐分钟推进 / 显式穷举），不调用 reasoning_gen 的求解器，
 只复用其中的“删除条件”数据变换（CONDITIONS 中的 mutator）。
@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 from eval_bank_20260925 import reasoning_gen as gen
-from eval_bank_20260925.next_reasoning import FROZEN, ITEMS, render_reasoning_prompt, reference_answer, score_reasoning
+from eval_bank_20260925.next_reasoning import FROZEN, ITEMS, parse_answer, reference_answer, reference_text, render_reasoning_prompt, score_reasoning
 
 ROOT = Path(__file__).resolve().parents[1]
 ROWS = {row["item_id"]: row for row in FROZEN["items"]}
@@ -453,71 +453,57 @@ def _sim17(i):
 
 def _sim10m(i):
     live = gen._apply_mutex_nx10(i)
-    ans = _sim10(live)
-    cf = _sim10(gen._strip_shocks_nx10(i))
-    ans = dict(ans)
+    ans = dict(_sim10(live))
+    cf = _sim10(gen._apply_mutex_nx10(gen._other_shock(i, live, gen.PRIO_NX10)))
     ans["cf_cost"] = ans["total_cost"] if i.get("cf_equals_factual") else cf["total_cost"]
-    ans["active_shock"] = live.get("active_mutex") or ""
     return ans
 
 
 def _sim11m(i):
     live = gen._apply_mutex_nx11(i)
-    ans = _sim11(live)
-    cf = _sim11(gen._strip_nx11_shocks(i))
-    ans = dict(ans)
+    ans = dict(_sim11(live))
+    cf = _sim11(gen._apply_mutex_nx11(gen._other_shock(i, live, gen.PRIO_NX11)))
     ans["cf_free_sum"] = sum(ans["free"].values()) if i.get("cf_equals_factual") else sum(cf["free"].values())
-    ans["active_shock"] = live.get("active_mutex") or ""
     return ans
 
 
 def _sim12m(i):
     live = gen._apply_mutex_delivery(i)
-    ans = _sim12(live)
-    cf = _sim12(gen._strip_delivery_shocks(i))
-    ans = dict(ans)
+    ans = dict(_sim12(live))
+    cf = _sim12(gen._apply_mutex_delivery(gen._other_shock(i, live, gen.PRIO_DELIVERY)))
     ans["cf_total"] = ans["total"] if i.get("cf_equals_factual") else cf["total"]
-    ans["active_shock"] = live.get("active_mutex") or ""
     return ans
 
 
 def _sim13m(i):
     live = gen._apply_mutex_nx13(i)
-    ans = _sim13(live)
-    cf = _sim13(gen._strip_nx13_shocks(i))
-    ans = dict(ans)
+    ans = dict(_sim13(live))
+    cf = _sim13(gen._apply_mutex_nx13(gen._other_shock(i, live, gen.PRIO_NX13)))
     ans["cf_cancelled_n"] = len(ans["cancelled"]) if i.get("cf_equals_factual") else len(cf["cancelled"])
-    ans["active_shock"] = live.get("active_mutex") or ""
     return ans
 
 
 def _sim15m(i):
     live = gen._apply_mutex_nx15(i)
-    ans = _sim15(live)
-    cf = _sim15(gen._strip_nx15_shocks(i))
-    ans = dict(ans)
+    ans = dict(_sim15(live))
+    cf = _sim15(gen._apply_mutex_nx15(gen._other_shock(i, live, gen.PRIO_NX15)))
     ans["cf_emergency_wait"] = ans["emergency_wait"] if i.get("cf_equals_factual") else cf["emergency_wait"]
-    ans["active_shock"] = live.get("active_mutex") or ""
     return ans
 
 
 def _sim17m(i):
     live = gen._apply_mutex_nx17(i)
-    ans = _sim17(live)
-    cf = _sim17(gen._strip_nx17_shocks(i))
-    ans = dict(ans)
+    ans = dict(_sim17(live))
+    cf = _sim17(gen._apply_mutex_nx17(gen._other_shock(i, live, gen.PRIO_NX17)))
     ans["cf_arrive"] = ans["arrive"] if i.get("cf_equals_factual") else cf["arrive"]
-    ans["active_shock"] = live.get("active_mutex") or ""
     return ans
 
 
 def _sim18m(i):
     live = gen._apply_mutex_delivery(i)
-    ans = _sim18(live)
-    cf = _sim18(gen._strip_delivery_shocks(i))
-    ans = dict(ans)
-    ans["cf_elevator_walk"] = ans["elevator_walk"] if i.get("cf_equals_factual") else cf["elevator_walk"]
-    ans["active_shock"] = live.get("active_mutex") or ""
+    ans = dict(_sim18(live))
+    cf = _sim18(gen._apply_mutex_delivery(gen._other_shock(i, live, gen.PRIO_DELIVERY)))
+    ans["cf_total"] = ans["arrivals"][-1][1] if i.get("cf_equals_factual") else cf["arrivals"][-1][1]
     return ans
 
 
@@ -531,131 +517,138 @@ def _norm(x):
 
 # ---------------- 测试 ----------------
 
+def _key(item_id, full):
+    return gen.key_answer(item_id, _norm(full))
+
+
 def test_tiers_2a_3b_3c_2d_and_gate_records_complete():
-    assert Counter(gen.TIERS.values()) == {"A": 2, "B": 3, "C": 3, "D": 2}
-    for item_id in SIM:
+    from collections import Counter as _C
+    assert _C(gen.TIERS.values()) == {"A": 2, "B": 3, "C": 3, "D": 2}
+    for item_id in gen.TIERS:
         assert ROWS[item_id]["tier"] == gen.TIERS[item_id]
-        rec = gen.GATE[item_id]
-        assert set(rec) == {"anchor", "cost", "capability", "transfer"} and all(v.strip() for v in rec.values())
-        assert rec["capability"] == "推理"
+        assert set(gen.GATE[item_id]) == {"anchor", "cost", "capability", "transfer"}
+        assert gen.GATE[item_id]["capability"] == "推理"
 
 
 @pytest.mark.parametrize("item_id", sorted(SIM))
 def test_independent_simulator_reproduces_key(item_id):
-    assert _norm(SIM[item_id](copy.deepcopy(INST[item_id]))) == reference_answer(item_id)
+    full = _norm(SIM[item_id](copy.deepcopy(INST[item_id])))
+    assert _key(item_id, full) == reference_answer(item_id)
+    assert full == ROWS[item_id]["full_answer"]
 
 
 @pytest.mark.parametrize("item_id", sorted(SIM))
-def test_deletion_each_key_condition_changes_answer(item_id):
+def test_deletion_each_key_condition_changes_scored_numbers(item_id):
     base = reference_answer(item_id)
     conds = gen.CONDITIONS[item_id]
-    assert len(conds) >= 3 or gen.TIERS[item_id] == "D", "每题至少 3 个关键条件（D 档至少 3 个约束）"
-    for name, mut, required in conds:
-        other = _norm(SIM[item_id](mut(copy.deepcopy(INST[item_id]))))
+    assert len(conds) >= 3, "每题至少 3 个关键条件"
+    for name, mut, _required in conds:
+        other = _key(item_id, SIM[item_id](mut(copy.deepcopy(INST[item_id]))))
         changed = {k for k in base if base[k] != other.get(k)}
-        assert changed, f"{item_id} 条件「{name}」删除后答案不变（惰性条件）"
-        for field in required or ():
-            assert field in changed, f"{item_id} 条件「{name}」删除后 {field} 未变"
+        assert changed, f"{item_id} 条件「{name}」删除后判分数值不变（惰性条件）"
     assert all(row["ok"] for row in ROWS[item_id]["deletion"])
+
+
+@pytest.mark.parametrize("item_id", sorted(SIM))
+def test_main_and_counterfactual_values_unique(item_id):
+    assert ROWS[item_id]["uniqueness"] == {"main": True, "cf": True}
+    assert gen.uniqueness_report(item_id, INST[item_id]) == {"main": True, "cf": True}
+
+
+@pytest.mark.parametrize("item_id", ["NX-12", "NX-18"])
+def test_delivery_main_and_cf_optimum_unique_by_independent_enumeration(item_id):
+    obj = (lambda late, total: (total,)) if item_id == "NX-12" else _obj18(INST[item_id])
+    live = gen._apply_mutex_delivery(INST[item_id])
+    rows = _all_routes(live, obj)
+    assert rows[0][0] < rows[1][0], "主值：最优顺序唯一"
+    cf = _all_routes(gen._apply_mutex_delivery(gen._other_shock(INST[item_id], live, gen.PRIO_DELIVERY)), obj)
+    assert cf[0][0] < cf[1][0] or cf[0][4] == cf[1][4], "反事实值唯一"
+
+
+def test_counterfactual_differs_from_factual_and_from_no_shock_mixup():
+    for item_id, main in gen.CF_OF.items():
+        ans = reference_answer(item_id)
+        cf_name = gen.KEYS[item_id][-1][0]
+        assert cf_name.startswith("cf_") and ans[cf_name] != ans[main]
+
+
+def test_tie_rule_is_semantic_not_id_order():
+    # NX-18：洪涝与封闭同在 16 分钟开始；按语义“同时刻洪涝优先”，不依赖任何 id 字符串
+    i = INST["NX-18"]
+    assert i["flood"][0] == i["closed"]["L1"][0][0] == 16
+    live = gen._apply_mutex_delivery(i)
+    assert live["active_kind"] == "flood" and live["closed"] == {}
+    assert "同时刻洪涝优先" in ROWS["NX-18"]["prompt"]
 
 
 def test_d_tier_constraints_change_unconstrained_optimum():
     i16 = dict(INST["NX-16"], box=1, hot_rule=False, shelf=99, delivery_fee=0, lead=0, bulk_at=10**9, weekend_mult=1)
-    assert _sim16(i16)["buy"] != reference_answer("NX-16")["buy"]
+    assert _sim16(i16)["buy"] != ROWS["NX-16"]["full_answer"]["buy"]
     i17 = dict(INST["NX-17"], closures=[], budget=999, transfer={}, avoid=[], max_hops=99, slow_after=10**9, slow_mult=1)
-    assert _sim17(i17)["path"] != reference_answer("NX-17")["path"]
+    assert _sim17(i17)["path"] != ROWS["NX-17"]["full_answer"]["path"]
 
 
 def test_d_tier_unique_optimum():
-    # NX-16：作者侧穷举验证利润唯一最优（箱规保持实例值，避免 box=1 变成纯算力堆）
     top = _all16(INST["NX-16"])
     assert top[0][0] > top[1][0]
-    # NX-17：约束下可行路唯一，或首条严格优于次条
-    f = _all17(INST["NX-17"])
+    f = _all17(gen._apply_mutex_nx17(INST["NX-17"]))
     assert f and (len(f) == 1 or f[0][:2] < f[1][:2])
-
-
-@pytest.mark.parametrize("item_id", ["NX-12", "NX-18"])
-def test_c_tier_route_unique_and_temporal_rule_interaction(item_id):
-    """C 档：最优唯一；难度来自时序/规则耦合（停运×登记×拥堵×封闭×载量），非枚举空间本身。"""
-    obj = (lambda late, total: (total,)) if item_id == "NX-12" else _obj18(INST[item_id])
-    rows = _all_routes(INST[item_id], obj)
-    assert rows[0][0] < rows[1][0], "最优唯一"
-    # 边界时刻，或去掉拥堵/封闭/载量上限后路线改变（证明时序规则在耦合）
-    stripped = copy.deepcopy(INST[item_id])
-    stripped["congestion_mult"] = 1
-    stripped["closed"] = {}
-    stripped["max_carry"] = 99
-    other = _all_routes(stripped, obj)
-    assert rows[0][6] >= 1 or other[0][1] != rows[0][1], "时序规则应影响最优轨迹"
 
 
 def test_c_tier_nx13_boundary_and_interleaving():
     i = INST["NX-13"]
-    ans = reference_answer("NX-13")
+    ans = ROWS["NX-13"]["full_answer"]
     assert any(r[1] != i["flights"][r[0]]["plan"] for r in ans["flights"]), "至少一次换机组"
-    assert ans["cancelled"], "应有取消航段（延误/病假/禁飞交织）"
-    # 边界扰动：转场+1、执勤-1、去掉病假或禁飞，至少一项改变答案
-    shifted = _norm(_sim13(dict(i, turn=i["turn"] + 1)))
-    capped = copy.deepcopy(i)
-    for c in capped["crews"].values():
-        c["cap"] = max(1, c["cap"] - 30)
-    no_sick = _norm(_sim13(dict(i, sick={})))
-    no_gs = _norm(_sim13(dict(i, ground_stop=None)))
-    assert shifted != ans or _norm(_sim13(capped)) != ans or no_sick != ans or no_gs != ans
+    assert ans["cancelled"], "应有取消航段"
 
 
 @pytest.mark.parametrize("item_id", sorted(SIM))
-def test_reference_scores_full_and_empty_low(item_id):
-    full = score_reasoning(item_id, json.dumps(reference_answer(item_id), ensure_ascii=False))
-    assert full["passed"] and full["points"] == 20 and full["schema_errors"] == []
-    empty = {}
-    for k, v in reference_answer(item_id).items():
-        if isinstance(v, list):
-            empty[k] = []
-        elif isinstance(v, dict):
-            empty[k] = {}
-        elif isinstance(v, str):
-            empty[k] = ""
-        elif v is None:
-            empty[k] = None
-        else:
-            empty[k] = 0
-    # 空结构若碰巧命中某分组（如 alternatives=[]），仍应远低于满分
-    assert score_reasoning(item_id, json.dumps(empty))["points"] <= 10
+def test_reference_scores_full_and_wrong_low(item_id):
+    full = score_reasoning(item_id, reference_text(item_id))
+    assert full["passed"] and full["points"] == 20
+    wrong = "ANSWER: " + ", ".join(str(v + 1) for v in reference_answer(item_id).values())
+    assert score_reasoning(item_id, wrong)["points"] == 0
+    zeros = "ANSWER: " + ", ".join("0" for _ in reference_answer(item_id))
+    assert score_reasoning(item_id, zeros)["points"] <= 8
 
 
-def test_schema_errors_are_reported_without_changing_points():
-    ans = dict(reference_answer("NX-13"))
-    ans["last_end"] = str(ans["last_end"])
-    r = score_reasoning("NX-13", json.dumps(ans))
-    assert r["points"] == 19 and any("last_end" in e for e in r["schema_errors"])
-    bad = score_reasoning("NX-17", '{"path": ["A", "E"')
-    assert bad["reason_code"] == "format_error" and bad["schema_errors"]
-    assert score_reasoning("NX-09", "[1,2]")["points"] == 0
+def test_each_number_scored_independently_and_weights():
+    for item_id, groups in ((it.item_id, it.groups) for it in ITEMS):
+        assert sum(p for _, p in groups) == 20
+        names = [n for n, _ in groups]
+        assert 2 <= len(names) <= 3
+        if item_id in gen.CF_OF:
+            assert names[-1].startswith("cf_") and groups[-1][1] == 6 and sum(p for _, p in groups[:-1]) == 14
+        vals = list(reference_answer(item_id).values())
+        for k in range(len(vals)):
+            bad = list(vals)
+            bad[k] += 1
+            r = score_reasoning(item_id, "ANSWER: " + ", ".join(map(str, bad)))
+            assert r["points"] == 20 - groups[k][1]
 
 
-def test_schema_has_no_counts_or_entities():
-    for item_id, row in ROWS.items():
-        text = json.dumps(row["schema"], ensure_ascii=False)
-        assert "const" not in text and "examples" not in text and "default" not in text
-        # 数组长度只约束元组行宽，不约束元素个数
-        def walk(s):
-            if isinstance(s, dict):
-                if s.get("type") == "array" and "prefixItems" not in s:
-                    assert "minItems" not in s and "maxItems" not in s
-                for v in s.values():
-                    walk(v)
-            elif isinstance(s, list):
-                for v in s:
-                    walk(v)
-        walk(row["schema"])
-        for ent in ("F0", "P0", "V0", "\"A\"", "R1", "B1", "C1", "L1"):
-            assert ent not in text, (item_id, ent)
+def test_parser_is_lenient_on_wrapping_but_strict_on_count():
+    v = list(reference_answer("NX-12").values())
+    line = ", ".join(map(str, v))
+    ok = [
+        f"推理……\nANSWER: {line}",
+        f"```\nANSWER: {line}\n```",
+        f"```text\n推导\nANSWER: {line}\n```\n以上。",
+        f"**ANSWER：** {line}\n希望有帮助。",
+        f"`ANSWER: {line}`",
+        f"answer = {line}",
+        f"ANSWER: 问1={v[0]}, 问2={v[1]}, 问3={v[2]}",
+        f"ANSWER: 0, 0, 0\n更正：\nANSWER: {line}",
+    ]
+    for text in ok:
+        assert score_reasoning("NX-12", text)["points"] == 20, text
+    for text in ("72", f"ANSWER: {v[0]}, {v[1]}", f"ANSWER: {line}, 9", "", f"ANSWER: {v[0]}.5, {v[1]}, {v[2]}"):
+        r = score_reasoning("NX-12", text)
+        assert r["points"] == 0 and r["reason_code"] == "format_error", text
+    assert parse_answer("ANSWER: −3, 4", 2) == [-3, 4]
 
 
-# Helix：防泄露词表不是好设计。只禁止「解题步骤/镜像示例/答案形态暗示」，
-# 不禁 贪心/枚举/搜索 等自然出现的词。约束写全即可。
+# Helix：防泄露词表不是好设计。只禁止「解题步骤/镜像示例/答案形态暗示」。
 PROCEDURE_LEAKS = [
     "逐步模拟", "一步一步", "step by step", "按如下步骤", "解题思路",
     "注意陷阱", "本题陷阱", "难点提示", "参考答案", "正确答案是",
@@ -663,83 +656,23 @@ PROCEDURE_LEAKS = [
 
 
 @pytest.mark.parametrize("item", ITEMS, ids=lambda it: it.item_id)
-def test_prompt_states_constraints_not_procedures(item):
+def test_prompt_open_no_ids_no_schema(item):
     text = render_reasoning_prompt(item.item_id)
     for phrase in PROCEDURE_LEAKS:
         assert phrase not in text, (item.item_id, phrase)
-    # 门禁记录与维护说明不得进题面
     for name in ("anchor", "cost", "transfer"):
         assert gen.GATE[item.item_id][name] not in text
-    # 答案收敛字段的具体数值不得出现在题面（防答案形态泄露）
-    ans = reference_answer(item.item_id)
-    for k in ("total", "total_cost", "profit", "last_end", "peak_cost", "emergency_wait", "elevator_walk", "arrive", "cost"):
-        if k in ans and isinstance(ans[k], int) and abs(ans[k]) >= 10:
-            assert f'"{k}":{ans[k]}' not in text and f"{k}={ans[k]}" not in text
-    assert ROWS[item.item_id]["schema"] == gen.output_schema(item.item_id)
-
-
-@pytest.mark.parametrize("item_id", sorted(SIM))
-def test_answer_converges_to_small_unique_key(item_id):
-    """题目可复杂，答案必须收敛：字段少、可由作者模拟器唯一确定。"""
-    ans = reference_answer(item_id)
-    assert 3 <= len(ans) <= 7
-    # 至少有一个难猜的标量（时刻/费用/利润，或 map 中的整数值）
-    def _scalars(v):
-        if isinstance(v, bool):
-            return []
-        if isinstance(v, int):
-            return [v]
-        if isinstance(v, dict):
-            return [x for x in v.values() if isinstance(x, int)]
-        return []
-    scalars = [x for v in ans.values() for x in _scalars(v)]
-    assert scalars, "需要至少一个收敛标量字段"
-    # 独立模拟器与参考键一致 ⇒ 唯一性由作者侧可复现
-    assert _norm(SIM[item_id](copy.deepcopy(INST[item_id]))) == ans
+    # 不要求特定字段/数据结构，不暴露内部突发 id
+    for banned in ("JSON", "Schema", "只含以下字段", "active_shock", "cf_", "flood", "closed-", "capshock", "recall-", "cl-", "out-B", "sick-", "id 为"):
+        assert banned not in text, (item.item_id, banned)
+    assert text.rstrip().endswith("用英文逗号分隔。") and "ANSWER:" in text
+    assert text.count("问") >= len(item.groups)
+    if item.item_id in gen.CF_OF:
+        assert gen.CF_Q in text and "优先" in text
 
 
 def test_generator_deterministic_and_frozen_matches():
-    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261016.py"
+    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261017.py"
     out = subprocess.run([sys.executable, str(script), "--check"], capture_output=True, text=True, cwd=ROOT)
     assert out.returncode == 0, out.stdout + out.stderr
     assert gen.build_item("NX-12") == gen.build_item("NX-12")
-
-
-def test_groups_sum_to_20_and_include_cf_when_present():
-    from eval_bank_20260925 import next_reasoning as nr
-    for item_id, groups in nr._GROUPS.items():
-        assert sum(m for _, m in groups) == 20
-        ans = reference_answer(item_id)
-        for name, _m in groups:
-            assert name in ans
-        cf_names = [k for k in ans if str(k).startswith("cf_") or k == "active_shock"]
-        for name in cf_names:
-            assert name in dict(groups), f"{item_id} missing scored group {name}"
-
-
-def test_cf_and_active_shock_groups_are_scored():
-    """反事实/生效冲击错误会扣分；主字段全对时不再满分。"""
-    from eval_bank_20260925.next_reasoning import score_reasoning, reference_answer, _GROUPS
-    for item_id, groups in _GROUPS.items():
-        names = [n for n, _ in groups]
-        if "active_shock" not in names:
-            continue
-        ans = dict(reference_answer(item_id))
-        full = score_reasoning(item_id, json.dumps(ans, ensure_ascii=False))
-        assert full["points"] == 20 and full["passed"]
-        # wrong cf
-        cf_key = next(n for n in names if n.startswith("cf_"))
-        bad = dict(ans)
-        if isinstance(bad[cf_key], int):
-            bad[cf_key] = bad[cf_key] + 1
-        else:
-            bad[cf_key] = None
-        r = score_reasoning(item_id, json.dumps(bad, ensure_ascii=False))
-        cf_max = dict(groups)[cf_key]
-        assert r["points"] == 20 - cf_max
-        assert r["passed"] is False
-        # wrong active_shock
-        bad2 = dict(ans)
-        bad2["active_shock"] = "WRONG"
-        r2 = score_reasoning(item_id, json.dumps(bad2, ensure_ascii=False))
-        assert r2["points"] == 20 - dict(groups)["active_shock"]

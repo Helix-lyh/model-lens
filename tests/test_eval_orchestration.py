@@ -131,7 +131,7 @@ def test_timeout_partial_content_keeps_points(tmp_path: Path):
     item = run_eval.ALL_BY_ID["NX-09"]
     from eval_bank_20260925.next_reasoning import reference_answer
     _key = reference_answer("NX-09")
-    _partial = __import__("json").dumps({"waiting": _key["waiting"], "last_end": _key["last_end"]})
+    _partial = f"ANSWER: {_key['last_end']}, {_key['waiting_n'] + 1}"
     text = _partial
     row = run_eval.run_one(
         _Client(_record(content=text, error="ReadTimeout")),
@@ -140,8 +140,8 @@ def test_timeout_partial_content_keeps_points(tmp_path: Path):
     )
     assert row["status"] == "fail"
     assert row["reason_code"] == "timeout_partial"
-    assert row["points"] == 6
-    assert row["score10"] == 3.0
+    assert row["points"] == 12
+    assert row["score10"] == 6.0
 
 
 def test_timeout_is_included_in_pass_at_k_samples():
