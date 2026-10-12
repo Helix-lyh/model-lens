@@ -1,4 +1,4 @@
-"""20261017 推理题：分档、门禁记录、删除测试（独立模拟器）、唯一最优、Schema、约束完整性（非词表禁令）。
+"""20261018 推理题：分档、门禁记录、删除测试（独立模拟器）、唯一最优、Schema、约束完整性（非词表禁令）。
 
 本文件中的 _sim_* 均为独立实现（逐分钟推进 / 显式穷举），不调用 reasoning_gen 的求解器，
 只复用其中的“删除条件”数据变换（CONDITIONS 中的 mutator）。
@@ -672,7 +672,19 @@ def test_prompt_open_no_ids_no_schema(item):
 
 
 def test_generator_deterministic_and_frozen_matches():
-    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261017.py"
+    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261018.py"
     out = subprocess.run([sys.executable, str(script), "--check"], capture_output=True, text=True, cwd=ROOT)
     assert out.returncode == 0, out.stdout + out.stderr
     assert gen.build_item("NX-12") == gen.build_item("NX-12")
+
+
+@pytest.mark.parametrize("item_id", ["NX-12", "NX-18"])
+def test_delivery_forbids_unstated_early_actions(item_id):
+    text = ROWS[item_id]["prompt"]
+    assert "未满不得提前回 W" in text and "满则先回 W" in text and "不得在任何地点主动停留" in text
+
+
+def test_nx18_search_space_small():
+    i = INST["NX-18"]
+    active = [o for o in i["orders"] if o not in i["cancel_ids"]]
+    assert len(active) <= 4 and len(active) > i["max_carry"]

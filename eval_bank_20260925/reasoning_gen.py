@@ -1,4 +1,4 @@
-"""20261017 推理题（NX-09..NX-18）实例生成器、参考求解器与关键条件。
+"""20261018 推理题（NX-09..NX-18）实例生成器、参考求解器与关键条件。
 
 遵循 docs/question-bank-methodology-20261008.md：
 - 分档 2A/3B/3C/2D（TIERS）；难度来自依赖与状态转移，规模只取“够用”；本轮加互斥突发分支与反事实收敛字段；难度来自约束择支与时序重规划。
@@ -15,7 +15,7 @@ import math
 import random
 from typing import Any, Callable
 
-VERSION = "20261017"
+VERSION = "20261018"
 BASE_SEED = 20261016
 MAX_TRIES = 20000
 
@@ -937,6 +937,7 @@ def _prompt_nx12(inst):
 规则：
 - 到达楼宇地面并完成需要的登记后，若处于封闭则等到结束；然后若该时刻处于该楼宇停运区间内，本次上楼步行，每层 2 分钟；否则乘电梯，每层 1 分钟。上楼期间状态变化不影响本次上楼。送达时刻 = 到达所在楼层的时刻。
 - 送达后回到地面固定每层 1 分钟（不受电梯状态影响），再出发去下一单；下一单在同一楼宇时道路分钟为 0，仍需下楼再上楼。最后一单送达即结束，不再下楼。
+- 只有已连续送满 {inst["max_carry"]} 单且仍有未送订单时才回 W（回 W 后重新计数）；未满不得提前回 W。除上面规定的登记、封闭等待外，不得在任何地点主动停留。
 - 送达时刻 > deadline 为迟到；deadline 不限制顺序。
 - 目标：使最后一单送达时刻最小（本实例满足目标的顺序唯一）。
 - 互斥突发：洪涝封楼与楼宇封闭候选中只生效一条——开始时刻最早者；同时刻取 id 字典序最小（洪涝 id 为 flood，封闭为 closed-楼-开始）。未生效者视为不存在。
@@ -950,7 +951,7 @@ def _prompt_nx12(inst):
 
 def _gen_nx18(rng):
     _ = rng.random()
-    return json.loads('{"roads": {"W-L1": 4, "W-L2": 5, "W-L3": 4, "L1-L2": 4, "L1-L3": 3, "L2-L3": 7}, "outages": {"L1": [[20, 36]], "L2": [[25, 36]], "L3": [[7, 22]]}, "orders": {"A": {"building": "L2", "floor": 8, "ready": 0, "deadline": 22}, "B": {"building": "L3", "floor": 1, "ready": 0, "deadline": 22}, "C": {"building": "L1", "floor": 2, "ready": 8, "deadline": 44}, "D": {"building": "L2", "floor": 1, "ready": 9, "deadline": 43}, "E": {"building": "L1", "floor": 8, "ready": 0, "deadline": 40}, "F": {"building": "L1", "floor": 4, "ready": 5, "deadline": 42}}, "down_rate": 1, "register": {"L1": 5, "L2": 0, "L3": 3}, "late_first": true, "congestion_from": 16, "congestion_mult": 2, "max_carry": 3, "cold_limit": 34, "closed": {"L1": [[16, 29]]}, "cancel_ids": ["E"], "flood": [16, "L3"], "detour": 0}')
+    return json.loads('{"roads": {"W-L1": 4, "W-L2": 5, "W-L3": 4, "L1-L2": 4, "L1-L3": 3, "L2-L3": 7}, "outages": {"L1": [[20, 36]], "L2": [[25, 36]], "L3": [[7, 22]]}, "orders": {"A": {"building": "L2", "floor": 8, "ready": 0, "deadline": 22}, "B": {"building": "L3", "floor": 1, "ready": 0, "deadline": 22}, "C": {"building": "L1", "floor": 2, "ready": 8, "deadline": 44}, "E": {"building": "L1", "floor": 8, "ready": 0, "deadline": 40}, "F": {"building": "L1", "floor": 4, "ready": 5, "deadline": 42}}, "down_rate": 1, "register": {"L1": 5, "L2": 0, "L3": 3}, "late_first": true, "congestion_from": 16, "congestion_mult": 2, "max_carry": 3, "cold_limit": 34, "closed": {"L1": [[16, 29]]}, "cancel_ids": ["E"], "flood": [16, "L3"], "detour": 0}')
 
 
 
@@ -981,11 +982,12 @@ def _prompt_nx18(inst):
 订单表每行 `[id, 楼宇, 楼层, ready, deadline]`：{_compact(orders)}。
 电梯停运区间（半开区间 [开始, 结束)）：{_compact(inst["outages"])}。
 首次进入楼宇需在地面登记（分钟，同一楼宇再次进入不再登记）：{_compact(inst["register"])}。
-楼宇封闭区间（半开）：{_compact(inst["closed"])}。从时刻 {inst["congestion_from"]} 起道路时间×{inst["congestion_mult"]}。连续配送上限 {inst["max_carry"]}。冷链时限 ready+{inst["cold_limit"]}，超时亦计迟到。
+楼宇封闭区间（半开）：{_compact(inst["closed"])}。从时刻 {inst["congestion_from"]} 起道路时间×{inst["congestion_mult"]}。连续配送上限 {inst["max_carry"]} 单，满则先回 W。冷链时限 ready+{inst["cold_limit"]}，超时亦计迟到。
 取消订单（不必配送）：{_compact(inst["cancel_ids"])}。从时刻 {inst["flood"][0]} 起楼宇 {inst["flood"][1]} 因洪涝不可进入（须在此前完成该楼全部订单）。
 规则：
 - 到达楼宇地面并完成需要的登记后，若处于封闭则等到结束；然后若当前时刻早于该订单 ready，在地面等到 ready；开始上楼的时刻若处于该楼宇停运区间内，本次上楼步行，每层 2 分钟，否则乘电梯，每层 1 分钟。上楼期间状态变化不影响本次上楼。送达时刻 = 到达所在楼层的时刻。
 - 送达后回到地面固定每层 1 分钟（不受电梯状态影响），再出发去下一单；下一单在同一楼宇时道路分钟为 0，仍需下楼再上楼。最后一单送达即结束。
+- 只有已连续送满 {inst["max_carry"]} 单且仍有未送订单时才回 W（回 W 后重新计数）；未满不得提前回 W。除上面规定的登记、封闭等待和等到 ready 外，不得在任何地点主动停留。
 - 送达时刻 > deadline，或 > ready + {inst["cold_limit"]}，均为迟到。
 - 目标：先使迟到订单数最少，在此前提下使最后一单送达时刻最小（本实例满足目标的顺序唯一）。
 - 互斥突发：洪涝封楼与楼宇封闭候选中只生效一条——开始时刻最早者；同时刻取 id 字典序最小。未生效者视为不存在。
@@ -1522,7 +1524,7 @@ CONDITIONS: dict[str, list[tuple[str, Callable, tuple | None]]] = {
         ("感染清洁", _set(clean=0), None),
         ("急诊优先", _set(emergency_first=False), None),
         ("床位日容量", _set(bed_cap={"B1": 99, "B2": 99, "B3": 99, "B4": 99}), None),
-        # 20261017：非感染轻清只交换床位明细，对判分数值是背景条件
+        # 20261018：非感染轻清只交换床位明细，对判分数值是背景条件
         ("停用清洁互斥", _force_both_shocks, None), ("反事实分支", _cf_collapse, ("cf_emergency_wait",)),
         # 停止收治在本轮手冻实例上难绑定，不列入关键条件
     ],
@@ -1535,7 +1537,7 @@ CONDITIONS: dict[str, list[tuple[str, Callable, tuple | None]]] = {
     ],
     "NX-13": [
         ("落地延误", _drop_events("arrdelay"), None),
-        # 20261017：起飞延误只改变已删除的明细字段（F02 起降时刻），对判分数值是背景条件，不列为关键条件
+        # 20261018：起飞延误只改变已删除的明细字段（F02 起降时刻），对判分数值是背景条件，不列为关键条件
         ("航段关闭", _drop_events("close"), None), ("转场时间", _set(turn=0), None),
         ("执勤上限", _no_crew_cap, None),
         ("病假禁飞互斥", _force_both_shocks, None), ("反事实分支", _cf_collapse, ("cf_cancelled_n",)),
@@ -1557,7 +1559,7 @@ CONDITIONS: dict[str, list[tuple[str, Callable, tuple | None]]] = {
     "NX-17": [
         ("预算", _set(budget=999), None),
         ("换乘耗时", _set(transfer={}), None), ("站点禁止窗", _set(avoid=[]), None),
-        # 20261017：边数上限只影响已删除的备选路径明细，对判分数值是背景条件
+        # 20261018：边数上限只影响已删除的备选路径明细，对判分数值是背景条件
         ("高峰减速", _set(slow_mult=1), None),
         ("封闭枢纽互斥", _force_both_shocks, None), ("反事实分支", _cf_collapse, ("cf_arrive",)),
     ],
@@ -1582,7 +1584,7 @@ def solve(item_id: str, instance: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 20261017 开放题面：题面不规定数据结构；每题只问 2 个主数值，含互斥突发的题再问 1 个反事实数值。
+# 20261018 开放题面：题面不规定数据结构；每题只问 2 个主数值，含互斥突发的题再问 1 个反事实数值。
 # 答案格式只保留最小约定：最后一行 `ANSWER: <问1>, <问2>[, <问3>]`。
 # ---------------------------------------------------------------------------
 
