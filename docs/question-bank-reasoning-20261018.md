@@ -1,6 +1,6 @@
-# 推理题库 20261017：开放题面与数值答案
+# 推理题库 20261018：开放题面与数值答案
 
-计分版本：`20261017.s1`（`bank_manifest.SCORING_VERSION`，写入每行结果与 meta，参与 `--resume` 校验）。
+计分版本：`20261018.s1`（`bank_manifest.SCORING_VERSION`，写入每行结果与 meta，参与 `--resume` 校验）。
 
 ## 改动
 - 删除 `active_shock` 字段及其计分；题面不暴露、不要求复述内部突发 id。
@@ -10,6 +10,11 @@
 - 答案格式唯一约定：最后一个 `ANSWER:` 行按问题顺序写整数。解析宽容：任意代码块、Markdown 粗体/反引号、全角冒号、前后说明、`问1=` 标签、多次 ANSWER 取最后一次；数值个数不符或小数记 format_error。
 - 参考求解器重新生成答案；删除测试作用在判分数值上（删任一关键条件，至少一个判分数值变化）；新增唯一性检查：最优类题主值与反事实值均由严格唯一最优确定（NX-10/12/16/17/18）。
 - 只影响已删明细字段的 3 条条件降为背景：NX-13 起飞延误、NX-15 非感染轻清、NX-17 边数上限（仍在题面，不计关键条件）。
+
+## 20261018 增量
+- NX-12/NX-18：只有送满上限且仍有未送订单时才回 W，未满不得提前回 W；除规定等待外不得主动停留（20261017 中模型可合理地提前回站得到另一答案）。其余题已检查：NX-17 已禁止停留，NX-09/14/15 有“不得闲置”，NX-10/11/13/16 的动作由规则唯一确定。
+- NX-18 删去订单 D（有效订单 5→4），降低枚举量与输出长度；约束与删除测试保留。
+- max_tokens 按 catalog/output_limits.yaml 中各模型官方最大输出发送（deepseek-flash=384000），有测试守护。
 
 ## 题目与答案键
 | 题 | 标题 | 判分数值（分） | 答案 |
@@ -23,6 +28,6 @@
 | NX-15 | 隔离病床与清洁 | emergency_wait(8)、waiting_n(6)、cf_emergency_wait(6) | {'emergency_wait': 56, 'waiting_n': 4, 'cf_emergency_wait': 10} |
 | NX-16 | 按箱采购与热天损耗 | profit(12)、waste_sum(8) | {'profit': 204, 'waste_sum': 2} |
 | NX-17 | 换乘预算和分时封路 | arrive(8)、cost(6)、cf_arrive(6) | {'arrive': 16, 'cost': 4, 'cf_arrive': 8} |
-| NX-18 | 冷藏配送和电梯停运 | late_n(8)、total(6)、cf_total(6) | {'late_n': 2, 'total': 60, 'cf_total': 69} |
+| NX-18 | 冷藏配送和电梯停运 | late_n(8)、total(6)、cf_total(6) | {'late_n': 1, 'total': 58, 'cf_total': 67} |
 
-生成/校验：`.venv/bin/python cursor_workspace/build_scripts/gen_reasoning_20261017.py [--check]`。
+生成/校验：`.venv/bin/python cursor_workspace/build_scripts/gen_reasoning_20261018.py [--check]`。
