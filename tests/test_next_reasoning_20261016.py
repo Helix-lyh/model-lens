@@ -629,7 +629,7 @@ def test_schema_errors_are_reported_without_changing_points():
     ans = dict(reference_answer("NX-13"))
     ans["last_end"] = str(ans["last_end"])
     r = score_reasoning("NX-13", json.dumps(ans))
-    assert r["points"] == 18 and any("last_end" in e for e in r["schema_errors"])
+    assert r["points"] == 19 and any("last_end" in e for e in r["schema_errors"])
     bad = score_reasoning("NX-17", '{"path": ["A", "E"')
     assert bad["reason_code"] == "format_error" and bad["schema_errors"]
     assert score_reasoning("NX-09", "[1,2]")["points"] == 0
@@ -703,3 +703,43 @@ def test_generator_deterministic_and_frozen_matches():
     out = subprocess.run([sys.executable, str(script), "--check"], capture_output=True, text=True, cwd=ROOT)
     assert out.returncode == 0, out.stdout + out.stderr
     assert gen.build_item("NX-12") == gen.build_item("NX-12")
+
+
+def test_groups_sum_to_20_and_include_cf_when_present():
+    from eval_bank_20260925 import next_reasoning as nr
+    for item_id, groups in nr._GROUPS.items():
+        assert sum(m for _, m in groups) == 20
+        ans = reference_answer(item_id)
+        for name, _m in groups:
+            assert name in ans
+        cf_names = [k for k in ans if str(k).startswith("cf_") or k == "active_shock"]
+        for name in cf_names:
+            assert name in dict(groups), f"{item_id} missing scored group {name}"
+
+
+def test_cf_and_active_shock_groups_are_scored():
+    """反事实/生效冲击错误会扣分；主字段全对时不再满分。"""
+    from eval_bank_20260925.next_reasoning import score_reasoning, reference_answer, _GROUPS
+    for item_id, groups in _GROUPS.items():
+        names = [n for n, _ in groups]
+        if "active_shock" not in names:
+            continue
+        ans = dict(reference_answer(item_id))
+        full = score_reasoning(item_id, json.dumps(ans, ensure_ascii=False))
+        assert full["points"] == 20 and full["passed"]
+        # wrong cf
+        cf_key = next(n for n in names if n.startswith("cf_"))
+        bad = dict(ans)
+        if isinstance(bad[cf_key], int):
+            bad[cf_key] = bad[cf_key] + 1
+        else:
+            bad[cf_key] = None
+        r = score_reasoning(item_id, json.dumps(bad, ensure_ascii=False))
+        cf_max = dict(groups)[cf_key]
+        assert r["points"] == 20 - cf_max
+        assert r["passed"] is False
+        # wrong active_shock
+        bad2 = dict(ans)
+        bad2["active_shock"] = "WRONG"
+        r2 = score_reasoning(item_id, json.dumps(bad2, ensure_ascii=False))
+        assert r2["points"] == 20 - dict(groups)["active_shock"]

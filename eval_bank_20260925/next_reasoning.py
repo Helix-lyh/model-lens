@@ -27,18 +27,27 @@ def _spec(item_id, title, prompt, answer, groups):
     return ReasoningSpec(item_id, title, prompt.strip(), answer, groups)
 
 
-# 分组与满分沿用 20261011，本轮不调整计分权重。
+# 20261016b：为含反事实的题目把 cf_* / active_shock 纳入分组计分（每题总分仍 20）。
+# 分配原则：主结构字段保留过半；cf 标量 4 分（难猜）；active_shock 2 分（短 id，权重低于 cf）；
+# 其余从原主字段按比例下调。NX-09/14/16 无反事实字段，权重不变。
 _GROUPS = {
     "NX-09": (("served", 10), ("waiting", 2), ("last_end", 4), ("infectious_rooms", 4)),
-    "NX-10": (("assign", 12), ("rejected", 3), ("total_cost", 5)),
-    "NX-11": (("locks", 8), ("loaded", 4), ("free", 4), ("rejected", 4)),
-    "NX-12": (("route", 4), ("arrivals", 8), ("late", 4), ("total", 4)),
-    "NX-13": (("flights", 10), ("cancelled", 3), ("duty", 5), ("last_end", 2)),
+    # was 12+3+5 → 主字段 14，cf+shock 6
+    "NX-10": (("assign", 8), ("rejected", 2), ("total_cost", 4), ("cf_cost", 4), ("active_shock", 2)),
+    # was 8+4+4+4 → 主 14，cf+shock 6
+    "NX-11": (("locks", 6), ("loaded", 3), ("free", 3), ("rejected", 2), ("cf_free_sum", 4), ("active_shock", 2)),
+    # was 4+8+4+4 → 主 14，cf+shock 6
+    "NX-12": (("route", 3), ("arrivals", 6), ("late", 3), ("total", 2), ("cf_total", 4), ("active_shock", 2)),
+    # was 10+3+5+2 → 主 14，cf+shock 6
+    "NX-13": (("flights", 7), ("cancelled", 2), ("duty", 4), ("last_end", 1), ("cf_cancelled_n", 4), ("active_shock", 2)),
     "NX-14": (("schedule", 12), ("peak_cost", 4), ("finish_order", 4)),
-    "NX-15": (("beds", 12), ("waiting", 2), ("disinfect_until", 4), ("emergency_wait", 2)),
+    # was 12+2+4+2 → 主 14，cf+shock 6
+    "NX-15": (("beds", 8), ("waiting", 2), ("disinfect_until", 3), ("emergency_wait", 1), ("cf_emergency_wait", 4), ("active_shock", 2)),
     "NX-16": (("buy", 6), ("sold", 6), ("waste", 4), ("profit", 4)),
-    "NX-17": (("path", 4), ("arrive", 3), ("cost", 3), ("alternatives", 8), ("reason", 2)),
-    "NX-18": (("route", 4), ("arrivals", 8), ("late", 4), ("elevator_walk", 4)),
+    # was 4+3+3+8+2 → 主 14，cf+shock 6
+    "NX-17": (("path", 3), ("arrive", 2), ("cost", 2), ("alternatives", 6), ("reason", 1), ("cf_arrive", 4), ("active_shock", 2)),
+    # was 4+8+4+4 → 主 14，cf+shock 6
+    "NX-18": (("route", 3), ("arrivals", 5), ("late", 3), ("elevator_walk", 3), ("cf_elevator_walk", 4), ("active_shock", 2)),
 }
 
 FROZEN_PATH = Path(__file__).with_name("reasoning_20261016.json")

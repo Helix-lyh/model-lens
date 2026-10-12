@@ -149,7 +149,7 @@ def test_group_table_counts_judged_zeros_without_groups():
         engineering,
         row("E-02", "fail", points=0),
         row("NX-09", "fail", points=0, points_total=20, score10=0, groups=[]),
-        row("NX-10", "fail", points=12, points_total=20, score10=6, groups=[{"name": "assign", "points": 12, "max": 12}]),
+        row("NX-10", "fail", points=8, points_total=20, score10=4, groups=[{"name": "assign", "points": 8, "max": 8}]),
     ])
     for name in ("g1", "g2", "g3", "g4", "g5"):
         assert f"| coding | business-coding | {ACTIVE_VERSION} | {name} | 0 | 4 | 0.0% |" in text
@@ -158,6 +158,6 @@ def test_group_table_counts_judged_zeros_without_groups():
     assert f"| engineering | business-engineering | {ACTIVE_VERSION} | 扣分点 | 0 | 20 | 0.0% |" in text
     assert text.count("| 没测到 |") == 1
     assert f"| reasoning | business-reasoning | {ACTIVE_VERSION} | served | 0 | 10 | 0.0% |" in text
-    assert f"| reasoning | business-reasoning | {ACTIVE_VERSION} | assign | 12 | 12 | 100.0% |" in text
+    assert f"| reasoning | business-reasoning | {ACTIVE_VERSION} | assign | 8 | 8 | 100.0% |" in text
     assert f"| reasoning | business-reasoning | {ACTIVE_VERSION} | rejected | 0 | 3 |" not in text
     assert "g1 0.0（0/4）" not in text
