@@ -190,6 +190,7 @@ def channels(*, grok_base: str, grok_key_env: str, grok_cli_proxy: bool) -> dict
         Channel("space-bunny-free", "space-bunny-free", booster, "BOOSTER_API_KEY", cap("space-bunny-free"), {}),
         Channel("deepseek-chat", "deepseek-chat", _deepseek_base(), "DEEPSEEK_API_KEY", cap("deepseek-v4"), {}),
         Channel("mimo-v2.6-flash", "mimo-v2.6-flash", booster, "BOOSTER_API_KEY", cap("mimo-v2.6-flash"), {}),
+        Channel("cat-jam-free", "cat-jam-free", booster, "BOOSTER_API_KEY", cap("cat-jam-free"), {}),
         Channel("grok-4.6", "grok-4.6", base, key_env, 65536,
                 {**headers, "x-grok-model-override": "grok-4.6"} if grok_cli_proxy else dict(headers)),
         Channel("grok-4.7", "grok-4.7", base, key_env, 65536,
