@@ -106,6 +106,12 @@ hunyuan-t1: hunyuan
 hunyuan-a13b: hunyuan
 hunyuan-7b: hunyuan
 
+# --- 网关别名（按 vocab 探针观测登记，2026-10-16，高置信）---
+# beam-free / cat-jam-free 不是官方型号名，家族来自 tokenizer 指纹，不是厂商声明。
+deepseek-flash: deepseek_v3
+beam-free: qwen2_5
+cat-jam-free: qwen2_5
+
 # --- Grok-2 only；不要写 grok / grok-3 / grok-4 ---
 grok-2: grok2
 grok-2-mini: grok2

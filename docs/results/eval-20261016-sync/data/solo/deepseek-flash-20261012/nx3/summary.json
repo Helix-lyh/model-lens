@@ -1,0 +1,254 @@
+{
+ "meta": {
+  "phase": "hard",
+  "bank_profile": "active",
+  "bank_version": "20261018",
+  "scoring_version": "20261018.s1",
+  "langs": [
+   "python",
+   "go",
+   "typescript"
+  ],
+  "models": [
+   "deepseek-flash"
+  ],
+  "experiment_id": "eval-20261018-20261012T161203-hard",
+  "banks": {
+   "business-reasoning": "20261018"
+  },
+  "concurrency": 8,
+  "concurrency_scope": "per_channel",
+  "grader_concurrency": null,
+  "stream": true,
+  "timeout_s": 1200,
+  "retries": 3,
+  "samples": 3,
+  "pass_k": 3,
+  "items": [
+   "NX-09",
+   "NX-10",
+   "NX-11",
+   "NX-12",
+   "NX-13",
+   "NX-14",
+   "NX-15",
+   "NX-16",
+   "NX-17",
+   "NX-18"
+  ],
+  "salt_mode": "per_request_random_urlsafe_18",
+  "jobs_per_channel": 30,
+  "started_at": "20261012T161203",
+  "routes": {
+   "deepseek-flash": {
+    "base_url": "<gateway>",
+    "model": "deepseek-flash",
+    "api_key_env": "BOOSTER_API_KEY"
+   }
+  }
+ },
+ "summary": {
+  "deepseek-flash": {
+   "reasoning": {
+    "attempted": 30,
+    "attempted_samples": 30,
+    "questions": 10,
+    "judged": 30,
+    "passed": 23,
+    "pass_at_1": 0.7667,
+    "pass_at_1_eligible": 10,
+    "pass_at_k": 0.8,
+    "pass_at_k_eligible": 10,
+    "pass_at_k_items": 10,
+    "pass_k": 3,
+    "denominator": "fixed",
+    "points": 498.0,
+    "points_total": 600.0,
+    "score_percent_total": 83.0,
+    "judged_points_total": 600.0,
+    "judged_score_percent_total": 83.0,
+    "group_totals": [
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "arrive",
+      "points": 24,
+      "max": 24,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "cancelled_n",
+      "points": 24,
+      "max": 24,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "cf_arrive",
+      "points": 18,
+      "max": 18,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "cf_cancelled_n",
+      "points": 18,
+      "max": 18,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "cf_cost",
+      "points": 18,
+      "max": 18,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "cf_emergency_wait",
+      "points": 18,
+      "max": 18,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "cf_free_sum",
+      "points": 18,
+      "max": 18,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "cf_total",
+      "points": 30,
+      "max": 36,
+      "percent": 83.3
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "cost",
+      "points": 18,
+      "max": 18,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "emergency_wait",
+      "points": 24,
+      "max": 24,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "free_sum",
+      "points": 24,
+      "max": 24,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "last_end",
+      "points": 18,
+      "max": 54,
+      "percent": 33.3
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "late_n",
+      "points": 42,
+      "max": 42,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "loaded_n",
+      "points": 18,
+      "max": 18,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "peak_cost",
+      "points": 24,
+      "max": 24,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "profit",
+      "points": 36,
+      "max": 36,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "rejected_n",
+      "points": 18,
+      "max": 18,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "total",
+      "points": 42,
+      "max": 42,
+      "percent": 100.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "total_cost",
+      "points": 24,
+      "max": 60,
+      "percent": 40.0
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "waiting_n",
+      "points": 18,
+      "max": 42,
+      "percent": 42.9
+     },
+     {
+      "bank_id": "business-reasoning",
+      "bank_version": "20261018",
+      "name": "waste_sum",
+      "points": 24,
+      "max": 24,
+      "percent": 100.0
+     }
+    ],
+    "mean_score10": 8.3,
+    "mean_percent": 83.0,
+    "judged_mean_percent": 83.0,
+    "errors": 0,
+    "missing": 0,
+    "pending_review": 0,
+    "truncated": 0,
+    "timeouts": 0,
+    "grader_errors": 0,
+    "request_errors": 0
+   }
+  }
+ },
+ "bank_version": "20261018"
+}

@@ -24,6 +24,7 @@
 | [question-bank-next-engineering-20261008](question-bank-next-engineering-20261008.md) | **20261008 活跃工程题册**：v3.3 留用题和 4 道新增许愿式生产需求。 |
 | [question-bank-next-reasoning-20261008](question-bank-next-reasoning-20261008.md) | **20261008 活跃推理题册**：10 道跨业务时间线、状态和约束题。 |
 | [engineering-handoff-20261006](engineering-handoff-20261006.md) | **工程题交接**：优化方向、实测和现行策略。代码版本 v3.3。 |
+| [results/eval-20261016-sync](results/eval-20261016-sync/README.md) | **实测记录**：beam-free / cat-jam-free / deepseek-flash 同步评测（题库 20261018）、词表结论、精简数据。 |
 | [review-20260830](review-20260830.md) | **过时**历史评审。不要按其中的旧参数实现（例如 `max_tokens=1`）。 |
 
 2026-08-30 原稿已由 `design.md` 取代，本地路径不收录。
