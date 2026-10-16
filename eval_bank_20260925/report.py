@@ -8,7 +8,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from eval_bank_20260925.evaluation import aggregate_groups, is_judged, summarize, summarize_engineering
+from eval_bank_20260925.evaluation import aggregate_groups, is_judged, summarize, summarize_engineering, zero_groups
+
+
+def _row_total_for_groups(row: dict[str, Any]) -> float:
+    value = row.get("points_total")
+    return value if type(value) in (int, float) and value > 0 else 20
 from eval_bank_20260925.bank_manifest import ACTIVE_VERSION
 from eval_bank_20260925.next_reasoning import reasoning_group_maxes
 
@@ -121,6 +126,16 @@ def _rows_for_group_table(domain: str, rows: list[dict[str, Any]]) -> list[dict[
     coding_zeros = [{"name": f"g{index}", "points": 0, "max": 4} for index in range(1, 6)]
     for row in rows:
         if not is_judged(row):
+            # 20261019：未判行按 0 分进原分组满分（与固定分母同口径）；工程题记为「没测到」。
+            if domain == "engineering":
+                total = _row_total_for_groups(row)
+                prepared.append(_with_groups(row, [{"name": "得分点", "points": 0, "max": total},
+                                                   {"name": "扣分点", "points": 0, "max": total},
+                                                   {"name": "没测到", "points": total, "max": total}]))
+            else:
+                groups = zero_groups(row)
+                if groups is not None:
+                    prepared.append(_with_groups(row, groups))
             continue
         if domain == "engineering":
             groups = _engineering_groups(row)
@@ -233,7 +248,7 @@ def render_markdown(meta: dict[str, Any], rows: list[dict[str, Any]]) -> str:
         "## 逐题",
         "",
         "状态列保留原始判定：`pass`／`fail` 是模型判分结果；`error` 等未判状态在固定分母口径下记 0 分，最终得分列写明原因（如“截断（0分）”）。"
-        "分组累计只统计已判题；已判但没有可用分组的编码、推理按 0 分计入原分组满分；工程题使用得分点、扣分点、没测到。",
+        "分组累计与固定分母同口径：截断、错误等未判行与已判但没有可用分组的编码、推理一样按 0 分计入原分组满分；工程题使用得分点、扣分点、没测到（未判行全部记为没测到）。",
         "",
         "| 题库 | 渠道 | 题 | 语言 | 采样 | 状态 | 阶段分 | 最终得分 | 原因 |",
         "| --- | --- | --- | --- | ---: | --- | --- | --- | --- |",

@@ -242,11 +242,11 @@ def pass_at_k(rows: list[dict[str, Any]], k: int, *, key_fields: tuple[str, ...]
     estimates: list[float] = []
     eligible = 0
     for samples in grouped.values():
-        judged = [row for row in samples if is_judged(row)]
-        n = len(judged)
+        # 20261019：与固定分母同一批样本。截断、请求错误、超时、缺失都按未通过进 n，不再只数已判行。
+        n = len(samples)
         if n < k:
             continue
-        correct = sum(row.get("passed") is True for row in judged)
+        correct = sum(row.get("passed") is True for row in samples)
         estimate = 1.0 if correct == n or n - correct < k else 0.0 if correct == 0 else 1.0 - math.comb(n - correct, k) / math.comb(n, k)
         estimates.append(estimate)
         eligible += 1
@@ -311,7 +311,7 @@ def summarize(rows: list[dict[str, Any]], *, pass_k: int = 1) -> dict[str, Any]:
         "score_percent_total": round(100.0 * earned / possible, 1) if possible else None,
         "judged_points_total": judged_possible,
         "judged_score_percent_total": round(100.0 * earned / judged_possible, 1) if judged_possible else None,
-        "group_totals": aggregate_groups(judged),
+        "group_totals": aggregate_groups(fixed_denominator_group_rows(rows)),
         "mean_score10": round(sum(float(row["score10"]) for row in numeric) / len(numeric), 4) if numeric else None,
         "mean_percent": _mean_percent(rows, fixed=True),
         "judged_mean_percent": _mean_percent(judged),
@@ -373,6 +373,30 @@ def _mean_percent(rows: list[dict[str, Any]], *, fixed: bool = False) -> float |
         if fixed or (isinstance(row.get("score_percent"), (int, float)) and not isinstance(row.get("score_percent"), bool))
     ]
     return round(sum(values) / len(values), 1) if values else None
+
+
+def zero_groups(row: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """未判行（截断/错误/缺失）在分组累计里按 0 分计入该题原分组满分，与栏目固定分母同口径。"""
+    item = row.get("item")
+    if isinstance(item, str) and item.startswith("CP-"):
+        return [{"name": f"g{index}", "points": 0, "max": 4} for index in range(1, 6)]
+    if isinstance(item, str) and item.startswith("NX-"):
+        from .next_reasoning import reasoning_group_maxes
+        bounds = reasoning_group_maxes(item)
+        return [{"name": name, "points": 0, "max": maximum} for name, maximum in bounds] or None
+    return None
+
+
+def fixed_denominator_group_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    out = []
+    for row in rows:
+        if is_judged(row):
+            out.append(row)
+            continue
+        groups = zero_groups(row)
+        if groups is not None:
+            out.append({**row, "groups": groups})
+    return out
 
 
 def aggregate_groups(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:

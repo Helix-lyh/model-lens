@@ -152,7 +152,8 @@ def test_group_table_counts_judged_zeros_without_groups():
         row("NX-10", "fail", points=8, points_total=20, score10=4, groups=[{"name": "total_cost", "points": 8, "max": 8}]),
     ])
     for name in ("g1", "g2", "g3", "g4", "g5"):
-        assert f"| coding | business-coding | {ACTIVE_VERSION} | {name} | 0 | 4 | 0.0% |" in text
+        # 20261019：missing/error/pending_review 与固定分母同口径，按 0 分进分组满分（4 行 × 4）
+        assert f"| coding | business-coding | {ACTIVE_VERSION} | {name} | 0 | 16 | 0.0% |" in text
     assert f"| engineering | business-engineering | {ACTIVE_VERSION} | 没测到 | 20 | 20 | 100.0% |" in text
     assert f"| engineering | business-engineering | {ACTIVE_VERSION} | 得分点 | 0 | 20 | 0.0% |" in text
     assert f"| engineering | business-engineering | {ACTIVE_VERSION} | 扣分点 | 0 | 20 | 0.0% |" in text
