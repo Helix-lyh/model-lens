@@ -55,3 +55,12 @@ def test_summary_markdown_splits_channels_and_matches_summary_json():
     summary = run_eval.summarize(rows, ["a", "b"])
     assert summary["a"]["coding"]["score_percent_total"] == 100.0
     assert summary["b"]["coding"]["score_percent_total"] == 0.0
+
+
+def test_per_item_table_shows_sample_index():
+    rows = [_row("a", "NX-12", "pass", 20, sample=s) for s in range(3)]
+    text = render_markdown({"experiment_id": "t", "models": ["a"], "samples": 3}, rows)
+    table = text[text.index("## 逐题"):]
+    assert "| 采样 |" in table
+    for s in range(3):
+        assert f"| NX-12 | - | {s} | pass |" in table

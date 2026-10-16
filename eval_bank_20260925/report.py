@@ -235,13 +235,13 @@ def render_markdown(meta: dict[str, Any], rows: list[dict[str, Any]]) -> str:
         "状态列保留原始判定：`pass`／`fail` 是模型判分结果；`error` 等未判状态在固定分母口径下记 0 分，最终得分列写明原因（如“截断（0分）”）。"
         "分组累计只统计已判题；已判但没有可用分组的编码、推理按 0 分计入原分组满分；工程题使用得分点、扣分点、没测到。",
         "",
-        "| 题库 | 渠道 | 题 | 语言 | 状态 | 阶段分 | 最终得分 | 原因 |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| 题库 | 渠道 | 题 | 语言 | 采样 | 状态 | 阶段分 | 最终得分 | 原因 |",
+        "| --- | --- | --- | --- | ---: | --- | --- | --- | --- |",
     ]
     for row in sorted(rows, key=lambda item: (item.get("channel") or "", item.get("bank_id") or "", item.get("item") or "", item.get("lang") or "", item.get("sample") or 0)):
         lines.append(
             f"| {row.get('bank_id') or '-'} | {row.get('channel')} | {row.get('item')} | {row.get('lang') or '-'} | "
-            f"{row.get('status')} | {_stage_text(row)} | {_final_text(row)} | {row.get('reason_code') or '-'} |"
+            f"{row.get('sample') or 0} | {row.get('status')} | {_stage_text(row)} | {_final_text(row)} | {row.get('reason_code') or '-'} |"
         )
     lines.append("")
     return "\n".join(lines)
