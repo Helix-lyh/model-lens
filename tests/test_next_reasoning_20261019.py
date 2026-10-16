@@ -169,22 +169,21 @@ def _sim11(i):
 
 
 def _sim14(i):
+    """逐分钟推进（不依赖事件队列），老化停止 = 等待时钟停在 aging_off，已获加成保留。"""
     cars = {c: (a, e, p) for c, a, e, p in i["cars"]}
     busy = dict.fromkeys(i["piles"], 0)
-    todo, sched, t = set(cars), [], 0
+    todo, sched = set(cars), []
     aging, aging_cap = i["aging"], i.get("aging_cap", 10**9)
     max_wait = i.get("max_wait", 10**9)
     peak_a, peak_b = i["peak"]
     peak_ban = i.get("peak_ban", {})
     aging_off = i.get("aging_off_after")
-    while todo:
-        for c in [c for c in list(todo) if cars[c][0] <= t and t - cars[c][0] > max_wait]:
+    horizon = max(a for a, _e, _p in cars.values()) + (max_wait if max_wait < 10**8 else 500) + 2
+    for t in range(0, horizon + 1):
+        for c in [c for c in todo if cars[c][0] <= t and t - cars[c][0] > max_wait]:
             todo.discard(c)
-        progressed = False
         for pile in sorted(i["piles"]):
-            if busy[pile] > t:
-                continue
-            if peak_ban.get(pile) and peak_a <= t < peak_b:
+            if busy[pile] > t or (peak_ban.get(pile) and peak_a <= t < peak_b):
                 continue
             if any(a <= t < b for a, b in i.get("pile_down", {}).get(pile, [])):
                 continue
@@ -192,29 +191,13 @@ def _sim14(i):
             if not ok:
                 continue
             def eff(c):
-                if aging_off is not None and t >= aging_off:
-                    return cars[c][2]
-                return cars[c][2] + (min((t - cars[c][0]) // aging, aging_cap) if aging else 0)
+                te = t if aging_off is None else min(t, aging_off)
+                return cars[c][2] + (max(0, min((te - cars[c][0]) // aging, aging_cap)) if aging else 0)
             c = sorted(ok, key=lambda c: (-eff(c), cars[c][0], c))[0]
             end = t + math.ceil(cars[c][1] / i["piles"][pile])
             sched.append([c, pile, t, end, sum(_price(i["tariff"], m) for m in range(t, end))])
             busy[pile] = end
             todo.remove(c)
-            progressed = True
-        if progressed:
-            continue
-        future = [cars[c][0] for c in todo if cars[c][0] > t] + [v for v in busy.values() if v > t]
-        future += [cars[c][0] + max_wait + 1 for c in todo if cars[c][0] <= t]
-        for spans in i.get("pile_down", {}).values():
-            for a, b in spans:
-                if t < a: future.append(a)
-                if t < b: future.append(b)
-        if aging_off is not None and t < aging_off:
-            future.append(aging_off)
-        future = [v for v in future if v > t]
-        if not todo or not future:
-            break
-        t = min(future)
     sched.sort(key=lambda r: (r[2], r[1]))
     a, b = i["peak"]
     return {"schedule": sched,
@@ -237,6 +220,11 @@ def _walk_route(i, route):
         return d * cong_mult if t0 >= cong_from else d
 
     for oid in route:
+        if oid == "W":
+            if here != "W":
+                t += floor * i.get("down_rate", 1) + travel(here, "W", t)
+                here, floor, carry = "W", 0, 0
+            continue
         if carry >= max_carry and here != "W":
             t += floor * i.get("down_rate", 1) + travel(here, "W", t)
             here, floor, carry = "W", 0, 0
@@ -273,9 +261,14 @@ def _walk_route(i, route):
 def _all_routes(i, objective):
     res = []
     active = sorted(o for o in i["orders"] if o not in i.get("cancel_ids", []))
-    for r in itertools.permutations(active):
-        out, late, total, walk, hits = _walk_route(i, r)
-        res.append((objective(late, total), list(r), out, late, total, walk, hits))
+    for perm in itertools.permutations(active):
+        # 允许主动回 W 的实例：在任意两单之间可插入一次回 W
+        for gaps in itertools.product(*[(False, True) if i.get("early_return") else (False,)] * (len(perm) - 1)):
+            r = [perm[0]]
+            for g, oid in zip(gaps, perm[1:]):
+                r += ["W", oid] if g else [oid]
+            out, late, total, walk, hits = _walk_route(i, r)
+            res.append((objective(late, total), list(r), out, late, total, walk, hits))
     return sorted(res, key=lambda x: (x[0], x[1]))
 
 
@@ -412,36 +405,43 @@ def _sim16(i):
     return {"buy": top[1], "sold": top[2], "waste": top[3], "profit": top[0]}
 
 
-def _all17(i):
-    found, stack = [], [(i["src"], [i["src"]], 0, 0, 0)]
-    max_hops = i.get("max_hops", 10**9)
+def _all17(i, horizon=80):
+    """逐分钟状态搜索：每站可等待任意整数分钟（不得在禁止窗口内停留），只保留每条路径最早到达。"""
     avoid = i.get("avoid", [])
     slow_after, slow_mult = i.get("slow_after", 10**9), i.get("slow_mult", 1)
     hub = i.get("hub_fail")
+    max_hops = i.get("max_hops", 10**9)
+    best = {}
+    seen = set()
+    stack = [(i["src"], (i["src"],), 0, 0)]
+    def banned(node, t):
+        return any(n == node and a <= t < b for n, a, b in avoid) or (hub and node == hub[0] and t >= hub[1] and node != i["dst"])
     while stack:
-        node, path, t, fee, hops = stack.pop()
+        node, path, t, fee = stack.pop()
+        if (node, path, t, fee) in seen:
+            continue
+        seen.add((node, path, t, fee))
         if node == i["dst"]:
-            found.append((t, fee, path))
+            if path not in best or (t, fee) < best[path]:
+                best[path] = (t, fee)
             continue
-        if hops >= max_hops:
-            continue
-        if hub and node == hub[0] and t >= hub[1] and node != i["dst"]:
-            continue
-        if any(n == node and a <= t < b for n, a, b in avoid):
+        if len(path) - 1 >= max_hops or banned(node, t):
             continue
         t2 = t + (i["transfer"].get(node, 0) if node != i["src"] else 0)
-        if hub and node == hub[0] and t2 >= hub[1] and node != i["dst"]:
+        if banned(node, t2):
             continue
-        if any(n == node and a <= t2 < b for n, a, b in avoid):
-            continue
-        for u, v, m, c in i["edges"]:
-            if u != node or v in path or fee + c > i["budget"]:
-                continue
-            if any(a == u and b == v and s <= t2 < e for a, b, s, e in i["closures"]):
-                continue
-            mm = m * slow_mult if t2 >= slow_after else m
-            stack.append((v, path + [v], t2 + mm, fee + c, hops + 1))
-    return sorted(found)
+        for dep in range(t2, horizon):
+            if dep > t2 and banned(node, dep):
+                break
+            for u, v, m, c in i["edges"]:
+                if u != node or v in path or fee + c > i["budget"]:
+                    continue
+                if any(a == u and b == v and s <= dep < e for a, b, s, e in i["closures"]):
+                    continue
+                mm = m * slow_mult if dep >= slow_after else m
+                if dep + mm < horizon:
+                    stack.append((v, path + (v,), dep + mm, fee + c))
+    return sorted((t, fee, list(p)) for p, (t, fee) in best.items())
 
 
 def _sim17(i):
@@ -560,7 +560,8 @@ def test_delivery_main_and_cf_optimum_unique_by_independent_enumeration(item_id)
     obj = (lambda late, total: (total,)) if item_id == "NX-12" else _obj18(INST[item_id])
     live = gen._apply_mutex_delivery(INST[item_id])
     rows = _all_routes(live, obj)
-    assert rows[0][0] < rows[1][0], "主值：最优顺序唯一"
+    top = [r for r in rows if r[0] == rows[0][0]]
+    assert len({(r[4], len(r[3])) for r in top}) == 1, "主值：并列最优方案的判分数值相同"
     cf = _all_routes(gen._apply_mutex_delivery(gen._other_shock(INST[item_id], live, gen.PRIO_DELIVERY)), obj)
     assert cf[0][0] < cf[1][0] or cf[0][4] == cf[1][4], "反事实值唯一"
 
@@ -688,10 +689,27 @@ def test_generator_deterministic_and_frozen_matches():
     assert gen.build_item("NX-12") == gen.build_item("NX-12")
 
 
-@pytest.mark.parametrize("item_id", ["NX-12", "NX-18"])
-def test_delivery_forbids_unstated_early_actions(item_id):
-    text = ROWS[item_id]["prompt"]
-    assert "未满不得提前回 W" in text and "满则先回 W" in text and "不得在任何地点主动停留" in text
+def test_delivery_early_return_rules():
+    # NX-18 未满提前回 W 会改变答案（58→57），保留禁令；NX-12 允许主动回 W，求解器枚举回站
+    assert "未满不得提前回 W" in ROWS["NX-18"]["prompt"] and "不得在任何地点主动停留" in ROWS["NX-18"]["prompt"]
+    t12 = ROWS["NX-12"]["prompt"]
+    assert "未满不得提前回 W" not in t12 and "满则先回 W" in t12 and INST["NX-12"]["early_return"]
+    banned18 = dict(INST["NX-18"], early_return=True)
+    assert gen.solve_key("NX-18", banned18)["total"] != reference_answer("NX-18")["total"]
+
+
+def test_20261019_fixes_nx14_nx16_nx17_and_no_uniqueness_hint():
+    assert reference_answer("NX-14")["total_cost"] == 74
+    for row in ROWS.values():
+        assert "唯一" not in row["prompt"], row["item_id"]
+    t16 = ROWS["NX-16"]["prompt"]
+    for bad in ("lead", "i%7", "0-based", "下标", "进货当天和次日"):
+        assert bad not in t16, bad
+    assert "第 6、7 天是周末" in t16 and "次日开门才能上架" in t16 and "第 3、6 天" in t16
+    assert "不能额外停留" not in ROWS["NX-17"]["prompt"] and "边数" not in ROWS["NX-17"]["prompt"]
+    assert "depdelay" not in ROWS["NX-13"]["prompt"] and "轻清" not in ROWS["NX-15"]["prompt"]
+    f = _all17(gen._apply_mutex_nx17(INST["NX-17"]))
+    assert (f[0][0], f[0][1]) == (reference_answer("NX-17")["arrive"], reference_answer("NX-17")["cost"])
 
 
 def test_nx18_search_space_small():
