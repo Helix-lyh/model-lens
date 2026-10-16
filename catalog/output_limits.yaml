@@ -20,6 +20,8 @@ space-bunny-free: 524288
 space-bunny: 524288
 # cat-jam-free：用户 2026-10-14 给出上下文 262000、单次最长输出 131000（纯文本，无视觉）
 cat-jam-free: 131000
+# beam-free：用户 2026-10-16 给出单次最长输出 1048576（上游限时+限区域，随时可能不可用）；网关 OpenAI 兼容
+beam-free: 1048576
 
 # Anthropic Models overview（2026-08 当前表）
 # https://docs.anthropic.com/en/docs/about-claude/models/all-models
