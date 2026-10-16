@@ -6,7 +6,7 @@ from eval_bank_20260925.engineering import (
 
 
 def test_engineering_v1_is_frozen():
-    assert ENGINEERING_VERSION == "v3.3"
+    assert ENGINEERING_VERSION == "v3.4"
 
 
 def fenced(source):

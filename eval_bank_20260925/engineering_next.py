@@ -114,7 +114,7 @@ def _make_pairs(item_id: str):
             ["short_available", ["short", 2, "available"], ["zero", 1, "available"], False, "eq"],
             ["change_temp", ["change", 2, "code"], ["badtemp", 1, "code"], True, "eq"],
             ["cross_batch", ["other", 3, "available"], ["ship", 1, "available"], False, "eq"],
-            ["negative", ["negative", 1, "code"], ["short", 1, "code"], True, "eq"],
+            ["negative", ["negative", 1, "code"], ["short", 1, "code"], False, "eq"],
             ["dup_batch_read", ["dup_batch", 2, "available"], ["zero", 1, "available"], False, "eq"],
             ["order_count", ["order_distinct", 3, "available"], ["ship", 1, "available"], False, "eq"],
             ["hold_retry", ["hold_retry", 2, "code"], ["hold", 1, "code"], True, "eq"],
@@ -276,7 +276,8 @@ REFS = {
             t=e.get("temp", x.get("temp") if x else None)
             if x is None: r=p("missing")
             elif b in held: r=p("held")
-            elif not isinstance(e.get("qty"),int) or e.get("qty")<=0 or x["qty"]<e["qty"]: r=p("rejected", available=x["qty"])
+            elif not isinstance(e.get("qty"),int) or e.get("qty")<=0: r=p("invalid", available=x["qty"])
+            elif x["qty"]<e["qty"]: r=p("rejected", available=x["qty"])
             elif t is None or t<x["min"] or t>x["max"]: r=p("temperature")
             else: x["qty"]-=e["qty"]; r=p("shipped", available=x["qty"])
             seen[rid]=r.copy(); out.append(r)
