@@ -253,3 +253,12 @@ def test_assembled_answer_prefers_content_then_reasoning():
 def test_step_output_limit_is_registered():
     from src.limits import official_max_output
     assert official_max_output("step-5-preview-free") == 64000
+
+
+def test_merge_engineering_denominator_excludes_other_domains():
+    eng = {"channel": "c", "item": "E-01", "status": "fail", "passed": False, "score10": 5.0,
+           "points_total": 20, "positive_points": 12, "negative_points": 2, "net_points": 10}
+    other = [{"channel": "c", "item": item, "status": "pass", "passed": True, "score10": 10.0,
+              "points": 20, "points_total": 20} for item in ("NX-12", "CP-09")]
+    b = merge_eval.bucket([eng, *other])
+    assert b["engineering"]["points_total"] == 20

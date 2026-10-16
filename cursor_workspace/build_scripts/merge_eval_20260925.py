@@ -117,8 +117,10 @@ def bucket(rows: list[dict], pass_k: int = 1) -> dict:
         "error": len(errors),
         "pending_review": sum(r.get("status") == "pending_review" for r in rows),
     }
-    if any(_domain(row.get("item")) == "engineering" for row in rows):
-        result["engineering"] = summarize_engineering(rows)
+    engineering_rows = [row for row in rows if _domain(row.get("item")) == "engineering"]
+    if engineering_rows:
+        # 工程净分只按工程题自身满分计，编码/推理行不进工程分母。
+        result["engineering"] = summarize_engineering(engineering_rows)
     return result
 
 
@@ -212,12 +214,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"| {ch} | " + " | ".join(cells) + " |")
 
     print("\n## 分域\n")
-    print("| channel | reasoning | coding |")
-    print("| --- | --- | --- |")
+    print("| channel | reasoning | coding | engineering |")
+    print("| --- | --- | --- | --- |")
     for ch in channels:
         cells = []
-        for is_reasoning in (True, False):
-            domain = "reasoning" if is_reasoning else "coding"
+        for domain in ("reasoning", "coding", "engineering"):
             sub = [r for r in rows if r["channel"] == ch and _domain(r["item"]) == domain]
             b = bucket(sub)
             cells.append(f"{b['pass']}/{b['judged']}" if b["judged"] else "—")
@@ -257,7 +258,16 @@ def main(argv: list[str] | None = None) -> int:
         args.out.mkdir(parents=True, exist_ok=True)
         merged_rows = sorted(rows, key=lambda x: (x.get("channel", ""), x.get("item", ""), x.get("lang") or ""))
         (args.out / "results.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False, default=str) + "\n" for r in merged_rows), encoding="utf-8")
-        summary = {ch: bucket([r for r in rows if r["channel"] == ch], args.pass_k) for ch in channels}
+        summary = {}
+        for ch in channels:
+            ch_rows = [r for r in rows if r["channel"] == ch]
+            summary[ch] = bucket(ch_rows, args.pass_k)
+            # 三栏独立：分域 pass@k / 分数单独给出，不依赖跨栏合计。
+            summary[ch]["domains"] = {
+                domain: bucket(sub, args.pass_k)
+                for domain in ("reasoning", "coding", "engineering")
+                if (sub := [r for r in ch_rows if _domain(r["item"]) == domain])
+            }
         (args.out / "summary.json").write_text(json.dumps({"summary": summary}, ensure_ascii=False, indent=2), encoding="utf-8")
         (args.out / "summary.md").write_text(_render(rows, args.pass_k), encoding="utf-8")
     return 0
