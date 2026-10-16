@@ -80,3 +80,17 @@ def test_publish_reports_passes_run_dir(tmp_path: Path):
     assert all(f"--run {tmp_path}" in line for line in flat)
     assert any("--channel b" in line for line in flat)
     assert all(str(tmp_path) in line.split("--out", 1)[1] for line in flat)
+
+
+def test_ledger_nx3_counts_questions_and_hides_empty_columns(tmp_path):
+    import json
+    from cursor_workspace.build_scripts import build_eval_ledger_20261006 as ledger
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "meta.json").write_text(json.dumps({"models": ["m"], "started_at": "20261016T231849", "samples": 3, "bank_version": "20261018", "scoring_version": "20261018.s1", "phase": "hard", "experiment_id": "t"}), encoding="utf-8")
+    rows = [{"channel": "m", "item": "NX-12", "lang": None, "sample": s, "status": "pass", "passed": True,
+             "points": 20, "points_total": 20, "groups": []} for s in range(3)]
+    (run / "results.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    html, _ = ledger.build_html(run, "m")
+    assert "1 题 × 多次采样 = 3 次作答" in html
+    assert 'id="coding"' not in html and 'id="engineering"' not in html

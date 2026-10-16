@@ -207,8 +207,12 @@ def build_html(run: Path, channel: str = CHANNEL) -> tuple[str, dict[str, str]]:
         return points_of
 
     def column_rule(rows_in: list[dict], judged: list[dict], rule: str) -> str:
-        extra = f"（{len(judged)} 题已判，其余记 0）" if len(judged) != len(rows_in) else ""
-        return f"{len(rows_in)} 题{extra} · {rule}"
+        # 多次采样时按 (题, 语言) 去重计题数，作答次数单列，避免把 10 题 × 3 次写成 30 题。
+        questions = len({(row.get("item"), row.get("lang")) for row in rows_in})
+        count = f"{questions} 题" if questions == len(rows_in) else f"{questions} 题 × 多次采样 = {len(rows_in)} 次作答"
+        unit = "题" if questions == len(rows_in) else "次"
+        extra = f"（{len(judged)} {unit}已判，其余记 0）" if len(judged) != len(rows_in) else ""
+        return f"{count}{extra} · {rule}"
 
     def domain_blocks(rows_in: list[dict], render_row, points_of) -> str:
         blocks = []
@@ -218,9 +222,11 @@ def build_html(run: Path, channel: str = CHANNEL) -> tuple[str, dict[str, str]]:
                 continue
             got = sum(points_of(row) for row in mine)
             shown = signed(got)
+            questions = len({(row.get("item"), row.get("lang")) for row in mine})
+            count = f"{questions} 题" if questions == len(mine) else f"{questions} 题 / {len(mine)} 次作答"
             blocks.append(
                 f'<li class="mech"><p class="mech-head"><span>{zh}</span>'
-                f'<span>{len(mine)} 题 · 原始分 {shown} / {LEDGER * len(mine)} 分</span></p>'
+                f'<span>{count} · 原始分 {shown} / {LEDGER * len(mine)} 分</span></p>'
                 f'<ol class="rows">{"".join(render_row(row) for row in mine)}</ol></li>'
             )
         return "".join(blocks)
@@ -311,6 +317,9 @@ def build_html(run: Path, channel: str = CHANNEL) -> tuple[str, dict[str, str]]:
             "pct": nx_pct,
         },
     ]
+    # 本场没有作答的栏不出现，不用 0/20 捏造一栏 0 分（如 nx3 只跑推理）。
+    present = {"coding": bool(coding), "engineering": bool(engineering), "reasoning": bool(nx)}
+    _columns = [column for column in _columns if present[column["id"]]]
     _columns.sort(key=lambda column: column["score"], reverse=True)
     nav_books = "".join(f'<a href="#{column["id"]}">{column["name"]}</a>' for column in _columns)
     books_html = "".join(column["book"] for column in _columns)
