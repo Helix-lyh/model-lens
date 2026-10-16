@@ -716,3 +716,14 @@ def test_nx18_search_space_small():
     i = INST["NX-18"]
     active = [o for o in i["orders"] if o not in i["cancel_ids"]]
     assert len(active) <= 4 and len(active) > i["max_carry"]
+
+
+def test_delivery_prompts_pin_registration_and_departure_time_20261019():
+    import json
+    from pathlib import Path
+    d = json.loads(Path(__file__).resolve().parents[1].joinpath("eval_bank_20260925/reasoning_20261019.json").read_text())
+    for it in d["items"]:
+        p = it.get("prompt", "")
+        if "登记" in p and "封闭" in p and "道路时间" in p:
+            assert "登记在楼外进行，不受封闭影响" in p
+            assert "按下楼回到地面后离开的时刻判断" in p

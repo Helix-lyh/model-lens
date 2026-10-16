@@ -859,15 +859,18 @@ def _deliver(inst, route):
     for oid in route:
         if oid == "W":  # 20261019：未满时主动回 W（仅 early_return 实例枚举）
             if pos != "W":
-                clock += prev_floor * down_rate + travel(pos, "W", clock)
+                clock += prev_floor * down_rate
+                clock += travel(pos, "W", clock)
                 pos, prev_floor, carry = "W", 0, 0
             continue
         if carry >= max_carry and pos != "W":
-            clock += prev_floor * down_rate + travel(pos, "W", clock)
+            clock += prev_floor * down_rate
+            clock += travel(pos, "W", clock)
             pos, prev_floor, carry = "W", 0, 0
         o = orders[oid]
         b = o["building"]
-        clock += prev_floor * down_rate + travel(pos, b, clock)
+        clock += prev_floor * down_rate
+        clock += travel(pos, b, clock)
         if flood_b and clock >= flood_t and b == flood_b:
             clock += 10**6  # 洪涝后不可进入
         if b not in visited:
@@ -950,10 +953,10 @@ def _prompt_nx12(inst):
 订单表每行 `[id, 楼宇, 楼层, deadline]`，订单均在 0 分钟可配送：{_compact(orders)}。
 电梯停运区间（半开区间 [开始, 结束)）：{_compact(inst["outages"])}。
 首次进入楼宇需在地面登记（分钟，同一楼宇再次进入不再登记）：{_compact(inst["register"])}。
-楼宇封闭区间（半开）：{_compact(inst["closed"])}。从时刻 {inst["congestion_from"]} 起道路时间×{inst["congestion_mult"]}。连续配送上限 {inst["max_carry"]} 单，满则先回 W。
+楼宇封闭区间（半开）：{_compact(inst["closed"])}。从时刻 {inst["congestion_from"]} 起出发的整段道路时间×{inst["congestion_mult"]}（按下楼回到地面后离开的时刻判断）。连续配送上限 {inst["max_carry"]} 单，满则先回 W。
 取消订单（不必配送）：{_compact(inst["cancel_ids"])}。从时刻 {inst["flood"][0]} 起楼宇 {inst["flood"][1]} 因洪涝不可进入（须在此前完成该楼全部订单）。
 规则：
-- 到达楼宇地面并完成需要的登记后，若处于封闭则等到结束；然后若该时刻处于该楼宇停运区间内，本次上楼步行，每层 2 分钟；否则乘电梯，每层 1 分钟。上楼期间状态变化不影响本次上楼。送达时刻 = 到达所在楼层的时刻。
+- 到达楼宇地面后先完成需要的登记（登记在楼外进行，不受封闭影响），之后若处于封闭则等到结束；然后若该时刻处于该楼宇停运区间内，本次上楼步行，每层 2 分钟；否则乘电梯，每层 1 分钟。上楼期间状态变化不影响本次上楼。送达时刻 = 到达所在楼层的时刻。
 - 送达后回到地面固定每层 1 分钟（不受电梯状态影响），再出发去下一单；下一单在同一楼宇时道路分钟为 0，仍需下楼再上楼。最后一单送达即结束，不再下楼。
 - 回 W 后连续配送计数重新从 0 开始。除上面规定的登记、封闭等待外，不得在任何地点主动停留。
 - 送达时刻 > deadline 为迟到；deadline 不限制顺序。
@@ -1000,10 +1003,10 @@ def _prompt_nx18(inst):
 订单表每行 `[id, 楼宇, 楼层, ready, deadline]`：{_compact(orders)}。
 电梯停运区间（半开区间 [开始, 结束)）：{_compact(inst["outages"])}。
 首次进入楼宇需在地面登记（分钟，同一楼宇再次进入不再登记）：{_compact(inst["register"])}。
-楼宇封闭区间（半开）：{_compact(inst["closed"])}。从时刻 {inst["congestion_from"]} 起道路时间×{inst["congestion_mult"]}。连续配送上限 {inst["max_carry"]} 单，满则先回 W。冷链时限 ready+{inst["cold_limit"]}，超时亦计迟到。
+楼宇封闭区间（半开）：{_compact(inst["closed"])}。从时刻 {inst["congestion_from"]} 起出发的整段道路时间×{inst["congestion_mult"]}（按下楼回到地面后离开的时刻判断）。连续配送上限 {inst["max_carry"]} 单，满则先回 W。冷链时限 ready+{inst["cold_limit"]}，超时亦计迟到。
 取消订单（不必配送）：{_compact(inst["cancel_ids"])}。从时刻 {inst["flood"][0]} 起楼宇 {inst["flood"][1]} 因洪涝不可进入（须在此前完成该楼全部订单）。
 规则：
-- 到达楼宇地面并完成需要的登记后，若处于封闭则等到结束；然后若当前时刻早于该订单 ready，在地面等到 ready；开始上楼的时刻若处于该楼宇停运区间内，本次上楼步行，每层 2 分钟，否则乘电梯，每层 1 分钟。上楼期间状态变化不影响本次上楼。送达时刻 = 到达所在楼层的时刻。
+- 到达楼宇地面后先完成需要的登记（登记在楼外进行，不受封闭影响），之后若处于封闭则等到结束；然后若当前时刻早于该订单 ready，在地面等到 ready；开始上楼的时刻若处于该楼宇停运区间内，本次上楼步行，每层 2 分钟，否则乘电梯，每层 1 分钟。上楼期间状态变化不影响本次上楼。送达时刻 = 到达所在楼层的时刻。
 - 送达后回到地面固定每层 1 分钟（不受电梯状态影响），再出发去下一单；下一单在同一楼宇时道路分钟为 0，仍需下楼再上楼。最后一单送达即结束。
 - 只有已连续送满 {inst["max_carry"]} 单且仍有未送订单时才回 W（回 W 后重新计数）；未满不得提前回 W。除上面规定的登记、封闭等待和等到 ready 外，不得在任何地点主动停留。
 - 送达时刻 > deadline，或 > ready + {inst["cold_limit"]}，均为迟到。
