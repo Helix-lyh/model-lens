@@ -53,15 +53,17 @@ def render_reasoning_prompt(item_id: str) -> str:
     return "只依据题面推理作答。\n" + BY_ID[item_id].prompt
 
 
-_ANSWER_RE = re.compile(r"answer\s*[:：=]\s*(.*)", re.IGNORECASE)
-_INT_RE = re.compile(r"(?<![\w.])[-−]?\d+(?![\w.])")
+# 只认行首（可带 Markdown 标题/引用/列表符号）的 ANSWER，句中的 "the answer: ..." 不算答案行。
+_ANSWER_RE = re.compile(r"^\s*(?:[#>+\-]+\s*)*(?:final\s+)?answer\s*[:：=]\s*(.*)", re.IGNORECASE)
+# 整数后允许句末标点（`69.`、`69。`），但 `69.5` 这类小数仍不算整数。
+_INT_RE = re.compile(r"(?<![\w.])[-−]?\d+(?![\w]|\.\d)")
 
 
 def parse_answer(text: Any, n: int) -> list[int]:
     """取最后一个 `ANSWER:` 行中的整数，恰好 n 个。
 
     宽容：任意代码块围栏、Markdown 粗体/反引号、全角冒号、前后有说明文字、`问1=…` 之类的标签；
-    不接受：缺少 ANSWER 行、数值个数不符、小数。"""
+    不接受：缺少行首 ANSWER 行、数值个数不符、小数；整数后的句末标点不算小数。"""
     if not isinstance(text, str):
         raise ValueError("response_not_text")
     lines = [ln for ln in text.replace("\r", "").split("\n")]

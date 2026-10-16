@@ -648,6 +648,16 @@ def test_parser_is_lenient_on_wrapping_but_strict_on_count():
     assert parse_answer("ANSWER: −3, 4", 2) == [-3, 4]
 
 
+def test_parser_accepts_trailing_period_and_ignores_inline_answer_word():
+    v = list(reference_answer("NX-12").values())
+    line = ", ".join(map(str, v))
+    for text in (f"ANSWER: {line}.", f"ANSWER: {line}。", f"- ANSWER: {line}",
+                 f"ANSWER: {line}\nthe answer: we tried 3 rooms"):
+        assert score_reasoning("NX-12", text)["points"] == 20, text
+    r = score_reasoning("NX-12", f"ANSWER: {v[0]}.5, {v[1]}, {v[2]}.")
+    assert r["reason_code"] == "format_error"
+
+
 # Helix：防泄露词表不是好设计。只禁止「解题步骤/镜像示例/答案形态暗示」。
 PROCEDURE_LEAKS = [
     "逐步模拟", "一步一步", "step by step", "按如下步骤", "解题思路",
