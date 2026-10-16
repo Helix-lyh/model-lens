@@ -81,11 +81,18 @@ def check_comparable(meta: dict, rows: list[dict]) -> list[str]:
         by_item.setdefault(row["item"], []).append(row)
 
     for item, group in by_item.items():
-        got = sorted(row["channel"] for row in group)
-        if len(set(got)) != len(got):
-            raise NotComparable(f"{item} 在同一渠道有多行（多次采样或重复写入），矩阵页只支持单样本")
+        got = sorted(set(row["channel"] for row in group))
         if got != channels:
             raise NotComparable(f"{item} 的渠道不齐：{got}，期望 {channels}")
+        # 20261019：支持多次采样。同一渠道同一题的采样号不得重复，各渠道采样数必须相同。
+        per_channel: dict[str, list] = {}
+        for row in group:
+            per_channel.setdefault(row["channel"], []).append(row.get("sample"))
+        for name, samples in per_channel.items():
+            if len(samples) > 1 and (None in samples or len(set(samples)) != len(samples)):
+                raise NotComparable(f"{item} 在 {name} 有重复写入（采样号缺失或重复）")
+        if len({len(samples) for samples in per_channel.values()}) != 1:
+            raise NotComparable(f"{item} 各渠道采样数不同：{ {k: len(v) for k, v in per_channel.items()} }")
         scorers = {row.get("scorer_sha256") for row in group}
         if len(scorers) != 1 or not all(isinstance(item_hash, str) and item_hash for item_hash in scorers):
             raise NotComparable(f"{item} 在不同渠道上用的是不同判定脚本：{sorted(map(str, scorers))}")
@@ -175,6 +182,24 @@ def _cell(row: dict, domain: str, best: int | None, who: str) -> str:
     )
 
 
+def _multi_cell(rows: list[dict], domain: str, best: float | None, who: str) -> str:
+    """多次采样：均分（固定分母，未判记 0）+ 各次原始分 + 通过次数。"""
+    rows = sorted(rows, key=lambda row: row.get("sample") or 0)
+    values = [_points(row, domain) for row in rows]
+    shown = [0 if value is None else value for value in values]
+    mean = round(sum(shown) / len(shown), 1)
+    passed = sum(row.get("passed") is True for row in rows)
+    each = " / ".join(signed(value) if value is not None else f"{escape(outcome_label(row) or '未判（0分）')}" for value, row in zip(values, rows))
+    raw = [f"均分 {signed(mean)} / {LEDGER} 分（{len(rows)} 次）", f"各次 {each}", f"通过 {passed}/{len(rows)}"]
+    counts = None
+    if domain == "engineering":
+        judged = [row for row, value in zip(rows, values) if value is not None]
+        pos = round(sum(_positive(row, domain) for row in judged) / len(rows), 1)
+        neg = round(sum(_negative(row, domain) for row in judged) / len(rows), 1)
+        counts = (pos, neg, round(LEDGER - pos - neg, 1))
+    return _panel(domain, who, mean, LEDGER, raw, counts=counts, top=best is not None and mean == best, exact=True)
+
+
 def _overview(channels: list[str], rows: list[dict]) -> str:
     head = "".join(f'<th scope="col">{escape(name)}</th>' for name in channels)
     body = []
@@ -210,7 +235,7 @@ def _overview(channels: list[str], rows: list[dict]) -> str:
                 counts = (pos, neg, total_max - pos - neg)
             cells.append(_panel(domain, name, total, total_max, raw, counts=counts))
         body.append(
-            f'<tr><th scope="row" class="mq"><b>{zh}</b><span>{len(mine) // len(channels)} 题 · {escape(rule)}</span></th>'
+            f'<tr><th scope="row" class="mq"><b>{zh}</b><span>{len({row["item"] for row in mine})} 题 · {escape(rule)}</span></th>'
             + "".join(cells)
             + "</tr>"
         )
@@ -231,15 +256,23 @@ def _domain_blocks(mine: list[dict], channels: list[str], domain: str) -> str:
         items = sorted({row["item"] for row in rows})
         out.append(f'<tr class="mgrp"><th colspan="{len(channels) + 1}">{zh}<span>{len(items)} 题</span></th></tr>')
         for item in items:
-            by_channel = {row["channel"]: row for row in rows if row["item"] == item}
-            got = {name: value for name, row in by_channel.items() if (value := _points(row, domain)) is not None}
+            samples: dict[str, list[dict]] = {}
+            for row in rows:
+                if row["item"] == item:
+                    samples.setdefault(row["channel"], []).append(row)
+            multi = any(len(group) > 1 for group in samples.values())
+            if multi:
+                got = {name: round(sum((_points(r, domain) or 0) for r in group) / len(group), 1) for name, group in samples.items()}
+            else:
+                got = {name: value for name, group in samples.items() if (value := _points(group[0], domain)) is not None}
             best = max(got.values()) if got else None
             title = ITEM_FACE[item][1]
+            by_channel = {name: group[0] for name, group in samples.items()}
             sample = next(iter(by_channel.values()))
             lang = sample.get("lang") or ""
             lang_bit = f" · {lang}" if lang else ""
             cells = "".join(
-                _cell(by_channel[name], domain, best, name) if name in by_channel else f'<td class="mcell missing"><span class="m-who">{escape(name)}</span><span class="m-pct">—</span></td>'
+                (_multi_cell(samples[name], domain, best, name) if multi else _cell(by_channel[name], domain, best, name)) if name in by_channel else f'<td class="mcell missing"><span class="m-who">{escape(name)}</span><span class="m-pct">—</span></td>'
                 for name in channels
             )
             out.append(

@@ -169,6 +169,12 @@ def _deepseek_base() -> str:
     return base if base.endswith("/v1") else base + "/v1"
 
 
+# 官方文档没有可登记的最大输出值时的显式兜底（不写进 catalog/output_limits.yaml，避免冒充官方值）。
+# grok-4.6 / grok-4.7：docs.x.ai（2026-10-17 查）只写 context 500k 与「No text output limit」，没有 max output 数值。
+# 先查 catalog；catalog 没有才用这里，仍保持此前发送的 65536。
+UNLISTED_MAX_OUTPUT = {"grok-4.6": 65536, "grok-4.7": 65536}
+
+
 def channels(*, grok_base: str, grok_key_env: str, grok_cli_proxy: bool) -> dict[str, Channel]:
     booster = _booster_base()
     if grok_cli_proxy:
@@ -182,6 +188,8 @@ def channels(*, grok_base: str, grok_key_env: str, grok_cli_proxy: bool) -> dict
     def cap(model: str) -> int:
         value = official_max_output(model)
         if value is None:
+            value = UNLISTED_MAX_OUTPUT.get(model)
+        if value is None:
             raise SystemExit(f"{model} 没有登记官方 max output")
         return value
 
@@ -192,9 +200,9 @@ def channels(*, grok_base: str, grok_key_env: str, grok_cli_proxy: bool) -> dict
         Channel("mimo-v2.6-flash", "mimo-v2.6-flash", booster, "BOOSTER_API_KEY", cap("mimo-v2.6-flash"), {}),
         Channel("cat-jam-free", "cat-jam-free", booster, "BOOSTER_API_KEY", cap("cat-jam-free"), {}),
         Channel("beam-free", "beam-free", booster, "BOOSTER_API_KEY", cap("beam-free"), {}),
-        Channel("grok-4.6", "grok-4.6", base, key_env, 65536,
+        Channel("grok-4.6", "grok-4.6", base, key_env, cap("grok-4.6"),
                 {**headers, "x-grok-model-override": "grok-4.6"} if grok_cli_proxy else dict(headers)),
-        Channel("grok-4.7", "grok-4.7", base, key_env, 65536,
+        Channel("grok-4.7", "grok-4.7", base, key_env, cap("grok-4.7"),
                 {**headers, "x-grok-model-override": "grok-4.7"} if grok_cli_proxy else dict(headers)),
     ]
     return {c.name: c for c in out}

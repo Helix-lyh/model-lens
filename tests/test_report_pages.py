@@ -94,3 +94,38 @@ def test_ledger_nx3_counts_questions_and_hides_empty_columns(tmp_path):
     html, _ = ledger.build_html(run, "m")
     assert "1 题 × 多次采样 = 3 次作答" in html
     assert 'id="coding"' not in html and 'id="engineering"' not in html
+
+
+def test_matrix_supports_multi_sample(tmp_path):
+    import json
+    import sys
+    from cursor_workspace.build_scripts import build_eval_matrix as matrix
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "meta.json").write_text(json.dumps({"models": ["a", "b"], "started_at": "20261019T010203", "samples": 3, "bank_version": "20261019"}), encoding="utf-8")
+    rows = []
+    for ch, pts in (("a", [20, 8, 0]), ("b", [20, 20, 20])):
+        for s, p in enumerate(pts):
+            st = "error" if (ch == "a" and s == 2) else ("pass" if p == 20 else "fail")
+            rows.append({"channel": ch, "item": "NX-12", "lang": None, "sample": s, "status": st,
+                         "passed": p == 20 if st != "error" else None, "points": None if st == "error" else p,
+                         "points_total": 20, "reason_code": "response_truncated" if st == "error" else None,
+                         "scorer_sha256": "x", "bank_version": "20261019", "base_prompt_sha256": "p"})
+    (run / "results.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    out = tmp_path / "m.html"
+    argv, sys.argv = sys.argv, ["x", "--run", str(run), "--out", str(out)]
+    try:
+        assert matrix.main() == 0
+    finally:
+        sys.argv = argv
+    html = out.read_text(encoding="utf-8")
+    assert "均分 9.3 / 20 分（3 次）" in html and "通过 1/3" in html and "通过 3/3" in html
+    assert "原始分 28 / 60 分" in html
+    # 采样号重复仍拒绝
+    dup = rows + [dict(rows[0])]
+    try:
+        matrix.check_comparable({"models": ["a", "b"]}, dup)
+    except SystemExit as exc:
+        assert "重复" in str(exc)
+    else:
+        raise AssertionError("重复采样被放进了同一页")

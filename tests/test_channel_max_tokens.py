@@ -20,3 +20,11 @@ def test_catalog_channels_send_official_max_output():
         expected = official_max_output(CATALOG_MODEL.get(name, ch.model))
         assert expected is not None, name
         assert ch.max_tokens == expected, (name, ch.max_tokens, expected)
+
+
+def test_grok_channels_go_through_cap_with_explicit_fallback():
+    import inspect
+    from cursor_workspace.build_scripts import run_eval_20260925 as r
+    src = inspect.getsource(r)
+    assert 'key_env, 65536' not in src and 'cap("grok-4.7")' in src
+    assert r.UNLISTED_MAX_OUTPUT == {"grok-4.6": 65536, "grok-4.7": 65536}

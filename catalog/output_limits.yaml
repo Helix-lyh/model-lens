@@ -49,3 +49,7 @@ glm-5: 131072
 # 网关免费路由 id 是 step-5-preview-free，精确登记，避免只靠前缀。
 step-5-preview: 64000
 step-5-preview-free: 64000
+
+# grok-4.6 / grok-4.7：docs.x.ai/developers/models 与 grok-4-7 指南（2026-10-17）只给 context 500k，
+# 输出写作「No text output limit」，没有官方 max output 数值，因此不在此登记；
+# runner 在 run_eval_20260925.UNLISTED_MAX_OUTPUT 显式兜底 65536。
