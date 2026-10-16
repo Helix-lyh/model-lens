@@ -20,8 +20,12 @@ targets.local.yaml
 .gitnexus/
 .idea/
 .DS_Store
+
+# 本地 Agent 指令与设置
 !.env.example
 CLAUDE.local.md
 AGENTS.local.md
 .claude/settings.local.json
+
+# oh-my-team 本地状态
 .omt/

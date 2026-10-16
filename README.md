@@ -54,7 +54,7 @@ yaml 里只写环境变量**名**，例如 `api_key_env: TARGET_KEY`。
 
 ## 怎么跑
 
-默认命令是 `family`：跑家族栏；YAML 里有 `reference` 时顺带写判真栏，不跑题库、不算 D。`bank` 只跑题库。`audit` = F + C + I + D（无 `reference` 则 I/D = skipped）。`--quick` 为快速模式：只跑 easy/medium、每题 T=0，且 **D=skipped**。默认全量四档（easy / medium / hard / extreme）。
+必须显式给子命令。`family`：跑家族栏；YAML 里有 `reference` 时顺带写判真栏，不跑题库、不算 D。`bank` 只跑题库。`audit` = F + C + I + D（无 `reference` 则 I/D = skipped）。`--quick` 为快速模式：只跑 easy/medium、每题 T=0，且 **D=skipped**。默认全量四档（easy / medium / hard / extreme）。
 
 ```bash
 python -m src.cli family --target examples/targets.yaml
