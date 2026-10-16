@@ -563,6 +563,11 @@ def run_go_sandbox(
             shutil.copy2(runtime["go_sumfile"], root / "go.sum")
         else:
             (root / "go.mod").write_text("module solution\n\ngo 1.20\n", encoding="utf-8")
+        # 题面不规定包名：统一改写为 package solution，与夹具同包编译。
+        if re.search(r"^\s*package\s+\w+", code, re.MULTILINE):
+            code = re.sub(r"^\s*package\s+\w+", "package solution", code, count=1, flags=re.MULTILINE)
+        else:
+            code = "package solution\n\n" + code
         (root / "solution.go").write_text(code.rstrip() + "\n", encoding="utf-8")
         dest = root / tests_path.name
         if not dest.name.endswith("_test.go"):

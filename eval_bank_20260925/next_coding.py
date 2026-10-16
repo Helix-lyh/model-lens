@@ -384,6 +384,17 @@ _SCHEMAS = {
 }
 
 
+# 20261019：每题只列本题的输出专用角色（不再给全库名单）；CP-17 的 generation 是 REBUILD 的输入，也会出现在输出里。
+OUTPUT_ONLY_ROLES = {
+    "CP-09": ["orders", "snapshots"], "CP-10": ["parcels", "state", "used", "closed"],
+    "CP-11": ["reads", "key", "value", "snapshots"], "CP-12": ["lookups", "root", "edges", "snapshots"],
+    "CP-13": ["reads", "balance", "available", "holds", "remaining", "state"],
+    "CP-14": ["reads", "free", "locked", "expired", "orders", "state"], "CP-15": ["reads", "state", "step", "policy"],
+    "CP-16": ["reads", "tenant_tokens", "global_tokens"], "CP-17": ["reads", "miss"], "CP-18": ["reads", "state", "refund"],
+}
+EVENT_NOTES = {"CP-17": "REBUILD 事件带 generation（调用方给出的代号）。"}
+
+
 def _wish(item_id: str) -> str:
     import re
     from .next_questions import _sections
@@ -397,7 +408,7 @@ def _wish(item_id: str) -> str:
 def _contract(item_id: str, language: str) -> str:
     schema = _SCHEMAS[item_id]
     if language == "go":
-        entry = "只输出一个 go 代码围栏。入口是 package solution 的 func Describe() json.RawMessage 和 func Solve(input json.RawMessage) json.RawMessage。自行 import encoding/json。不要写 main，不要写测试，不要写依赖声明。"
+        entry = "只输出一个 go 代码围栏。入口是 func Describe() json.RawMessage 和 func Solve(input json.RawMessage) json.RawMessage。自行 import encoding/json。不要写 main，不要写测试，不要写依赖声明。"
     elif language == "typescript":
         entry = "只输出一个 typescript 代码围栏。入口是 export function describe(): any 和 export function solve(data: any): any。可以返回 Promise。"
     else:
@@ -405,9 +416,9 @@ def _contract(item_id: str, language: str) -> str:
     lines = [
         entry,
         "describe() 返回接口文档。键是角色，必须保留；值是你自己的非空名字，同一组里不要复用。",
-        "解题入口收到的数据含 events。返回值只能有 trace 和 output 两个键。trace 与 events 等长，每一项是非空字符串。事件编号第一次出现就占用，失败也占用。同一个编号再次出现时，这一项必须是 DUP，并且不能改账。其他结果用什么词由你决定。",
+        "解题入口收到的数据含 events。返回值只能有 trace 和 output 两个键。trace 与 events 等长，每一项是非空字符串。事件编号第一次出现就占用，失败也占用。同一个编号再次出现时，这一项必须是 DUP，并且不能改变已有状态。其他结果用什么词由你决定。",
         "文档有 keys、actions、states、trace 四组。trace.dup 的值固定写 DUP。",
-        "事件里只有动作、编号和这个动作自己的参数。reads、orders、snapshots、lookups、edges、generation 这些名字如果出现，只属于输出，不是事件上的输入字段。",
+        "事件里只有动作、编号和这个动作自己的参数。" + "、".join(OUTPUT_ONLY_ROLES[item_id]) + " 只出现在输出里，不是事件上的输入字段。" + EVENT_NOTES.get(item_id, ""),
         "keys 角色：" + "、".join(schema["keys"]) + "。",
         "actions 角色：" + "、".join(schema["actions"]) + "。",
         "states 角色：" + ("、".join(schema["states"]) if schema["states"] else "这一题没有要声明的状态词，states 写空对象。") + "。",
@@ -574,7 +585,7 @@ for group in groups:
     for batch in group:
         for data in batch:
             encoded = "null"
-            if doc is not None:
+            if True:
                 try:
                     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                         # 题面规定入口收到的是角色名。describe() 只用来把输出映回角色，不改写输入。
@@ -639,7 +650,7 @@ for group in groups:
             "  caseNo := 0\n"
             "  for _, group := range groups { for _, batch := range group { for _, input := range batch {\n"
             "    got := []byte(\"null\")\n"
-            "    if !bad {\n"
+            "    if true {\n"
             "      got = func() (out json.RawMessage) {\n"
             "        defer func(){ if recover()!=nil { out=[]byte(\"null\") } }()\n"
             "        return Solve(input)\n"
@@ -679,7 +690,7 @@ for group in groups:
         "  let caseNo = 0;\n"
         "  for (const group of groups) for (const batch of group) for (const input of batch) {\n"
         "    let got: any = null;\n"
-        "    if (ok) {\n"
+        "    if (true) {\n"
         "      try {\n"
         "        const old = console.log; console.log = () => {};\n"
         "        got = solve(input);\n"

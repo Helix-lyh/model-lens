@@ -7,7 +7,9 @@ import secrets
 import tempfile
 from pathlib import Path
 
-from .describe_contract import project_output, trace_ok, valid_document
+from .describe_contract import identity_document, project_output, trace_ok, valid_document
+
+DESCRIBE_PENALTY = 4
 from .score import Score
 from src.grade import grade_response
 from src.types import Question
@@ -69,8 +71,10 @@ def score_answer(text: str, language: str, *, item_id: str, groups, schema: dict
     if duplicate or describe_count > 1:
         # 夹具每个用例只写一行。重复的结果行只可能来自被测代码伪造，整题记 0。
         return Score(item_id, language, "fail", "forged_output", 0.0, 20, 0.0, False, [], False).to_dict()
-    if not saw_describe or not valid_document(doc, schema):
-        return Score(item_id, language, "fail", "describe_invalid", 0.0, 20, 0.0, False, [], True).to_dict()
+    # 20261019：describe() 不合格不再整题清零：按角色原名投影继续判业务，再扣 DESCRIBE_PENALTY 分。
+    describe_ok = saw_describe and valid_document(doc, schema)
+    if not describe_ok:
+        doc = identity_document(schema)
     earned = 0
     offset = 0
     breakdown = []
@@ -92,5 +96,9 @@ def score_answer(text: str, language: str, *, item_id: str, groups, schema: dict
             points += int(ok)
         earned += points
         breakdown.append({"name": f"g{index + 1}", "points": points, "max": 4})
+    if not describe_ok:
+        earned = max(0, earned - DESCRIBE_PENALTY)
+        breakdown.append({"name": "describe", "points": -DESCRIBE_PENALTY, "max": 0})
+        return Score(item_id, language, "fail", "describe_invalid", float(earned), 20, earned / 2, False, breakdown, True).to_dict()
     reason = "ok" if earned == 20 else "tests_failed"
     return Score(item_id, language, "pass" if earned == 20 else "fail", reason, float(earned), 20, earned / 2, earned == 20, breakdown, True).to_dict()
