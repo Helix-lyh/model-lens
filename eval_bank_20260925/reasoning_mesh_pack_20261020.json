@@ -1,0 +1,525 @@
+{
+  "NX-16": {
+    "capacity": 14,
+    "box": 5,
+    "shelf": 3,
+    "hot_rule": true,
+    "delivery_fee": 8,
+    "lead": 1,
+    "bulk_at": 6,
+    "bulk_off": 2,
+    "bulk_window": 3,
+    "weekend_mult": 2,
+    "supplier_out": [
+      0,
+      2
+    ],
+    "days": [
+      {
+        "kind": "normal",
+        "demand": 4,
+        "price": 14,
+        "cost": 7
+      },
+      {
+        "kind": "hot",
+        "demand": 10,
+        "price": 10,
+        "cost": 4
+      },
+      {
+        "kind": "hot",
+        "demand": 10,
+        "price": 10,
+        "cost": 6
+      },
+      {
+        "kind": "normal",
+        "demand": 6,
+        "price": 14,
+        "cost": 7
+      },
+      {
+        "kind": "normal",
+        "demand": 5,
+        "price": 11,
+        "cost": 7
+      },
+      {
+        "kind": "normal",
+        "demand": 3,
+        "price": 11,
+        "cost": 6
+      },
+      {
+        "kind": "normal",
+        "demand": 7,
+        "price": 14,
+        "cost": 5
+      },
+      {
+        "kind": "normal",
+        "demand": 4,
+        "price": 12,
+        "cost": 4
+      }
+    ]
+  },
+  "NX-14": {
+    "piles": {
+      "S1": 2,
+      "S2": 1
+    },
+    "min_prio": {
+      "S2": 2
+    },
+    "tariff": [
+      [
+        0,
+        12,
+        4
+      ],
+      [
+        12,
+        24,
+        1
+      ],
+      [
+        24,
+        200,
+        3
+      ]
+    ],
+    "peak": [
+      0,
+      12
+    ],
+    "aging": 3,
+    "aging_cap": 2,
+    "max_wait": 12,
+    "peak_ban": {
+      "S1": true
+    },
+    "pile_down": {
+      "S2": [
+        [
+          12,
+          22
+        ]
+      ]
+    },
+    "aging_off_after": 18,
+    "cars": [
+      [
+        "V1",
+        10,
+        4,
+        3
+      ],
+      [
+        "V2",
+        0,
+        7,
+        1
+      ],
+      [
+        "V3",
+        0,
+        3,
+        1
+      ],
+      [
+        "V4",
+        3,
+        7,
+        1
+      ],
+      [
+        "V5",
+        12,
+        6,
+        2
+      ],
+      [
+        "V6",
+        7,
+        7,
+        1
+      ],
+      [
+        "V7",
+        8,
+        4,
+        3
+      ],
+      [
+        "V8",
+        4,
+        6,
+        1
+      ]
+    ]
+  },
+  "NX-12": {
+    "roads": {
+      "W-L1": 5,
+      "W-L2": 4,
+      "W-L3": 6,
+      "L1-L2": 7,
+      "L1-L3": 4,
+      "L2-L3": 5
+    },
+    "outages": {
+      "L1": [
+        [
+          16,
+          35
+        ]
+      ],
+      "L2": [
+        [
+          11,
+          43
+        ]
+      ],
+      "L3": [
+        [
+          21,
+          33
+        ]
+      ]
+    },
+    "orders": {
+      "A": {
+        "building": "L1",
+        "floor": 3,
+        "deadline": 60
+      },
+      "B": {
+        "building": "L2",
+        "floor": 2,
+        "deadline": 27
+      },
+      "C": {
+        "building": "L1",
+        "floor": 3,
+        "deadline": 59
+      },
+      "D": {
+        "building": "L3",
+        "floor": 7,
+        "deadline": 23
+      },
+      "E": {
+        "building": "L1",
+        "floor": 3,
+        "deadline": 26
+      },
+      "F": {
+        "building": "L2",
+        "floor": 3,
+        "deadline": 45
+      }
+    },
+    "down_rate": 1,
+    "register": {
+      "L1": 0,
+      "L2": 3,
+      "L3": 1
+    },
+    "congestion_from": 22,
+    "congestion_mult": 2,
+    "max_carry": 3,
+    "closed": {
+      "L3": [
+        [
+          35,
+          51
+        ]
+      ]
+    },
+    "cancel_ids": [
+      "C"
+    ],
+    "flood": [
+      41,
+      "L1"
+    ],
+    "detour": 0,
+    "early_return": true,
+    "late_first": true
+  },
+  "NX-18": {
+    "roads": {
+      "W-L1": 5,
+      "W-L2": 5,
+      "W-L3": 5,
+      "L1-L2": 5,
+      "L1-L3": 3,
+      "L2-L3": 7
+    },
+    "outages": {
+      "L1": [
+        [
+          12,
+          27
+        ]
+      ],
+      "L2": [
+        [
+          8,
+          36
+        ]
+      ],
+      "L3": [
+        [
+          9,
+          36
+        ]
+      ]
+    },
+    "orders": {
+      "A": {
+        "building": "L2",
+        "floor": 6,
+        "ready": 0,
+        "deadline": 25
+      },
+      "B": {
+        "building": "L3",
+        "floor": 2,
+        "ready": 3,
+        "deadline": 40
+      },
+      "C": {
+        "building": "L1",
+        "floor": 1,
+        "ready": 0,
+        "deadline": 34
+      },
+      "D": {
+        "building": "L1",
+        "floor": 7,
+        "ready": 11,
+        "deadline": 26
+      },
+      "E": {
+        "building": "L3",
+        "floor": 5,
+        "ready": 0,
+        "deadline": 39
+      }
+    },
+    "down_rate": 1,
+    "register": {
+      "L1": 5,
+      "L2": 3,
+      "L3": 0
+    },
+    "late_first": true,
+    "congestion_from": 22,
+    "congestion_mult": 2,
+    "max_carry": 3,
+    "cold_limit": 26,
+    "closed": {
+      "L2": [
+        [
+          36,
+          48
+        ]
+      ]
+    },
+    "cancel_ids": [
+      "A"
+    ],
+    "flood": [
+      30,
+      "L1"
+    ],
+    "detour": 0
+  },
+  "NX-18_bearing": [
+    "ready",
+    "先少迟到",
+    "首次登记",
+    "道路拥堵",
+    "连续配送上限",
+    "订单取消",
+    "冷链时限"
+  ],
+  "NX-17": {
+    "nodes": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H"
+    ],
+    "edges": [
+      [
+        "A",
+        "B",
+        3,
+        2
+      ],
+      [
+        "B",
+        "H",
+        6,
+        2
+      ],
+      [
+        "A",
+        "C",
+        2,
+        2
+      ],
+      [
+        "C",
+        "H",
+        8,
+        2
+      ],
+      [
+        "A",
+        "D",
+        4,
+        1
+      ],
+      [
+        "D",
+        "H",
+        10,
+        2
+      ],
+      [
+        "D",
+        "E",
+        2,
+        1
+      ],
+      [
+        "E",
+        "H",
+        3,
+        1
+      ],
+      [
+        "A",
+        "F",
+        5,
+        2
+      ],
+      [
+        "F",
+        "G",
+        2,
+        1
+      ],
+      [
+        "G",
+        "H",
+        3,
+        1
+      ],
+      [
+        "B",
+        "E",
+        2,
+        1
+      ],
+      [
+        "C",
+        "E",
+        2,
+        1
+      ],
+      [
+        "F",
+        "B",
+        2,
+        1
+      ],
+      [
+        "D",
+        "F",
+        1,
+        1
+      ],
+      [
+        "F",
+        "H",
+        9,
+        2
+      ],
+      [
+        "C",
+        "G",
+        3,
+        1
+      ],
+      [
+        "G",
+        "E",
+        1,
+        1
+      ]
+    ],
+    "closures": [
+      [
+        "A",
+        "B",
+        0,
+        19
+      ]
+    ],
+    "avoid": [
+      [
+        "C",
+        0,
+        22
+      ]
+    ],
+    "transfer": {
+      "B": 2,
+      "D": 5,
+      "E": 1,
+      "F": 4,
+      "G": 4
+    },
+    "slow_after": 6,
+    "slow_mult": 2,
+    "budget": 7,
+    "hub_fail": [
+      "E",
+      2
+    ],
+    "src": "A",
+    "dst": "H",
+    "max_hops": 3
+  },
+  "NX-17_bearing": [
+    "换乘耗时",
+    "站点禁止窗",
+    "高峰减速",
+    "封闭枢纽互斥"
+  ],
+  "NX-17_meta": {
+    "co": 3,
+    "joint_min": 2,
+    "answer": {
+      "arrive": 20,
+      "cost": 3,
+      "cf_arrive": 11,
+      "path": [
+        "A",
+        "D",
+        "E",
+        "H"
+      ]
+    }
+  }
+}

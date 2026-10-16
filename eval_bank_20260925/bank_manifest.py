@@ -1,4 +1,4 @@
-"""20261019 活跃题库身份（推理题开放题面、数值答案、删除测试与唯一性检查）。默认评测只跑这一版。"""
+"""20261020 活跃题库身份（推理网状交互加难、开放题面、数值答案、删除测试与度数检查）。默认评测只跑这一版。"""
 
 from __future__ import annotations
 
@@ -6,9 +6,9 @@ from dataclasses import dataclass
 from typing import Literal
 
 
-ACTIVE_VERSION = "20261019"
+ACTIVE_VERSION = "20261020"
 # 计分口径版本：独立于题库版本。只改计分（权重、解析、分组）也必须改这里；写入每行结果与 meta，并参与 --resume 校验。
-SCORING_VERSION = "20261019.s1"
+SCORING_VERSION = "20261020.s1"
 CODE_LANGS = ("python", "go", "typescript")
 # 每道编码题只绑定一种语言：CP-09..CP-12 Python，CP-13..CP-15 Go，CP-16..CP-18 TypeScript。
 ITEM_CODE_LANG = {

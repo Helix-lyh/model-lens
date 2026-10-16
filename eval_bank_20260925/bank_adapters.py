@@ -137,7 +137,7 @@ _ENGINEERING_SOURCES = (
 _REASONING_SOURCES = (
     "eval_bank_20260925/bank_adapters.py",
     "eval_bank_20260925/next_reasoning.py",
-    "eval_bank_20260925/reasoning_20261019.json",
+    "eval_bank_20260925/reasoning_20261020.json",
     "eval_bank_20260925/score.py",
 )
 

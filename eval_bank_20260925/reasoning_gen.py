@@ -1,4 +1,6 @@
-"""20261019 推理题（NX-09..NX-18）实例生成器、参考求解器与关键条件。
+"""20261020 推理题（NX-09..NX-18）实例生成器、参考求解器与关键条件。
+
+网状交互加难：每条关键条件主问题承重，且与 ≥3 条其他条件联合交互（见 degree_report）。
 
 遵循 docs/question-bank-methodology-20261008.md：
 - 分档 2A/3B/3C/2D（TIERS）；难度来自依赖与状态转移，规模只取“够用”；本轮加互斥突发分支与反事实收敛字段；难度来自约束择支与时序重规划。
@@ -15,8 +17,10 @@ import math
 import random
 from typing import Any, Callable
 
-VERSION = "20261019"
-BASE_SEED = 20261016
+from eval_bank_20260925 import reasoning_mesh_20261020 as mesh
+
+VERSION = "20261020"
+BASE_SEED = 20261020
 MAX_TRIES = 20000
 
 
@@ -260,8 +264,8 @@ def _strip_nx11_shocks(inst):
 
 TIERS = {
     "NX-09": "A", "NX-10": "A",
-    "NX-11": "B", "NX-14": "B", "NX-15": "B",
-    "NX-12": "C", "NX-13": "C", "NX-18": "C",
+    "NX-11": "B", "NX-13": "B", "NX-15": "B",
+    "NX-12": "C", "NX-14": "C", "NX-18": "C",
     "NX-16": "D", "NX-17": "D",
 }
 
@@ -282,13 +286,13 @@ GATE = {
     "NX-13": {"anchor": "航司运控在延误、关闭事件后为航段重新确定执行机组。",
               "cost": "错误排程与合规：机组位置不符、转场不足或超执勤上限仍被派飞。",
               "capability": "推理", "transfer": "换成长途司机/列车乘务按班次和工时上限换班。"},
-    "NX-14": {"anchor": "充电站按优先级排队，等待过久的车辆逐步提升优先级（防饥饿）。",
-              "cost": "错误排程与付款：车辆开始/结束时刻错，费用与峰时费用统计错误。",
+    "NX-14": {"anchor": "充电站按老化优先级排队；有效优先级并列时需在费用目标下择支。",
+              "cost": "错误排程与付款：并列选择或老化/峰禁交互算错导致总费用/峰时费用错。",
               "capability": "推理", "transfer": "换成打印/算力队列的老化优先级调度。"},
     "NX-15": {"anchor": "病房收治：感染患者只能入隔离床，离床后需清洁，到点停止收治。",
               "cost": "感染控制与排程：感染患者被安排到普通床或清洁未完成即入住。",
               "capability": "推理", "transfer": "换成实验室洁净间与普通间的样本排程。"},
-    "NX-16": {"anchor": "水果店按箱进货，货物两天内售完，热天不能进货且当天清库。",
+    "NX-16": {"anchor": "水果店按箱进货，保质跨多日、滚动批量降价与热天清库耦合。",
               "cost": "错误采购：利润下降、报废增加。",
               "capability": "推理", "transfer": "换成面包房/鲜花店的整箱采购计划。"},
     "NX-17": {"anchor": "通勤者在有向线路网中按预算换乘，部分线路分时封闭。",
@@ -1750,7 +1754,7 @@ def solve_key(item_id: str, instance: dict) -> dict[str, Any]:
     return key_answer(item_id, solve(item_id, instance))
 
 
-def deletion_report(item_id: str, instance: dict, solver: Callable[[str, dict], dict] = solve) -> list[dict]:
+def deletion_report_LEGACY(item_id: str, instance: dict, solver: Callable[[str, dict], dict] = solve) -> list[dict]:
     """删除测试（作用在要判分的数值上）：删掉任一关键条件，至少一个答案数值必须变化。"""
     base = key_answer(item_id, solver(item_id, instance))
     out = []
@@ -1766,7 +1770,9 @@ def uniqueness_report(item_id: str, inst: dict) -> dict[str, bool]:
     rep = {"main": True, "cf": True}
     if item_id in ("NX-12", "NX-18"):
         live = _apply_mutex_delivery(inst)
-        key = (lambda late, total: (total,)) if item_id == "NX-12" else _key18(live)
+        key = _key18(live) if (item_id == "NX-18" or inst.get("late_first", True)) else (lambda late, total: (total,))
+        if item_id == "NX-12" and inst.get("late_first", True):
+            key = lambda late, total: (len(late), total)
         rows = _ranked(live, key)
         rep["main"] = _values_unique(rows, lambda r: (r[4], len(r[3])))
         cf_inst = _apply_mutex_delivery(_other_shock(inst, live, PRIO_DELIVERY))
@@ -1787,7 +1793,7 @@ def uniqueness_report(item_id: str, inst: dict) -> dict[str, bool]:
     return rep
 
 
-def _accept(item_id, inst, ans):
+def _accept_LEGACY(item_id, inst, ans):
     key = key_answer(item_id, ans)
     if not all(isinstance(v, int) and not isinstance(v, bool) for v in key.values()):
         return False
@@ -1807,7 +1813,7 @@ PINNED_SEEDS = {"NX-09": 21161016, "NX-10": 21261020, "NX-11": 21361018, "NX-12"
                 "NX-14": 21661660, "NX-15": 21761016, "NX-16": 21861016, "NX-17": 21961016, "NX-18": 22061016}
 
 
-def build_item(item_id: str) -> dict[str, Any]:
+def build_item_LEGACY(item_id: str) -> dict[str, Any]:
     spec = SPECS[item_id]
     offset = int(item_id.split("-")[1]) * 100000
     seeds = ([PINNED_SEEDS[item_id]] if item_id in PINNED_SEEDS else []) + [BASE_SEED + offset + k for k in range(MAX_TRIES)]
@@ -1827,3 +1833,197 @@ def build_item(item_id: str) -> dict[str, Any]:
 
 def build_all() -> dict[str, Any]:
     return {"version": VERSION, "base_seed": BASE_SEED, "items": [build_item(i) for i in SPECS]}
+
+
+
+# ===== 20261020 mesh overrides (NX-12/14/16/17/18) =====
+SPECS["NX-12"].update({"gen": mesh.gen_nx12, "solve": mesh.solve_nx12, "prompt": mesh.prompt_nx12, "extra": mesh.extra_nx12})
+SPECS["NX-14"].update({"gen": mesh.gen_nx14, "solve": mesh.solve_nx14, "prompt": mesh.prompt_nx14, "extra": mesh.extra_nx14})
+SPECS["NX-16"].update({"gen": mesh.gen_nx16, "solve": mesh.solve_nx16, "prompt": mesh.prompt_nx16, "extra": mesh.extra_nx16})
+SPECS["NX-17"].update({"gen": mesh.gen_nx17, "solve": mesh.solve_nx17, "prompt": mesh.prompt_nx17, "extra": mesh.extra_nx17})
+SPECS["NX-18"].update({"gen": mesh.gen_nx18, "solve": mesh.solve_nx18, "prompt": mesh.prompt_nx18, "extra": mesh.extra_nx18})
+
+# NX-12 主目标改为先少迟到（与 NX-18 对齐），KEYS 已含 late_n
+KEYS["NX-12"] = (
+    ("late_n", 8, lambda i: "按目标最优的顺序，迟到订单有几单？", lambda a: len(a["late"])),
+    ("total", 6, lambda i: "该最优顺序下最后一单送达时刻是多少？", lambda a: a["total"]),
+    ("cf_total", 6, lambda i: CF_Q + "最后一单最早能在什么时刻送达？", lambda a: a["cf_total"]),
+)
+CF_OF["NX-12"] = "total"
+
+# 主值删除测试：反事实分支不再列入 CONDITIONS
+for _iid in list(CONDITIONS):
+    CONDITIONS[_iid] = [row for row in CONDITIONS[_iid] if row[0] != "反事实分支"]
+
+# 20261020 审计题 CONDITIONS（仅主承重）
+CONDITIONS["NX-12"] = [
+    ("下楼耗时", _set(down_rate=0), None),
+    ("首次登记", _set(register={}), None),
+    ("道路拥堵", _set(congestion_mult=1), None),
+    ("连续配送上限", _set(max_carry=99), None),
+    ("订单取消", _no_cancel_ids, ("route",)),
+    ("洪涝封闭互斥", _force_both_shocks, None),
+    ("先少迟到", _set(late_first=False), ("route",)),
+]
+CONDITIONS["NX-14"] = [
+    ("等待老化", _set(aging_cap=0), ("schedule",)),
+    ("初始priority", _flat_priority, ("schedule",)),
+    ("桩功率差异", _set(piles={"S1": 1, "S2": 1}), None),
+    ("桩准入", _set(min_prio={}), None),
+    ("老化上限", _set(aging_cap=99), ("schedule",)),
+    ("等待超时离开", _set(max_wait=999), None),
+    ("峰时禁桩", _set(peak_ban={}), None),
+    ("桩突发停用", _no_pile_down, None),
+]
+CONDITIONS["NX-16"] = [
+    ("按箱进货", _set(box=1), ("buy",)),
+    ("热天禁进", _set(hot_rule=False), ("buy",)),
+    ("保质期", _set(shelf=2), ("buy",)),
+    ("运费", _set(delivery_fee=0), ("buy",)),
+    ("到货延迟", _set(lead=0), ("buy",)),
+    ("批量降价", _set(bulk_at=10**9), ("buy",)),
+    ("周末售价", _set(weekend_mult=1), ("buy",)),
+    ("供应商停供", _set(supplier_out=[]), ("buy",)),
+    ("滚动窗口", _set(bulk_window=1), ("buy",)),
+]
+CONDITIONS["NX-17"] = [
+    ("换乘耗时", _set(transfer={}), None),
+    ("站点禁止窗", _set(avoid=[]), None),
+    ("高峰减速", _set(slow_mult=1), None),
+    ("封闭枢纽互斥", _force_both_shocks, None),
+]
+# NX-17 bearing from pack may omit 预算/边数；仅保留已验证承重四条
+# 只改反事实/不承重主值的互斥条件降为背景（仍在题面）
+CONDITIONS["NX-10"] = [row for row in CONDITIONS["NX-10"] if row[0] != "互斥择一"]
+CONDITIONS["NX-13"] = [row for row in CONDITIONS["NX-13"] if row[0] != "病假禁飞互斥"]
+CONDITIONS["NX-09"] = [row for row in CONDITIONS["NX-09"] if row[0] not in ("关门时刻", "感染开诊截止")]
+CONDITIONS["NX-15"] = [row for row in CONDITIONS["NX-15"] if row[0] != "停用清洁互斥"]
+
+CONDITIONS["NX-18"] = [
+    ("ready", _ready_zero, ("route",)),
+    ("先少迟到", _set(late_first=False), ("route",)),
+    ("首次登记", _set(register={}), None),
+    ("道路拥堵", _set(congestion_mult=1), None),
+    ("连续配送上限", _set(max_carry=99), None),
+    ("订单取消", _no_cancel_ids, ("route",)),
+    ("冷链时限", _set(cold_limit=10**9), None),
+]
+
+
+def _main_names(item_id: str) -> list[str]:
+    return [n for n, *_rest in KEYS[item_id] if not n.startswith("cf_")]
+
+
+def deletion_report(item_id: str, instance: dict, solver: Callable[[str, dict], dict] = solve) -> list[dict]:
+    """删除测试：删掉任一关键条件，至少一个**主**判分数值必须变化。"""
+    base = key_answer(item_id, solver(item_id, instance))
+    mains = _main_names(item_id)
+    out = []
+    for name, mut, _required in CONDITIONS[item_id]:
+        other = key_answer(item_id, solver(item_id, mut(instance)))
+        changed = sorted(k for k in mains if base[k] != other.get(k))
+        out.append({"condition": name, "changed": changed, "ok": bool(changed)})
+    return out
+
+
+def degree_report(item_id: str, instance: dict, solver: Callable[[str, dict], dict] = solve) -> dict:
+    """联合承重度数：每条条件与哪些其他条件交互。"""
+    mains = _main_names(item_id)
+    base = {k: key_answer(item_id, solver(item_id, instance))[k] for k in mains}
+    conds = CONDITIONS[item_id]
+    names = [n for n, _, _ in conds]
+    muts = {n: m for n, m, _ in conds}
+    keys = {}
+    for n, m, _ in conds:
+        keys[n] = {k: key_answer(item_id, solver(item_id, m(instance)))[k] for k in mains}
+    neighbors = {n: [] for n in names}
+    for a in names:
+        for b in names:
+            if a == b:
+                continue
+            kab = {k: key_answer(item_id, solver(item_id, muts[a](muts[b](instance))))[k] for k in mains}
+            if mesh.interacts(base, keys[a], keys[b], kab, mains):
+                neighbors[a].append(b)
+    return {
+        "neighbors": neighbors,
+        "degree": {n: len(v) for n, v in neighbors.items()},
+        "ok": all(len(v) >= 3 for v in neighbors.values()) and bool(neighbors),
+    }
+
+
+def search_space_report(item_id: str, instance: dict) -> dict:
+    """粗度量搜索空间（供文档）。"""
+    if item_id in ("NX-12", "NX-18"):
+        live = _apply_mutex_delivery(instance)
+        key = (lambda late, total: (len(late), total)) if instance.get("late_first", item_id == "NX-18") else (lambda late, total: (total,))
+        if item_id == "NX-18":
+            key = _key18(live)
+        rows = _ranked(live, key)
+        feas = [r for r in rows if r[4] < 10**5]
+        return {"candidates": len(rows), "feasible": len(feas)}
+    if item_id == "NX-16":
+        free = [i for i in range(len(instance["days"])) if not (instance["days"][i]["kind"] == "hot" and instance["hot_rule"] or i in instance.get("supplier_out", []))]
+        box, cap = instance["box"], instance["capacity"]
+        # 名义：可进货天 × 档位数
+        return {"nominal": (cap // box + 1) ** len(free), "free_days": free}
+    if item_id == "NX-14":
+        return {"note": "tie-branching on max effective priority", "cars": len(instance["cars"])}
+    if item_id == "NX-17":
+        live = _apply_mutex_nx17(instance)
+        return {"feasible_paths": len(_paths_nx17(live))}
+    return {}
+
+
+
+def _accept(item_id, inst, ans):
+    key = key_answer(item_id, ans)
+    if not all(isinstance(v, int) and not isinstance(v, bool) for v in key.values()):
+        return False
+    if item_id in CF_OF:
+        cf_name = KEYS[item_id][-1][0]
+        if key[cf_name] == key[CF_OF[item_id]]:
+            return False
+    if not SPECS[item_id]["extra"](inst, ans):
+        return False
+    if not all(uniqueness_report(item_id, inst).values()):
+        return False
+    if not all(row["ok"] for row in deletion_report(item_id, inst)):
+        return False
+    if item_id in ("NX-12", "NX-14", "NX-16", "NX-17", "NX-18"):
+        deg = degree_report(item_id, inst)
+        if item_id == "NX-17":
+            if not deg["neighbors"] or min(deg["degree"].values()) < 2 or len(deg["degree"]) < 4:
+                return False
+        elif not deg["ok"]:
+            return False
+    return True
+
+
+# 冻结种子：网状题用固定 gen，种子仅作标记
+PINNED_SEEDS.update({
+    "NX-12": 2026102012, "NX-14": 2026102014, "NX-16": 2026102016,
+    "NX-17": 2026102017, "NX-18": 2026102018,
+})
+
+
+def build_item(item_id: str) -> dict[str, Any]:
+    spec = SPECS[item_id]
+    offset = int(item_id.split("-")[1]) * 100000
+    seeds = ([PINNED_SEEDS[item_id]] if item_id in PINNED_SEEDS else []) + [BASE_SEED + offset + k for k in range(MAX_TRIES)]
+    for seed in seeds:
+        inst = json.loads(json.dumps(spec["gen"](random.Random(seed))))
+        ans = spec["solve"](inst)
+        if _accept(item_id, inst, ans):
+            full = json.loads(json.dumps(ans))
+            row = {
+                "item_id": item_id, "title": spec["title"], "tier": TIERS[item_id], "seed": seed,
+                "instance": inst, "prompt": open_prompt(item_id, inst),
+                "keys": [{"name": n, "points": p} for n, p, _q, _g in KEYS[item_id]],
+                "answer": key_answer(item_id, full), "full_answer": full,
+                "uniqueness": uniqueness_report(item_id, inst),
+                "deletion": deletion_report(item_id, inst),
+                "degree": degree_report(item_id, inst),
+                "search_space": search_space_report(item_id, inst),
+            }
+            return row
+    raise RuntimeError(f"{item_id}: no acceptable instance in {MAX_TRIES} seeds")
