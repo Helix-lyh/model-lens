@@ -64,7 +64,7 @@ ERASE 带 request_id。
 READ 带 role：user 或 auditor。结果里可以带 amount。""")
 E05_PROMPT = _wish("做一个生产级别可用的多租户异步任务组件，工人会回报执行结果", """事件是对象，带 op、tenant 和 task_id。
 SUBMIT 可以带 depends_on，值是同一租户的另一个 task_id。
-UPDATE 带 action：start、complete、fail 或 cancel，并带 protocol 和 attempt。protocol 不带时视为 2。
+UPDATE 带 action（start、complete、fail 或 cancel）和 attempt，可以带 protocol，不带 protocol 时视为 2。
 失败的任务可以再次 start 重试；同一任务累计失败达到上限后不能再 start。上限由你决定，取 2 到 6 次之间。
 GET 也是一次事件。""")
 E06_PROMPT = _wish("做一个生产级别可用的配置发布组件，配置按环境发布，并且可以回到旧版本", """事件是对象，带 op、env 和 key。
@@ -94,7 +94,10 @@ def _published_wish(body: str) -> str:
 
 for _item_id, (_title, _body) in _sections(_NEXT_DOCS["engineering"], "E").items():
     if _item_id not in ENGINEERING_SCENARIOS:
-        ENGINEERING_SCENARIOS[_item_id] = {"title": _title, "status": "runnable", "prompt": _published_wish(_body)}
+        _text = _published_wish(_body)
+        if "代码围栏" not in _text:
+            _text += "不要输出解释，只输出一个 python 代码围栏。"
+        ENGINEERING_SCENARIOS[_item_id] = {"title": _title, "status": "runnable", "prompt": _text}
 
 
 _SCENARIOS = (

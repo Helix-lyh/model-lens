@@ -191,7 +191,7 @@ def test_e07_to_e10_prompts_keep_the_wish_and_drop_the_score_key():
         wish = match.group(1).strip()
         prompt = ENGINEERING_SCENARIOS[item_id]["prompt"]
         assert "做一个生产级别可用的" in wish
-        assert prompt == wish
+        assert prompt == wish + "不要输出解释，只输出一个 python 代码围栏。"
         assert "可机械判分" not in prompt
         assert "参考行为" not in prompt
     assert ENGINEERING_SCENARIOS["E-01"]["prompt"] == E01_PROMPT

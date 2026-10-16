@@ -421,7 +421,7 @@ def _contract(item_id: str, language: str) -> str:
         "事件里只有动作、编号和这个动作自己的参数。" + "、".join(OUTPUT_ONLY_ROLES[item_id]) + " 只出现在输出里，不是事件上的输入字段。" + EVENT_NOTES.get(item_id, ""),
         "keys 角色：" + "、".join(schema["keys"]) + "。",
         "actions 角色：" + "、".join(schema["actions"]) + "。",
-        "states 角色：" + ("、".join(schema["states"]) if schema["states"] else "这一题没有要声明的状态词，states 写空对象。") + "。",
+        ("states 角色：" + "、".join(schema["states"]) + "。") if schema["states"] else "states 固定为没有任何键的对象。",
         "不得使用网络、文件、环境变量、随机数或子进程。",
     ]
     return "\n".join(lines)
