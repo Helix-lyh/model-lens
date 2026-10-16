@@ -1,4 +1,4 @@
-"""20261018 推理题（NX-09..NX-18）实例生成器、参考求解器与关键条件。
+"""20261019 推理题（NX-09..NX-18）实例生成器、参考求解器与关键条件。
 
 遵循 docs/question-bank-methodology-20261008.md：
 - 分档 2A/3B/3C/2D（TIERS）；难度来自依赖与状态转移，规模只取“够用”；本轮加互斥突发分支与反事实收敛字段；难度来自约束择支与时序重规划。
@@ -15,7 +15,7 @@ import math
 import random
 from typing import Any, Callable
 
-VERSION = "20261018"
+VERSION = "20261019"
 BASE_SEED = 20261016
 MAX_TRIES = 20000
 
@@ -1524,7 +1524,7 @@ CONDITIONS: dict[str, list[tuple[str, Callable, tuple | None]]] = {
         ("感染清洁", _set(clean=0), None),
         ("急诊优先", _set(emergency_first=False), None),
         ("床位日容量", _set(bed_cap={"B1": 99, "B2": 99, "B3": 99, "B4": 99}), None),
-        # 20261018：非感染轻清只交换床位明细，对判分数值是背景条件
+        # 20261019：非感染轻清只交换床位明细，对判分数值是背景条件
         ("停用清洁互斥", _force_both_shocks, None), ("反事实分支", _cf_collapse, ("cf_emergency_wait",)),
         # 停止收治在本轮手冻实例上难绑定，不列入关键条件
     ],
@@ -1537,7 +1537,7 @@ CONDITIONS: dict[str, list[tuple[str, Callable, tuple | None]]] = {
     ],
     "NX-13": [
         ("落地延误", _drop_events("arrdelay"), None),
-        # 20261018：起飞延误只改变已删除的明细字段（F02 起降时刻），对判分数值是背景条件，不列为关键条件
+        # 20261019：起飞延误只改变已删除的明细字段（F02 起降时刻），对判分数值是背景条件，不列为关键条件
         ("航段关闭", _drop_events("close"), None), ("转场时间", _set(turn=0), None),
         ("执勤上限", _no_crew_cap, None),
         ("病假禁飞互斥", _force_both_shocks, None), ("反事实分支", _cf_collapse, ("cf_cancelled_n",)),
@@ -1559,7 +1559,7 @@ CONDITIONS: dict[str, list[tuple[str, Callable, tuple | None]]] = {
     "NX-17": [
         ("预算", _set(budget=999), None),
         ("换乘耗时", _set(transfer={}), None), ("站点禁止窗", _set(avoid=[]), None),
-        # 20261018：边数上限只影响已删除的备选路径明细，对判分数值是背景条件
+        # 20261019：边数上限只影响已删除的备选路径明细，对判分数值是背景条件
         ("高峰减速", _set(slow_mult=1), None),
         ("封闭枢纽互斥", _force_both_shocks, None), ("反事实分支", _cf_collapse, ("cf_arrive",)),
     ],
@@ -1584,7 +1584,7 @@ def solve(item_id: str, instance: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 20261018 开放题面：题面不规定数据结构；每题只问 2 个主数值，含互斥突发的题再问 1 个反事实数值。
+# 20261019 开放题面：题面不规定数据结构；每题只问 2 个主数值，含互斥突发的题再问 1 个反事实数值。
 # 答案格式只保留最小约定：最后一行 `ANSWER: <问1>, <问2>[, <问3>]`。
 # ---------------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-"""20261018 题库：推理题扩相互关联约束（删除测试）；编码/工程沿用；答案收敛。"""
+"""20261019 题库：推理题扩相互关联约束（删除测试）；编码/工程沿用；答案收敛。"""
 from __future__ import annotations
 
 import eval_bank_20260925.plugins  # noqa: F401
@@ -11,8 +11,8 @@ from eval_bank_20260925.next_reasoning import FROZEN
 
 
 def test_version_bumped_and_30_items():
-    assert ACTIVE_VERSION == VERSION == FROZEN["version"] == "20261018"
-    assert {bank.version for bank in BANKS} == {"20261018"}
+    assert ACTIVE_VERSION == VERSION == FROZEN["version"] == "20261019"
+    assert {bank.version for bank in BANKS} == {"20261019"}
     assert len(ACTIVE_ITEMS) == 30
     assert all(item in ITEMS for item in ACTIVE_ITEMS)
 
