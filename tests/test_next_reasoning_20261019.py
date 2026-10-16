@@ -727,3 +727,13 @@ def test_delivery_prompts_pin_registration_and_departure_time_20261019():
         if "登记" in p and "封闭" in p and "道路时间" in p:
             assert "登记在楼外进行，不受封闭影响" in p
             assert "按下楼回到地面后离开的时刻判断" in p
+
+
+def test_round2_rule_clarifications_20261019():
+    import json
+    from pathlib import Path
+    d = json.loads(Path(__file__).resolve().parents[1].joinpath("eval_bank_20260925/reasoning_20261019.json").read_text())
+    p = {it["item_id"]: it["prompt"] for it in d["items"]}
+    assert "停用前已开始的接诊照常做完" in p["NX-09"]
+    assert "已开始的充电照常做完" in p["NX-14"]
+    assert "即使换乘不等待也不行" in p["NX-17"]

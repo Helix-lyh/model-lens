@@ -425,7 +425,7 @@ def _prompt_nx09(inst):
 - {"、".join(inst["no_infectious"]) or "无"} 不接诊感染患者。
 - 各诊室当天最多接诊人数：{_compact(inst["room_cap"])}。
 - 感染患者开始接诊分钟必须严格小于 {inst["infect_cutoff"]}。
-- 诊室突发停用（半开区间，停用期间不可接诊）：{_compact(inst["outages"])}。
+- 诊室突发停用（半开区间，停用期间不能开始新的接诊；停用前已开始的接诊照常做完）：{_compact(inst["outages"])}。
 - 从第 {inst["clean_after"][0]} 分钟起（含），感染患者结束后的清场时长改为 {inst["clean_after"][1]} 分钟（此前仍为 {inst["clean"]}）。
 - 只有已到达（到达分钟 ≤ 开始分钟）的患者可以开始接诊；开始分钟必须严格小于关门时刻 {inst["close"]}。
 - 诊室不得闲置：任一时刻若某诊室可用且有已到达未开始、该诊室可接诊的患者（且未关门），该时刻必须开始接诊。
@@ -757,9 +757,9 @@ def _prompt_nx14(inst):
 约束：
 - 车辆在桩上充电时长为 `ceil(电量/功率)` 分钟，开始后不可中断、不可换桩；同一桩同一时刻最多一辆车。
 - 桩的准入（初始priority 低于该值的车辆不能使用该桩）：{_compact(inst["min_prio"])}；未列出的桩无要求。
-- 峰时 [{inst["peak"][0]},{inst["peak"][1]}) 禁用的桩：{_compact([k for k,v in inst["peak_ban"].items() if v])}。
+- 峰时 [{inst["peak"][0]},{inst["peak"][1]}) 不能开始新充电的桩（已开始的充电照常做完）：{_compact([k for k,v in inst["peak_ban"].items() if v])}。
 - 等待超过 {inst["max_wait"]} 分钟仍未开始则离开。
-- 桩突发停用（半开）：{_compact(inst["pile_down"])}。
+- 桩突发停用（半开，停用期间不能开始新充电，已开始的照常做完）：{_compact(inst["pile_down"])}。
 - 桩不得闲置：任一时刻若某桩空闲、未被禁用，且有已到达未开始、可使用该桩的车辆，该时刻必须开始充电。
 - 车辆在时刻 t 的有效 priority = 初始priority + max(0, min(floor((min(t, {inst["aging_off_after"]}) − 到达) / {inst["aging"]}), {inst["aging_cap"]}))；即从第 {inst["aging_off_after"]} 分钟起等待不再增加有效 priority，此前已获得的加成保留。桩接车时选有效 priority 最大者；相同则到达早者优先，再按 id。多空闲桩时编号小的先接。
 - 费用 = 充电各分钟所在时段价格之和，与功率无关。
@@ -1373,7 +1373,7 @@ def _prompt_nx17(inst):
 从 {inst["src"]} 于 0 分钟出发前往 {inst["dst"]}，预算 {inst["budget"]}。
 约束：
 - 在下列中转站换乘需固定耗时（分钟），其余站点为 0：{_compact(inst["transfer"])}。
-- 可以在站内等待后再出发（等待时长计入时间），但不得在禁止驻留窗口内停留。
+- 可以在站内等待后再出发（等待时长计入时间），但窗口内不得在该站停留或换乘（即使换乘不等待也不行）。
 - 禁止驻留/换乘窗口 `[站点,开始,结束]`（半开）：{_compact(inst["avoid"])}。
 - 进入时刻 ≥ {inst["slow_after"]} 的线路分钟 ×{inst["slow_mult"]}。
 - 换乘枢纽故障：从时刻 {inst["hub_fail"][1]} 起站点 {inst["hub_fail"][0]} 不可进入/换乘（终点除外）。
