@@ -23,18 +23,17 @@ _CODE_RULE = "每个事件的结果都是对象，里面要有 code 和 reason�
 
 
 def _wish(title, interface):
-    return f"""工程题 {title}。
+    return f"""{title}。
 
 {interface}
 {_CODE_RULE}
 
-评测会把你的代码写入 solution.py，并执行 from solution import solve。必须提供 def solve(events)。它接收 JSON 兼容的事件列表，按输入顺序处理，返回同样长度的 JSON 兼容结果列表。不得使用网络、文件、工具或子进程。不要输出解释，只输出一个 python 代码围栏。"""
+只写一个 Python 函数 def solve(events)，可以有辅助函数。它接收 JSON 兼容的事件列表，按输入顺序处理，返回同样长度的 JSON 兼容结果列表。不得使用网络、文件、工具或子进程。不要输出解释，只输出一个 python 代码围栏。"""
 
 
-E01_PROMPT = """工程题 E-01：为一个 SaaS 管理后台做一套生产级别可用的注册和登录。
+E01_PROMPT = """为一个 SaaS 管理后台做一套生产级别可用的注册和登录。
 
-评测会把你的代码写入 solution.py，并执行 from solution import solve。
-必须提供 def solve(events)，接收 JSON 兼容的事件列表，返回同长度的 JSON 兼容结果列表。
+只写一个 Python 函数 def solve(events)，可以有辅助函数。它接收 JSON 兼容的事件列表，返回同长度的 JSON 兼容结果列表。
 事件按输入顺序处理；每个事件都有 id、op、now（整数）。时间只看事件里的 now。
 op 为 REGISTER、LOGIN、REQUEST。
 REGISTER 带 user、password，可以带 generation：不带 generation 是老用户，generation 为 2 是新用户。
@@ -48,27 +47,27 @@ LOGIN 成功时，结果里要有后续事件能用的 session。
 不得使用网络、文件、工具或子进程。不要输出解释，只输出一个 python 代码围栏。"""
 
 
-E02_PROMPT = _wish("E-02：做一个生产级别可用的支付通知接收组件，商户要能查订单付没付", """事件是对象，带 op。订单由 merchant 和 order 标识。
+E02_PROMPT = _wish("做一个生产级别可用的支付通知接收组件，商户要能查订单付没付", """事件是对象，带 op。订单由 merchant 和 order 标识。
 CREATE 带 amount（整数）和 fee_rule：flat 或 surcharge，不带 fee_rule 时视为 flat。
 CALLBACK 带 amount、state、event_id，可以带 signature 和 notice_version。state 只能是 PAID 或 REFUNDED。notice_version 不带时视为 2。
 signature 为字符串 ok 表示验签通过；不带或其他值都表示验签失败，不能改变订单。
 flat 订单应付金额就是 amount；surcharge 订单应付金额是 amount + floor(amount / 10)。回调金额与应付金额不一致时不能入账。
 GET 也是一次事件。""")
-E03_PROMPT = _wish("E-03：做一个生产级别可用的库存预占组件，要能查某个买家现在能买多少", """事件是对象，带 op，并带 tenant 和 sku。
+E03_PROMPT = _wish("做一个生产级别可用的库存预占组件，要能查某个买家现在能买多少", """事件是对象，带 op，并带 tenant 和 sku。
 STOCK 带 quantity、pool、batch，可以带 expire_at。pool 是 open 或 holdback。batch 是 old 或 new。
 RESERVE 带 quantity、reservation_id、buyer、now。buyer 是 new 或 returning。
 GET 带 buyer 和 now，结果里用 available 表示这个买家此刻能买的件数。
 old 批次带 expire_at 时，now 大于 expire_at 后这批货不能再卖；new 批次是刚到的货，不会过期。holdback 池是给回头客保留的库存，只有 returning 买家能看到和预占。""")
-E04_PROMPT = _wish("E-04：做一个生产级别可用的文档归档组件，文档可以写入和抹掉，财务要能核对入账", """事件是对象，带 op，并带 tenant 和 doc_id。
+E04_PROMPT = _wish("做一个生产级别可用的文档归档组件，文档可以写入和抹掉，财务要能核对入账", """事件是对象，带 op，并带 tenant 和 doc_id。
 PUT 带 content，可以带 amount 和 retention。retention 是 normal 或 hold，不带时视为 normal。
 ERASE 带 request_id。
 READ 带 role：user 或 auditor。结果里可以带 amount。""")
-E05_PROMPT = _wish("E-05：做一个生产级别可用的多租户异步任务组件，工人会回报执行结果", """事件是对象，带 op、tenant 和 task_id。
+E05_PROMPT = _wish("做一个生产级别可用的多租户异步任务组件，工人会回报执行结果", """事件是对象，带 op、tenant 和 task_id。
 SUBMIT 可以带 depends_on，值是同一租户的另一个 task_id。
 UPDATE 带 action：start、complete、fail 或 cancel，并带 protocol 和 attempt。protocol 不带时视为 2。
 失败的任务可以再次 start 重试；同一任务累计失败达到上限后不能再 start。上限由你决定，取 2 到 6 次之间。
 GET 也是一次事件。""")
-E06_PROMPT = _wish("E-06：做一个生产级别可用的配置发布组件，配置按环境发布，并且可以回到旧版本", """事件是对象，带 op、env 和 key。
+E06_PROMPT = _wish("做一个生产级别可用的配置发布组件，配置按环境发布，并且可以回到旧版本", """事件是对象，带 op、env 和 key。
 PROPOSE 带 version、value，可以带 request_id、min_client 和 approved。version、min_client 是整数，min_client 不带时视为 1。approved 是布尔值，只有 JSON 的 true 才表示已批准，未批准的版本不能发布。
 PUBLISH 带 version，也可以带 rollback_to。
 READ 可以带 client（整数），不带时视为不限制。读到已发布的内容时，把那份内容放在 value 里。""")

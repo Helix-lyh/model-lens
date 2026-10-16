@@ -50,7 +50,7 @@ def reasoning_group_maxes(item_id: str) -> tuple[tuple[str, int], ...]:
 
 
 def render_reasoning_prompt(item_id: str) -> str:
-    return "只依据题面推理作答。\n" + BY_ID[item_id].prompt
+    return BY_ID[item_id].prompt
 
 
 # 只认行首（可带 Markdown 标题/引用/列表符号）的 ANSWER，句中的 "the answer: ..." 不算答案行。

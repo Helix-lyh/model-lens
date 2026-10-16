@@ -17,7 +17,7 @@ class Challenge:
 
 def salt_prompt(prompt, salt):
     """Prefix a per-request nonce so a gateway cache cannot reuse a prior answer."""
-    return f"【本次请求随机盐 {salt}；与题目答案无关】\n\n{prompt}"
+    return f"【请求编号 {salt}；与题目无关】\n\n{prompt}"
 
 
 def salted_prompt_hash(prompt):
