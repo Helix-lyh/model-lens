@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.skip(reason="superseded by test_next_reasoning_20261022")
+
 from eval_bank_20260925 import reasoning_gen as gen
 from eval_bank_20260925.next_reasoning import FROZEN, ITEMS, reference_text, render_reasoning_prompt, score_reasoning
 

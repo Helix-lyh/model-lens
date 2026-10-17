@@ -532,7 +532,7 @@ def test_tiers_2a_3b_3c_2d_and_gate_records_complete():
 
 @pytest.mark.parametrize("item_id", sorted(SIM))
 def test_independent_simulator_reproduces_key(item_id):
-    if item_id in ("NX-10", "NX-12", "NX-14", "NX-16", "NX-17", "NX-18"):
+    if item_id in ("NX-10", "NX-12", "NX-14", "NX-15", "NX-16", "NX-17", "NX-18"):
         pytest.skip("20261021 审计/并列择支题求解器已换，见 mesh 模块 / test_next_reasoning_20261021")
 
     full = _norm(SIM[item_id](copy.deepcopy(INST[item_id])))
@@ -542,7 +542,7 @@ def test_independent_simulator_reproduces_key(item_id):
 
 @pytest.mark.parametrize("item_id", sorted(SIM))
 def test_deletion_each_key_condition_changes_scored_numbers(item_id):
-    if item_id in ("NX-10", "NX-12", "NX-14", "NX-16", "NX-17", "NX-18"):
+    if item_id in ("NX-10", "NX-12", "NX-14", "NX-15", "NX-16", "NX-17", "NX-18"):
         pytest.skip("20261021 mesh/并列择支题改由 gen.deletion_report / 20261021 测试覆盖")
     base = reference_answer(item_id)
     conds = gen.CONDITIONS[item_id]
@@ -618,7 +618,7 @@ def test_each_number_scored_independently_and_weights():
     for item_id, groups in ((it.item_id, it.groups) for it in ITEMS):
         assert sum(p for _, p in groups) == 20
         names = [n for n, _ in groups]
-        assert 2 <= len(names) <= 3
+        assert 2 <= len(names) <= 4  # 20261022：NX-12/18 增加步行分钟主值
         if item_id in gen.CF_OF:
             assert names[-1].startswith("cf_") and groups[-1][1] == 6 and sum(p for _, p in groups[:-1]) == 14
         vals = list(reference_answer(item_id).values())
@@ -630,7 +630,7 @@ def test_each_number_scored_independently_and_weights():
 
 
 def test_parser_is_lenient_on_wrapping_but_strict_on_count():
-    v = list(reference_answer("NX-12").values())
+    v = list(reference_answer("NX-15").values())
     line = ", ".join(map(str, v))
     ok = [
         f"推理……\nANSWER: {line}",
@@ -643,9 +643,9 @@ def test_parser_is_lenient_on_wrapping_but_strict_on_count():
         f"ANSWER: 0, 0, 0\n更正：\nANSWER: {line}",
     ]
     for text in ok:
-        assert score_reasoning("NX-12", text)["points"] == 20, text
+        assert score_reasoning("NX-15", text)["points"] == 20, text
     for text in ("72", f"ANSWER: {v[0]}, {v[1]}", f"ANSWER: {line}, 9", "", f"ANSWER: {v[0]}.5, {v[1]}, {v[2]}"):
-        r = score_reasoning("NX-12", text)
+        r = score_reasoning("NX-15", text)
         assert r["points"] == 0 and r["reason_code"] == "format_error", text
     assert parse_answer("ANSWER: −3, 4", 2) == [-3, 4]
 
@@ -684,7 +684,7 @@ def test_prompt_open_no_ids_no_schema(item):
 
 
 def test_generator_deterministic_and_frozen_matches():
-    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261021.py"
+    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261022.py"
     out = subprocess.run([sys.executable, str(script), "--check"], capture_output=True, text=True, cwd=ROOT)
     assert out.returncode == 0, out.stdout + out.stderr
     assert gen.build_item("NX-12") == gen.build_item("NX-12")
