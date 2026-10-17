@@ -1,6 +1,6 @@
-"""Executable 20261022 reasoning fixtures and mechanical scorers.
+"""Executable 20261023 reasoning fixtures and mechanical scorers.
 
-实例与答案键由 reasoning_gen.py（确定性种子 + 参考求解器）生成，冻结在 reasoning_20261022.json。
+实例与答案键由 reasoning_gen.py（确定性种子 + 参考求解器）生成，冻结在 reasoning_20261023.json。
 题面开放、不规定数据结构；每题只判 2 个主数值（+ 含互斥突发的题 1 个反事实数值）。
 答案格式只保留最小约定：最后一个 `ANSWER:` 行按问题顺序给整数；解析对代码块、Markdown 修饰、前后说明宽容。
 """
@@ -22,7 +22,7 @@ class ReasoningSpec:
     groups: tuple[tuple[str, int], ...]
 
 
-FROZEN_PATH = Path(__file__).with_name("reasoning_20261022.json")
+FROZEN_PATH = Path(__file__).with_name("reasoning_20261023.json")
 FROZEN = json.loads(FROZEN_PATH.read_text(encoding="utf-8"))
 
 

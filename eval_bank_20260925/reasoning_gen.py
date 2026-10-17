@@ -17,10 +17,10 @@ import math
 import random
 from typing import Any, Callable
 
-from eval_bank_20260925 import reasoning_mesh_20261022 as mesh
+from eval_bank_20260925 import reasoning_mesh_20261023 as mesh
 
-VERSION = "20261022"
-BASE_SEED = 20261022
+VERSION = "20261023"
+BASE_SEED = 20261023
 MAX_TRIES = 20000
 
 
@@ -894,6 +894,8 @@ def _deliver(inst, route):
         up = o["floor"] * (2 if stopped else 1)
         walk += up if stopped else 0
         clock += up
+        if flood_b and b == flood_b and inst.get("flood_deliver") and clock >= flood_t:
+            clock += 10**6  # 20261023：该楼订单须在洪涝时刻前送达（与题面一致）
         arrivals.append([oid, clock])
         pos, prev_floor, carry = b, o["floor"], carry + 1
     late = []
@@ -2017,7 +2019,7 @@ def _accept(item_id, inst, ans):
         return False
     if not all(row["ok"] for row in deletion_report(item_id, inst)):
         return False
-    if item_id in ("NX-10", "NX-12", "NX-14", "NX-15", "NX-16", "NX-17", "NX-18"):
+    if item_id in ("NX-09", "NX-10", "NX-11", "NX-12", "NX-13", "NX-14", "NX-15", "NX-16", "NX-17", "NX-18"):
         deg = degree_report(item_id, inst)
         if not deg["ok"]:
             return False
@@ -2026,8 +2028,8 @@ def _accept(item_id, inst, ans):
 
 # 冻结种子：网状题用固定 gen，种子仅作标记
 PINNED_SEEDS.update({
-    "NX-10": 2026102210, "NX-12": 2026102212, "NX-14": 2026102214, "NX-16": 2026102216,
-    "NX-17": 2026102217, "NX-18": 2026102218,
+    "NX-10": 2026102310, "NX-12": 2026102312, "NX-14": 2026102314, "NX-16": 2026102316,
+    "NX-17": 2026102317, "NX-18": 2026102318,
 })
 
 
@@ -2105,3 +2107,181 @@ CONDITIONS["NX-17"] = [
     ("预算", _set(budget=999), None),
     ("边数上限", _set(max_hops=99), None),
 ]
+
+
+# ===== 20261023：NX-09 并列取优分支 =====
+def _nx09_tie(inst, mode="opt"):
+    banned = set(inst["no_infectious"])
+    return mesh.solve_dispatch_tie(inst["rooms"], inst["patients"], elig=lambda u, x: not (x["infectious"] and u in banned),
+                                   close=inst["close"], clean=inst["clean"], caps=inst["room_cap"],
+                                   outages=inst.get("outages"), clean_after=inst.get("clean_after"),
+                                   infect_deadline=inst["infect_cutoff"], efirst=inst["emergency_first"], mode=mode)
+
+
+def _solve_nx09(inst):  # noqa: F811
+    return _nx09_tie(inst, "opt")
+
+
+_NX09_OLD_PRIO = "- 优先级：急诊高于普通；同类型到达早者优先；再按 id。同一时刻有多个诊室可用时按编号从小到大依次安排，每个诊室取当时它可接诊的最高优先级患者。"
+_NX09_NEW_PRIO = ("- 优先级：急诊高于普通；同类型患者之间不规定先后，由你选择。同一时刻有多个诊室可用时按编号从小到大依次安排，"
+                  "每个诊室必须在当时它可接诊的患者中选一人，若其中有急诊患者则必须选急诊患者。\n"
+                  "- 目标：在以上规则下，先使开始接诊的人数最多；在此前提下使所有接诊中最晚的结束分钟最小。")
+_prompt_nx09_prev = _prompt_nx09
+
+
+def _prompt_nx09(inst):  # noqa: F811
+    s = _prompt_nx09_prev(inst)
+    assert _NX09_OLD_PRIO in s
+    return s.replace(_NX09_OLD_PRIO, _NX09_NEW_PRIO)
+
+
+def _extra_nx09_tie(inst, ans):
+    lex = _nx09_tie(inst, "lex")
+    return (lex["last_end"], len(lex["waiting"])) != (ans["last_end"], len(ans["waiting"]))
+
+
+SPECS["NX-09"].update({"solve": _solve_nx09, "prompt": _prompt_nx09, "extra": _extra_nx09_tie})
+SPECS["NX-09"]["gen"] = lambda _rng: copy.deepcopy(mesh.PACK["NX-09"])
+
+
+# ===== 20261023：NX-11 批次自选择优 =====
+import inspect as _inspect
+_nx11_src = _inspect.getsource(_solve_nx11_core).replace("def _solve_nx11_core(inst):", "def _nx11_sim(inst, _pick):")
+_nx11_src = _nx11_src.replace("b = min(ok, key=lambda x: (expiry[x], x))", "b = _pick(ok)")
+exec(_nx11_src, globals())
+
+
+class _NeedBranch(Exception):
+    pass
+
+
+def _nx11_enum(inst, mode="opt"):
+    """枚举每张订单在多个可选批次中的选择；opt：装车数最多 → 剩余未锁定之和最大。lex：旧规则（最早过期）。"""
+    if mode == "lex":
+        exp = {b: v["expiry"] for b, v in inst["batches"].items()}
+        return _nx11_sim(inst, lambda ok: min(ok, key=lambda x: (exp[x], x)))
+    best, stack = None, [()]
+    while stack:
+        seq = stack.pop()
+        pos = [0]
+
+        def pick(ok, seq=seq, pos=pos):
+            k = pos[0]
+            pos[0] += 1
+            if len(ok) == 1:
+                return ok[0]
+            if k < len(seq):
+                return ok[seq[k]]
+            raise _NeedBranch(len(ok))
+        try:
+            ans = _nx11_sim(inst, pick)
+        except _NeedBranch as e:
+            # 单选位置记 0 占位，多选位置展开
+            for i in range(e.args[0]):
+                stack.append(seq + (0,) * (pos[0] - 1 - len(seq)) + (i,))
+            continue
+        score = (len(ans["loaded"]), sum(ans["free"].values()))
+        if best is None or score > best[0]:
+            best = (score, ans)
+    return best[1]
+
+
+def _solve_nx11_core(inst):  # noqa: F811
+    return _nx11_enum(inst, "opt")
+
+
+_NX11_OLD = "满足条件的批次中必须选 expiry 最小者，同 expiry 选批次名小者。没有则拒绝。"
+_NX11_NEW = "满足条件的批次有多个时由你选择其一；没有则拒绝（有满足条件的批次时不得拒绝）。"
+_prompt_nx11_prev = _prompt_nx11
+
+
+def _prompt_nx11(inst):  # noqa: F811
+    s = _prompt_nx11_prev(inst)
+    assert _NX11_OLD in s
+    s = s.replace(_NX11_OLD, _NX11_NEW)
+    tgt = "- 目标：在以上规则下，先使最终装车的订单数最多；在此前提下使全部事件结束后各批次未锁定数量之和最大。\n"
+    return s.replace("- 互斥突发：", tgt + "- 互斥突发：", 1)
+
+
+def _extra_nx11_tie(inst, ans):
+    live = _apply_mutex_nx11(inst)
+    lex = _nx11_enum(live, "lex")
+    return (len(lex["loaded"]), sum(lex["free"].values())) != (len(ans["loaded"]), sum(ans["free"].values()))
+
+
+SPECS["NX-11"].update({"prompt": _prompt_nx11, "extra": _extra_nx11_tie})
+SPECS["NX-11"]["gen"] = lambda _rng: copy.deepcopy(mesh.PACK["NX-11"])
+
+
+# ===== 20261023：NX-13 替补机组自选择优 =====
+def _enum_choices(sim, score):
+    """sim(pick) 中 pick(options) 返回其一；枚举全部选择序列，取 score 最大者。"""
+    best, stack = None, [()]
+    while stack:
+        seq = stack.pop()
+        pos = [0]
+
+        def pick(ok, seq=seq, pos=pos):
+            k = pos[0]
+            pos[0] += 1
+            if len(ok) == 1:
+                return ok[0]
+            if k < len(seq):
+                return ok[seq[k]]
+            raise _NeedBranch(len(ok))
+        try:
+            out = sim(pick)
+        except _NeedBranch as e:
+            for i in range(e.args[0]):
+                stack.append(seq + (0,) * (pos[0] - 1 - len(seq)) + (i,))
+            continue
+        sc = score(out)
+        if best is None or sc > best[0]:
+            best = (sc, out)
+    return best[1]
+
+
+_nx13_src = _inspect.getsource(_run_nx13).replace("def _run_nx13(inst):", "def _nx13_sim(inst, _pick):")
+_nx13_old_line = "        chosen = next((c for c in order if ok(c)), None)"
+assert _nx13_old_line in _nx13_src
+_nx13_src = _nx13_src.replace(_nx13_old_line, "        _alt = [c for c in order[1:] if ok(c)]\n"
+                              "        chosen = f[\"plan\"] if ok(f[\"plan\"]) else (_pick(_alt) if _alt else None)")
+exec(_nx13_src, globals())
+
+
+def _nx13_enum(inst, mode="opt"):
+    if mode == "lex":
+        return _nx13_sim(inst, lambda ok: ok[0])
+    return _enum_choices(lambda pk: _nx13_sim(inst, pk), lambda r: (-len(r[0]["cancelled"]), -r[0]["last_end"]))
+
+
+def _run_nx13(inst):  # noqa: F811
+    return _nx13_enum(inst, "opt")
+
+
+_NX13_OLD = "- 计划机组可执行时必须由计划机组执行；否则由可执行的其他机组中编号最小者执行；都不能执行则该航段取消。"
+_NX13_NEW = ("- 计划机组可执行时必须由计划机组执行；否则若有可执行的其他机组，必须从中任选一个执行（由你选择）；都不能执行则该航段取消。\n"
+             "- 目标：在以上规则下，先使取消的航段（含 close）最少；在此前提下使执行航段中最晚的实际落地分钟最小。")
+_prompt_nx13_prev = _prompt_nx13
+
+
+def _prompt_nx13(inst):  # noqa: F811
+    s = _prompt_nx13_prev(inst)
+    assert _NX13_OLD in s
+    return s.replace(_NX13_OLD, _NX13_NEW)
+
+
+def _extra_nx13_tie(inst, ans):
+    live = _apply_mutex_nx13(inst)
+    lex = _nx13_enum(live, "lex")[0]
+    return (len(lex["cancelled"]), lex["last_end"]) != (len(ans["cancelled"]), ans["last_end"])
+
+
+SPECS["NX-13"].update({"prompt": _prompt_nx13, "extra": _extra_nx13_tie,
+                       "gen": lambda _rng: copy.deepcopy(mesh.PACK["NX-13"])})
+
+
+# ===== 20261023：NX-16 加「进货间隔」=====
+CONDITIONS["NX-16"] = CONDITIONS["NX-16"] + [("进货间隔", _set(min_gap=0), ("buy",))]
+# 20261023：NX-17 去掉不承重的边数上限（实例不再设上限，题面无此条）
+CONDITIONS["NX-17"] = [r for r in CONDITIONS["NX-17"] if r[0] != "边数上限"]
