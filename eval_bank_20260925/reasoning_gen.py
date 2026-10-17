@@ -17,10 +17,10 @@ import math
 import random
 from typing import Any, Callable
 
-from eval_bank_20260925 import reasoning_mesh_20261021 as mesh
+from eval_bank_20260925 import reasoning_mesh_20261022 as mesh
 
-VERSION = "20261021"
-BASE_SEED = 20261021
+VERSION = "20261022"
+BASE_SEED = 20261022
 MAX_TRIES = 20000
 
 
@@ -2017,20 +2017,17 @@ def _accept(item_id, inst, ans):
         return False
     if not all(row["ok"] for row in deletion_report(item_id, inst)):
         return False
-    if item_id in ("NX-10", "NX-12", "NX-14", "NX-16", "NX-17", "NX-18"):
+    if item_id in ("NX-10", "NX-12", "NX-14", "NX-15", "NX-16", "NX-17", "NX-18"):
         deg = degree_report(item_id, inst)
-        if item_id == "NX-17":
-            if not deg["neighbors"] or min(deg["degree"].values()) < 2 or len(deg["degree"]) < 4:
-                return False
-        elif not deg["ok"]:
+        if not deg["ok"]:
             return False
     return True
 
 
 # 冻结种子：网状题用固定 gen，种子仅作标记
 PINNED_SEEDS.update({
-    "NX-10": 2026102110, "NX-12": 2026102112, "NX-14": 2026102114, "NX-16": 2026102116,
-    "NX-17": 2026102117, "NX-18": 2026102118,
+    "NX-10": 2026102210, "NX-12": 2026102212, "NX-14": 2026102214, "NX-16": 2026102216,
+    "NX-17": 2026102217, "NX-18": 2026102218,
 })
 
 
@@ -2055,3 +2052,56 @@ def build_item(item_id: str) -> dict[str, Any]:
             }
             return row
     raise RuntimeError(f"{item_id}: no acceptable instance in {MAX_TRIES} seeds")
+
+
+# ===== 20261022：NX-12 / NX-18 并列取省分支（步行分钟成为主值）=====
+KEYS["NX-12"] = (
+    ("total", 6, lambda i: "按目标最优的顺序，最后一单送达时刻是多少？", lambda a: a["total"]),
+    ("late_n", 4, lambda i: "该最优顺序下迟到订单有几单？", lambda a: len(a["late"])),
+    ("walk", 4, lambda i: "该最优顺序下全程步行上楼分钟数之和是多少？", lambda a: a["walk"]),
+    ("cf_total", 6, lambda i: CF_Q + "最后一单最早能在什么时刻送达？", lambda a: a["cf_total"]),
+)
+KEYS["NX-18"] = (
+    ("late_n", 6, lambda i: "按目标最优的顺序，迟到订单有几单？", lambda a: len(a["late"])),
+    ("total", 4, lambda i: "该最优顺序下最后一单送达时刻是多少？", lambda a: a["arrivals"][-1][1]),
+    ("walk", 4, lambda i: "该最优顺序下全程步行上楼分钟数之和是多少？", lambda a: a["walk"]),
+    ("cf_total", 6, lambda i: CF_Q + "按同一目标的最优顺序，最后一单送达时刻是多少？", lambda a: a["cf_total"]),
+)
+
+
+# ===== 20261022：NX-15 并列取省分支 =====
+def _solve_nx15_core(inst):  # noqa: F811 — 覆盖旧派位：同类型并列分支
+    return mesh.solve_nx15_tie(inst, "opt")
+
+
+_NX15_OLD_PRIO = "- 优先级：急诊高于普通；同类型到达早者优先；再按 id。同一时刻有多张床可用时按床号从小到大依次安排，每张床取当时可用该床的最高优先级患者。"
+_NX15_NEW_PRIO = ("- 优先级：急诊高于普通；同类型患者之间不规定先后，由你选择。同一时刻有多张床可用时按床号从小到大依次安排，"
+                  "每张床必须在当时可用该床的患者中选一人，若其中有急诊患者则必须选急诊患者。\n"
+                  "- 目标：在以上规则下，先使上床人数最多；在此前提下使已上床急诊患者的等待时长之和最小。")
+_prompt_nx15_prev = _prompt_nx15
+
+
+def _prompt_nx15(inst):  # noqa: F811
+    s = _prompt_nx15_prev(inst)
+    assert _NX15_OLD_PRIO in s
+    return s.replace(_NX15_OLD_PRIO, _NX15_NEW_PRIO)
+
+
+def _extra_nx15_tie(inst, ans):
+    live = _apply_mutex_nx15(inst)
+    lex = mesh.solve_nx15_tie(live, "lex")
+    return (lex["emergency_wait"], len(lex["waiting"])) != (ans["emergency_wait"], len(ans["waiting"]))
+
+
+SPECS["NX-15"].update({"prompt": _prompt_nx15, "extra": _extra_nx15_tie})
+
+
+# ===== 20261022：NX-17 承重条件扩为 6 条，度数一律 ≥3 =====
+CONDITIONS["NX-17"] = [
+    ("换乘耗时", _set(transfer={}), None),
+    ("站点禁止窗", _set(avoid=[]), None),
+    ("高峰减速", _set(slow_mult=1), None),
+    ("封闭枢纽互斥", _force_both_shocks, None),
+    ("预算", _set(budget=999), None),
+    ("边数上限", _set(max_hops=99), None),
+]
