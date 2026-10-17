@@ -532,7 +532,7 @@ def test_tiers_2a_3b_3c_2d_and_gate_records_complete():
 
 @pytest.mark.parametrize("item_id", sorted(SIM))
 def test_independent_simulator_reproduces_key(item_id):
-    if item_id in ("NX-10", "NX-12", "NX-14", "NX-15", "NX-16", "NX-17", "NX-18"):
+    if item_id in ("NX-09", "NX-10", "NX-11", "NX-12", "NX-13", "NX-14", "NX-15", "NX-16", "NX-17", "NX-18"):
         pytest.skip("20261021 审计/并列择支题求解器已换，见 mesh 模块 / test_next_reasoning_20261021")
 
     full = _norm(SIM[item_id](copy.deepcopy(INST[item_id])))
@@ -542,7 +542,7 @@ def test_independent_simulator_reproduces_key(item_id):
 
 @pytest.mark.parametrize("item_id", sorted(SIM))
 def test_deletion_each_key_condition_changes_scored_numbers(item_id):
-    if item_id in ("NX-10", "NX-12", "NX-14", "NX-15", "NX-16", "NX-17", "NX-18"):
+    if item_id in ("NX-09", "NX-10", "NX-11", "NX-12", "NX-13", "NX-14", "NX-15", "NX-16", "NX-17", "NX-18"):
         pytest.skip("20261021 mesh/并列择支题改由 gen.deletion_report / 20261021 测试覆盖")
     base = reference_answer(item_id)
     conds = gen.CONDITIONS[item_id]
@@ -684,7 +684,7 @@ def test_prompt_open_no_ids_no_schema(item):
 
 
 def test_generator_deterministic_and_frozen_matches():
-    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261022.py"
+    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261023.py"
     out = subprocess.run([sys.executable, str(script), "--check"], capture_output=True, text=True, cwd=ROOT)
     assert out.returncode == 0, out.stdout + out.stderr
     assert gen.build_item("NX-12") == gen.build_item("NX-12")
