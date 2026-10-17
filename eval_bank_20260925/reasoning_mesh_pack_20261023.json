@@ -1,0 +1,1083 @@
+{
+ "NX-16": {
+  "capacity": 12,
+  "box": 3,
+  "shelf": 3,
+  "hot_rule": true,
+  "delivery_fee": 5,
+  "lead": 1,
+  "bulk_at": 10,
+  "bulk_off": 4,
+  "bulk_window": 2,
+  "weekend_mult": 3,
+  "supplier_out": [
+   0,
+   2,
+   6
+  ],
+  "days": [
+   {
+    "kind": "normal",
+    "demand": 9,
+    "price": 12,
+    "cost": 5
+   },
+   {
+    "kind": "hot",
+    "demand": 12,
+    "price": 12,
+    "cost": 4
+   },
+   {
+    "kind": "hot",
+    "demand": 2,
+    "price": 13,
+    "cost": 5
+   },
+   {
+    "kind": "normal",
+    "demand": 6,
+    "price": 17,
+    "cost": 6
+   },
+   {
+    "kind": "normal",
+    "demand": 7,
+    "price": 10,
+    "cost": 4
+   },
+   {
+    "kind": "normal",
+    "demand": 4,
+    "price": 11,
+    "cost": 4
+   },
+   {
+    "kind": "normal",
+    "demand": 7,
+    "price": 15,
+    "cost": 8
+   },
+   {
+    "kind": "normal",
+    "demand": 6,
+    "price": 12,
+    "cost": 8
+   },
+   {
+    "kind": "normal",
+    "demand": 4,
+    "price": 17,
+    "cost": 8
+   },
+   {
+    "kind": "normal",
+    "demand": 10,
+    "price": 11,
+    "cost": 8
+   },
+   {
+    "kind": "normal",
+    "demand": 7,
+    "price": 14,
+    "cost": 4
+   },
+   {
+    "kind": "normal",
+    "demand": 5,
+    "price": 18,
+    "cost": 4
+   }
+  ],
+  "min_gap": 1
+ },
+ "NX-14": {
+  "piles": {
+   "S1": 2,
+   "S2": 1
+  },
+  "min_prio": {
+   "S2": 2
+  },
+  "tariff": [
+   [
+    0,
+    12,
+    4
+   ],
+   [
+    12,
+    24,
+    1
+   ],
+   [
+    24,
+    200,
+    3
+   ]
+  ],
+  "peak": [
+   0,
+   12
+  ],
+  "aging": 3,
+  "aging_cap": 2,
+  "max_wait": 12,
+  "peak_ban": {
+   "S1": true
+  },
+  "pile_down": {
+   "S2": [
+    [
+     12,
+     22
+    ]
+   ]
+  },
+  "aging_off_after": 18,
+  "cars": [
+   [
+    "V1",
+    10,
+    4,
+    3
+   ],
+   [
+    "V2",
+    0,
+    7,
+    1
+   ],
+   [
+    "V3",
+    0,
+    3,
+    1
+   ],
+   [
+    "V4",
+    3,
+    7,
+    1
+   ],
+   [
+    "V5",
+    12,
+    6,
+    2
+   ],
+   [
+    "V6",
+    7,
+    7,
+    1
+   ],
+   [
+    "V7",
+    8,
+    4,
+    3
+   ],
+   [
+    "V8",
+    4,
+    6,
+    1
+   ]
+  ]
+ },
+ "NX-12": {
+  "roads": {
+   "W-L1": 5,
+   "W-L2": 4,
+   "W-L3": 6,
+   "L1-L2": 7,
+   "L1-L3": 4,
+   "L2-L3": 5
+  },
+  "outages": {
+   "L1": [
+    [
+     16,
+     35
+    ]
+   ],
+   "L2": [
+    [
+     13,
+     23
+    ]
+   ],
+   "L3": [
+    [
+     21,
+     33
+    ]
+   ]
+  },
+  "orders": {
+   "A": {
+    "building": "L1",
+    "floor": 3,
+    "deadline": 60
+   },
+   "B": {
+    "building": "L2",
+    "floor": 2,
+    "deadline": 27
+   },
+   "C": {
+    "building": "L1",
+    "floor": 3,
+    "deadline": 59
+   },
+   "D": {
+    "building": "L3",
+    "floor": 7,
+    "deadline": 23
+   },
+   "E": {
+    "building": "L1",
+    "floor": 3,
+    "deadline": 26
+   },
+   "F": {
+    "building": "L2",
+    "floor": 3,
+    "deadline": 45
+   }
+  },
+  "down_rate": 1,
+  "register": {
+   "L1": 0,
+   "L2": 3,
+   "L3": 1
+  },
+  "congestion_from": 22,
+  "congestion_mult": 2,
+  "max_carry": 3,
+  "closed": {
+   "L3": [
+    [
+     35,
+     51
+    ]
+   ]
+  },
+  "cancel_ids": [
+   "C"
+  ],
+  "flood": [
+   41,
+   "L1"
+  ],
+  "detour": 0,
+  "early_return": true,
+  "late_first": true,
+  "flood_deliver": true
+ },
+ "NX-18": {
+  "roads": {
+   "W-L1": 5,
+   "W-L2": 5,
+   "W-L3": 3,
+   "L1-L2": 5,
+   "L1-L3": 3,
+   "L2-L3": 7
+  },
+  "outages": {
+   "L1": [
+    [
+     12,
+     27
+    ]
+   ],
+   "L2": [
+    [
+     8,
+     36
+    ]
+   ],
+   "L3": [
+    [
+     9,
+     36
+    ]
+   ]
+  },
+  "orders": {
+   "A": {
+    "building": "L2",
+    "floor": 6,
+    "ready": 0,
+    "deadline": 25
+   },
+   "B": {
+    "building": "L3",
+    "floor": 2,
+    "ready": 3,
+    "deadline": 40
+   },
+   "C": {
+    "building": "L1",
+    "floor": 1,
+    "ready": 0,
+    "deadline": 34
+   },
+   "D": {
+    "building": "L1",
+    "floor": 7,
+    "ready": 11,
+    "deadline": 26
+   },
+   "E": {
+    "building": "L3",
+    "floor": 5,
+    "ready": 0,
+    "deadline": 39
+   }
+  },
+  "down_rate": 1,
+  "register": {
+   "L1": 5,
+   "L2": 3,
+   "L3": 2
+  },
+  "late_first": true,
+  "congestion_from": 22,
+  "congestion_mult": 2,
+  "max_carry": 3,
+  "cold_limit": 26,
+  "closed": {
+   "L2": [
+    [
+     36,
+     48
+    ]
+   ]
+  },
+  "cancel_ids": [
+   "A"
+  ],
+  "flood": [
+   36,
+   "L1"
+  ],
+  "detour": 0,
+  "flood_deliver": true
+ },
+ "NX-18_bearing": [
+  "ready",
+  "先少迟到",
+  "首次登记",
+  "道路拥堵",
+  "连续配送上限",
+  "订单取消",
+  "冷链时限"
+ ],
+ "NX-17": {
+  "nodes": [
+   "A",
+   "B",
+   "C",
+   "D",
+   "E",
+   "F",
+   "G",
+   "H"
+  ],
+  "edges": [
+   [
+    "A",
+    "B",
+    9,
+    3
+   ],
+   [
+    "B",
+    "H",
+    2,
+    3
+   ],
+   [
+    "A",
+    "C",
+    10,
+    1
+   ],
+   [
+    "C",
+    "H",
+    7,
+    2
+   ],
+   [
+    "A",
+    "D",
+    9,
+    1
+   ],
+   [
+    "D",
+    "H",
+    9,
+    3
+   ],
+   [
+    "D",
+    "E",
+    2,
+    2
+   ],
+   [
+    "E",
+    "H",
+    5,
+    1
+   ],
+   [
+    "A",
+    "F",
+    8,
+    3
+   ],
+   [
+    "F",
+    "G",
+    4,
+    3
+   ],
+   [
+    "G",
+    "H",
+    1,
+    2
+   ],
+   [
+    "B",
+    "E",
+    2,
+    1
+   ],
+   [
+    "C",
+    "E",
+    1,
+    1
+   ],
+   [
+    "F",
+    "B",
+    9,
+    3
+   ],
+   [
+    "D",
+    "F",
+    5,
+    3
+   ],
+   [
+    "F",
+    "H",
+    7,
+    3
+   ],
+   [
+    "C",
+    "G",
+    3,
+    1
+   ],
+   [
+    "G",
+    "E",
+    6,
+    3
+   ]
+  ],
+  "closures": [
+   [
+    "B",
+    "H",
+    3,
+    22
+   ]
+  ],
+  "avoid": [
+   [
+    "C",
+    9,
+    29
+   ]
+  ],
+  "transfer": {
+   "B": 3,
+   "D": 4,
+   "E": 0,
+   "F": 5,
+   "G": 4,
+   "C": 2
+  },
+  "slow_after": 12,
+  "slow_mult": 2,
+  "budget": 4,
+  "hub_fail": [
+   "E",
+   3
+  ],
+  "src": "A",
+  "dst": "H"
+ },
+ "NX-17_bearing": [
+  "换乘耗时",
+  "站点禁止窗",
+  "高峰减速",
+  "封闭枢纽互斥"
+ ],
+ "NX-17_meta": {
+  "co": 3,
+  "joint_min": 2,
+  "answer": {
+   "arrive": 20,
+   "cost": 3,
+   "cf_arrive": 11,
+   "path": [
+    "A",
+    "D",
+    "E",
+    "H"
+   ]
+  }
+ },
+ "NX-10": {
+  "piles": {
+   "P1": 2,
+   "P2": 1,
+   "P3": 3
+  },
+  "min_prio": {
+   "P2": 2,
+   "P3": 2
+  },
+  "min_energy": {
+   "P3": 6
+  },
+  "gap": 1,
+  "max_concurrent": 1,
+  "tariff": [
+   [
+    0,
+    10,
+    4
+   ],
+   [
+    10,
+    22,
+    1
+   ],
+   [
+    22,
+    200,
+    3
+   ]
+  ],
+  "peak": [
+   0,
+   10
+  ],
+  "aging": 2,
+  "aging_cap": 3,
+  "aging_off_after": 16,
+  "peak_ban": {
+   "P1": true
+  },
+  "pile_down": {
+   "P2": [
+    [
+     10,
+     18
+    ]
+   ]
+  },
+  "reservations": {
+   "P1": [
+    [
+     14,
+     18
+    ]
+   ],
+   "P3": [
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "pile_fail": {},
+  "blackout": [],
+  "cars": [
+   [
+    "V1",
+    0,
+    6,
+    1,
+    40
+   ],
+   [
+    "V2",
+    0,
+    4,
+    1,
+    30
+   ],
+   [
+    "V3",
+    2,
+    7,
+    1,
+    35
+   ],
+   [
+    "V4",
+    4,
+    5,
+    2,
+    28
+   ],
+   [
+    "V5",
+    5,
+    8,
+    1,
+    40
+   ],
+   [
+    "V6",
+    8,
+    4,
+    3,
+    25
+   ],
+   [
+    "V7",
+    9,
+    6,
+    1,
+    36
+   ],
+   [
+    "V8",
+    11,
+    5,
+    2,
+    32
+   ]
+  ],
+  "mutex_events": [
+   {
+    "id": "fail",
+    "t": 12,
+    "kind": "pile_fail",
+    "pile": "P2",
+    "span": [
+     12,
+     20
+    ]
+   },
+   {
+    "id": "black",
+    "t": 18,
+    "kind": "blackout",
+    "span": [
+     18,
+     22
+    ]
+   }
+  ]
+ },
+ "NX-09": {
+  "rooms": [
+   "R1",
+   "R2",
+   "R3"
+  ],
+  "clean": 4,
+  "close": 49,
+  "emergency_first": true,
+  "no_infectious": [
+   "R3"
+  ],
+  "room_cap": {
+   "R1": 3,
+   "R2": 3,
+   "R3": 2
+  },
+  "infect_cutoff": 35,
+  "outages": {
+   "R2": [
+    [
+     12,
+     28
+    ]
+   ]
+  },
+  "clean_after": [
+   14,
+   13
+  ],
+  "patients": {
+   "P01": {
+    "arrive": 31,
+    "kind": "emergency",
+    "infectious": false,
+    "service": 6
+   },
+   "P02": {
+    "arrive": 30,
+    "kind": "emergency",
+    "infectious": false,
+    "service": 7
+   },
+   "P03": {
+    "arrive": 22,
+    "kind": "normal",
+    "infectious": false,
+    "service": 6
+   },
+   "P04": {
+    "arrive": 10,
+    "kind": "emergency",
+    "infectious": true,
+    "service": 8
+   },
+   "P05": {
+    "arrive": 5,
+    "kind": "normal",
+    "infectious": true,
+    "service": 7
+   },
+   "P06": {
+    "arrive": 9,
+    "kind": "emergency",
+    "infectious": false,
+    "service": 6
+   },
+   "P07": {
+    "arrive": 21,
+    "kind": "normal",
+    "infectious": true,
+    "service": 6
+   },
+   "P08": {
+    "arrive": 11,
+    "kind": "normal",
+    "infectious": false,
+    "service": 7
+   },
+   "P09": {
+    "arrive": 26,
+    "kind": "emergency",
+    "infectious": true,
+    "service": 8
+   },
+   "P10": {
+    "arrive": 23,
+    "kind": "normal",
+    "infectious": false,
+    "service": 4
+   },
+   "P11": {
+    "arrive": 19,
+    "kind": "normal",
+    "infectious": false,
+    "service": 4
+   },
+   "P12": {
+    "arrive": 29,
+    "kind": "emergency",
+    "infectious": true,
+    "service": 5
+   }
+  }
+ },
+ "NX-11": {
+  "batches": {
+   "A": {
+    "qty": 6,
+    "expiry": 42,
+    "zone": "cold"
+   },
+   "B": {
+    "qty": 6,
+    "expiry": 30,
+    "zone": "cold"
+   },
+   "C": {
+    "qty": 6,
+    "expiry": 27,
+    "zone": "frozen"
+   },
+   "D": {
+    "qty": 8,
+    "expiry": 18,
+    "zone": "frozen"
+   }
+  },
+  "events": [
+   {
+    "t": 3,
+    "op": "ORDER",
+    "id": "O01",
+    "qty": 4,
+    "zone": "frozen",
+    "vip": 0
+   },
+   {
+    "t": 8,
+    "op": "ORDER",
+    "id": "O02",
+    "qty": 2,
+    "zone": "frozen",
+    "vip": 0
+   },
+   {
+    "t": 12,
+    "op": "ORDER",
+    "id": "O03",
+    "qty": 6,
+    "zone": "cold",
+    "vip": 1
+   },
+   {
+    "t": 12,
+    "op": "ORDER",
+    "id": "O04",
+    "qty": 3,
+    "zone": "cold",
+    "vip": 0
+   },
+   {
+    "t": 13,
+    "op": "ORDER",
+    "id": "O05",
+    "qty": 3,
+    "zone": "frozen",
+    "vip": 0
+   },
+   {
+    "t": 14,
+    "op": "ORDER",
+    "id": "O06",
+    "qty": 5,
+    "zone": "cold",
+    "vip": 0
+   },
+   {
+    "t": 14,
+    "op": "CANCEL",
+    "id": "O05"
+   },
+   {
+    "t": 15,
+    "op": "CANCEL",
+    "id": "O03"
+   },
+   {
+    "t": 17,
+    "op": "ORDER",
+    "id": "O07",
+    "qty": 4,
+    "zone": "cold",
+    "vip": 0
+   },
+   {
+    "t": 17,
+    "op": "LOAD"
+   },
+   {
+    "t": 19,
+    "op": "ORDER",
+    "id": "O08",
+    "qty": 6,
+    "zone": "cold",
+    "vip": 0
+   },
+   {
+    "t": 21,
+    "op": "ORDER",
+    "id": "O09",
+    "qty": 2,
+    "zone": "frozen",
+    "vip": 0
+   },
+   {
+    "t": 22,
+    "op": "LOAD"
+   },
+   {
+    "t": 28,
+    "op": "RECALL",
+    "batch": "B"
+   },
+   {
+    "t": 30,
+    "op": "ORDER",
+    "id": "O10",
+    "qty": 4,
+    "zone": "cold",
+    "vip": 1
+   },
+   {
+    "t": 39,
+    "op": "LOAD"
+   }
+  ],
+  "windows": [
+   [
+    10,
+    19
+   ],
+   [
+    23,
+    33
+   ]
+  ],
+  "capacity": 9,
+  "max_open": 2,
+  "vip_first": true,
+  "capacity_shock": true
+ },
+ "NX-13": {
+  "turn": 37,
+  "max_legs": 2,
+  "crews": {
+   "C1": {
+    "base": "PEK",
+    "from": 412,
+    "cap": 257
+   },
+   "C2": {
+    "base": "SHA",
+    "from": 399,
+    "cap": 248
+   },
+   "C3": {
+    "base": "SHA",
+    "from": 493,
+    "cap": 133
+   },
+   "C4": {
+    "base": "SHA",
+    "from": 412,
+    "cap": 231
+   },
+   "C5": {
+    "base": "CAN",
+    "from": 450,
+    "cap": 180
+   }
+  },
+  "flights": {
+   "F01": {
+    "from": "PEK",
+    "to": "SHA",
+    "dep": 497,
+    "arr": 562,
+    "plan": "C2"
+   },
+   "F02": {
+    "from": "SHA",
+    "to": "CAN",
+    "dep": 459,
+    "arr": 552,
+    "plan": "C5"
+   },
+   "F03": {
+    "from": "CAN",
+    "to": "SHA",
+    "dep": 484,
+    "arr": 558,
+    "plan": "C3"
+   },
+   "F04": {
+    "from": "SHA",
+    "to": "PEK",
+    "dep": 569,
+    "arr": 658,
+    "plan": "C1"
+   },
+   "F05": {
+    "from": "CAN",
+    "to": "PEK",
+    "dep": 567,
+    "arr": 638,
+    "plan": "C2"
+   },
+   "F06": {
+    "from": "SHA",
+    "to": "PEK",
+    "dep": 600,
+    "arr": 695,
+    "plan": "C3"
+   },
+   "F07": {
+    "from": "PEK",
+    "to": "CAN",
+    "dep": 725,
+    "arr": 817,
+    "plan": "C1"
+   },
+   "F08": {
+    "from": "PEK",
+    "to": "CAN",
+    "dep": 686,
+    "arr": 769,
+    "plan": "C2"
+   },
+   "F09": {
+    "from": "PEK",
+    "to": "CAN",
+    "dep": 734,
+    "arr": 796,
+    "plan": "C5"
+   },
+   "F10": {
+    "from": "CAN",
+    "to": "PEK",
+    "dep": 853,
+    "arr": 972,
+    "plan": "C1"
+   }
+  },
+  "events": [
+   {
+    "op": "arrdelay",
+    "id": "F10",
+    "min": 30
+   },
+   {
+    "op": "arrdelay",
+    "id": "F04",
+    "min": 10
+   },
+   {
+    "op": "arrdelay",
+    "id": "F05",
+    "min": 31
+   },
+   {
+    "op": "close",
+    "id": "F03"
+   }
+  ],
+  "sick": {
+   "C2": 746
+  },
+  "ground_stop": [
+   "CAN",
+   525,
+   668
+  ]
+ }
+}
