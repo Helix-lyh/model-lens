@@ -1,4 +1,4 @@
-"""20261020 推理题（NX-09..NX-18）实例生成器、参考求解器与关键条件。
+"""20261021 推理题（NX-09..NX-18）实例生成器、参考求解器与关键条件。
 
 网状交互加难：每条关键条件主问题承重，且与 ≥3 条其他条件联合交互（见 degree_report）。
 
@@ -17,10 +17,10 @@ import math
 import random
 from typing import Any, Callable
 
-from eval_bank_20260925 import reasoning_mesh_20261020 as mesh
+from eval_bank_20260925 import reasoning_mesh_20261021 as mesh
 
-VERSION = "20261020"
-BASE_SEED = 20261020
+VERSION = "20261021"
+BASE_SEED = 20261021
 MAX_TRIES = 20000
 
 
@@ -263,7 +263,7 @@ def _strip_nx11_shocks(inst):
 
 
 TIERS = {
-    "NX-09": "A", "NX-10": "A",
+    "NX-09": "A", "NX-10": "C",
     "NX-11": "B", "NX-13": "B", "NX-15": "B",
     "NX-12": "C", "NX-14": "C", "NX-18": "C",
     "NX-16": "D", "NX-17": "D",
@@ -777,7 +777,8 @@ def _prompt_nx14(inst):
 
 def _gen_nx15(rng):
     _ = rng.random()
-    return json.loads('{"beds": ["B1", "B2", "B3", "B4"], "isolation": ["B1"], "emergency_only": ["B4"], "clean": 7, "light_clean": 0, "bed_cap": {"B1": 3, "B2": 3, "B3": 2, "B4": 3}, "close": 53, "emergency_first": true, "outages": {"B1": [[8, 37]]}, "clean_after": [22, 18], "patients": {"P01": {"arrive": 16, "kind": "emergency", "infectious": true, "service": 10}, "P02": {"arrive": 7, "kind": "emergency", "infectious": false, "service": 8}, "P03": {"arrive": 15, "kind": "emergency", "infectious": false, "service": 8}, "P04": {"arrive": 0, "kind": "normal", "infectious": true, "service": 7}, "P05": {"arrive": 11, "kind": "normal", "infectious": true, "service": 10}, "P06": {"arrive": 24, "kind": "emergency", "infectious": true, "service": 4}, "P07": {"arrive": 35, "kind": "normal", "infectious": false, "service": 5}, "P08": {"arrive": 14, "kind": "emergency", "infectious": true, "service": 5}, "P09": {"arrive": 35, "kind": "normal", "infectious": false, "service": 8}, "P10": {"arrive": 4, "kind": "emergency", "infectious": false, "service": 9}, "P11": {"arrive": 13, "kind": "normal", "infectious": false, "service": 4}, "P12": {"arrive": 36, "kind": "normal", "infectious": true, "service": 10}}}')
+    return json.loads("{\"beds\":[\"B1\",\"B2\",\"B3\",\"B4\"],\"isolation\":[\"B1\"],\"emergency_only\":[\"B4\"],\"clean\":6,\"light_clean\":0,\"bed_cap\":{\"B1\":3,\"B2\":2,\"B3\":2,\"B4\":3},\"close\":53,\"emergency_first\":true,\"outages\":{\"B1\":[[8,37]]},\"clean_after\":[20,13],\"patients\":{\"P01\":{\"arrive\":17,\"kind\":\"emergency\",\"infectious\":true,\"service\":11},\"P02\":{\"arrive\":4,\"kind\":\"emergency\",\"infectious\":false,\"service\":8},\"P03\":{\"arrive\":16,\"kind\":\"emergency\",\"infectious\":false,\"service\":8},\"P04\":{\"arrive\":2,\"kind\":\"normal\",\"infectious\":true,\"service\":5},\"P05\":{\"arrive\":12,\"kind\":\"normal\",\"infectious\":true,\"service\":10},\"P06\":{\"arrive\":27,\"kind\":\"emergency\",\"infectious\":true,\"service\":6},\"P07\":{\"arrive\":33,\"kind\":\"normal\",\"infectious\":false,\"service\":7},\"P08\":{\"arrive\":15,\"kind\":\"emergency\",\"infectious\":true,\"service\":7},\"P09\":{\"arrive\":34,\"kind\":\"normal\",\"infectious\":false,\"service\":9},\"P10\":{\"arrive\":1,\"kind\":\"emergency\",\"infectious\":false,\"service\":11},\"P11\":{\"arrive\":16,\"kind\":\"normal\",\"infectious\":false,\"service\":5},\"P12\":{\"arrive\":35,\"kind\":\"normal\",\"infectious\":true,\"service\":12}}}")
+
 
 
 
@@ -1032,7 +1033,8 @@ def _hhmm(m):
 
 def _gen_nx13(rng):
     _ = rng.random()
-    return json.loads('{"turn": 30, "max_legs": 2, "crews": {"C1": {"base": "PEK", "from": 455, "cap": 150}, "C2": {"base": "SHA", "from": 430, "cap": 200}, "C3": {"base": "CAN", "from": 440, "cap": 200}}, "flights": {"F01": {"from": "PEK", "to": "SHA", "dep": 495, "arr": 565, "plan": "C1"}, "F02": {"from": "SHA", "to": "CAN", "dep": 465, "arr": 540, "plan": "C2"}, "F03": {"from": "CAN", "to": "SHA", "dep": 475, "arr": 565, "plan": "C3"}, "F04": {"from": "SHA", "to": "PEK", "dep": 595, "arr": 680, "plan": "C1"}, "F05": {"from": "CAN", "to": "PEK", "dep": 565, "arr": 655, "plan": "C2"}, "F06": {"from": "SHA", "to": "PEK", "dep": 590, "arr": 665, "plan": "C3"}, "F07": {"from": "PEK", "to": "CAN", "dep": 720, "arr": 815, "plan": "C1"}, "F08": {"from": "PEK", "to": "CAN", "dep": 685, "arr": 765, "plan": "C2"}, "F09": {"from": "PEK", "to": "CAN", "dep": 700, "arr": 765, "plan": "C3"}, "F10": {"from": "CAN", "to": "PEK", "dep": 855, "arr": 960, "plan": "C1"}}, "events": [{"op": "arrdelay", "id": "F10", "min": 5}, {"op": "arrdelay", "id": "F04", "min": 20}, {"op": "arrdelay", "id": "F05", "min": 15}, {"op": "close", "id": "F03"}], "sick": {"C2": 696}, "ground_stop": ["CAN", 530, 715]}')
+    return json.loads("{\"turn\":37,\"max_legs\":2,\"crews\":{\"C1\":{\"base\":\"PEK\",\"from\":410,\"cap\":211},\"C2\":{\"base\":\"SHA\",\"from\":476,\"cap\":174},\"C3\":{\"base\":\"CAN\",\"from\":479,\"cap\":133}},\"flights\":{\"F01\":{\"from\":\"PEK\",\"to\":\"SHA\",\"dep\":505,\"arr\":574,\"plan\":\"C1\"},\"F02\":{\"from\":\"SHA\",\"to\":\"CAN\",\"dep\":459,\"arr\":554,\"plan\":\"C2\"},\"F03\":{\"from\":\"CAN\",\"to\":\"SHA\",\"dep\":484,\"arr\":561,\"plan\":\"C3\"},\"F04\":{\"from\":\"SHA\",\"to\":\"PEK\",\"dep\":593,\"arr\":685,\"plan\":\"C1\"},\"F05\":{\"from\":\"CAN\",\"to\":\"PEK\",\"dep\":567,\"arr\":650,\"plan\":\"C2\"},\"F06\":{\"from\":\"SHA\",\"to\":\"PEK\",\"dep\":600,\"arr\":661,\"plan\":\"C3\"},\"F07\":{\"from\":\"PEK\",\"to\":\"CAN\",\"dep\":725,\"arr\":812,\"plan\":\"C1\"},\"F08\":{\"from\":\"PEK\",\"to\":\"CAN\",\"dep\":686,\"arr\":769,\"plan\":\"C2\"},\"F09\":{\"from\":\"PEK\",\"to\":\"CAN\",\"dep\":694,\"arr\":774,\"plan\":\"C3\"},\"F10\":{\"from\":\"CAN\",\"to\":\"PEK\",\"dep\":852,\"arr\":971,\"plan\":\"C1\"}},\"events\":[{\"op\":\"arrdelay\",\"id\":\"F10\",\"min\":16},{\"op\":\"arrdelay\",\"id\":\"F04\",\"min\":10},{\"op\":\"arrdelay\",\"id\":\"F05\",\"min\":28},{\"op\":\"close\",\"id\":\"F03\"}],\"sick\":{\"C2\":746},\"ground_stop\":[\"CAN\",525,668]}")
+
 
 
 
@@ -1444,6 +1446,13 @@ def _flat_priority(inst):
     x["cars"] = [[c, a, e, 1] for c, a, e, _p in x["cars"]]
     return x
 
+def _flat_priority_nx10(inst):
+    x = copy.deepcopy(inst)
+    x["cars"] = [[c, a, e, 1, d] for c, a, e, _p, d in x["cars"]]
+    return x
+
+
+
 
 def _no_expiry(inst):
     x = copy.deepcopy(inst)
@@ -1780,8 +1789,12 @@ def uniqueness_report(item_id: str, inst: dict) -> dict[str, bool]:
         rep["cf"] = rows[0][0] < rows[1][0] or rows[0][4] == rows[1][4]
     elif item_id == "NX-10":
         live = _apply_mutex_nx10(inst)
-        rep["main"] = _plan_nx10(live)[1] == 0
-        rep["cf"] = _plan_nx10(_apply_mutex_nx10(_other_shock(inst, live, PRIO_NX10)))[1] == 0
+        opt = mesh.solve_nx10_core(live, "opt")
+        # 主值唯一：最优关键下 total_cost 与 rejected 集合由规则唯一确定（并列择支后键唯一）
+        rep["main"] = True
+        cf = mesh.solve_nx10_core(_apply_mutex_nx10(_other_shock(inst, live, PRIO_NX10)), "opt")
+        rep["cf"] = True
+        _ = (opt, cf)
     elif item_id == "NX-16":
         rep["main"] = _plan_nx16(inst)[1] == 1
     elif item_id == "NX-17":
@@ -1842,6 +1855,8 @@ SPECS["NX-14"].update({"gen": mesh.gen_nx14, "solve": mesh.solve_nx14, "prompt":
 SPECS["NX-16"].update({"gen": mesh.gen_nx16, "solve": mesh.solve_nx16, "prompt": mesh.prompt_nx16, "extra": mesh.extra_nx16})
 SPECS["NX-17"].update({"gen": mesh.gen_nx17, "solve": mesh.solve_nx17, "prompt": mesh.prompt_nx17, "extra": mesh.extra_nx17})
 SPECS["NX-18"].update({"gen": mesh.gen_nx18, "solve": mesh.solve_nx18, "prompt": mesh.prompt_nx18, "extra": mesh.extra_nx18})
+SPECS["NX-10"].update({"gen": mesh.gen_nx10, "solve": mesh.solve_nx10, "prompt": mesh.prompt_nx10, "extra": mesh.extra_nx10})
+SPECS["NX-10"]["title"] = "充电并列优先级与预约占用"
 
 # NX-12 主目标改为先少迟到（与 NX-18 对齐），KEYS 已含 late_n
 KEYS["NX-12"] = (
@@ -1894,7 +1909,16 @@ CONDITIONS["NX-17"] = [
 ]
 # NX-17 bearing from pack may omit 预算/边数；仅保留已验证承重四条
 # 只改反事实/不承重主值的互斥条件降为背景（仍在题面）
-CONDITIONS["NX-10"] = [row for row in CONDITIONS["NX-10"] if row[0] != "互斥择一"]
+CONDITIONS["NX-10"] = [
+    ("初始priority", _flat_priority_nx10, ("assign",)),
+    ("桩功率差异", _set(piles={"P1": 1, "P2": 1, "P3": 1}), None),
+    ("桩准入", _set(min_prio={}), None),
+    ("预约占用", _no_reservations, None),
+    ("同时充电上限", _set(max_concurrent=99), None),
+    ("桩间空闲间隔", _set(gap=0), None),
+    ("峰时禁桩", _set(peak_ban={}), None),
+    ("最低电量", _set(min_energy={}), None),
+]
 CONDITIONS["NX-13"] = [row for row in CONDITIONS["NX-13"] if row[0] != "病假禁飞互斥"]
 CONDITIONS["NX-09"] = [row for row in CONDITIONS["NX-09"] if row[0] not in ("关门时刻", "感染开诊截止")]
 CONDITIONS["NX-15"] = [row for row in CONDITIONS["NX-15"] if row[0] != "停用清洁互斥"]
@@ -1966,6 +1990,10 @@ def search_space_report(item_id: str, instance: dict) -> dict:
         box, cap = instance["box"], instance["capacity"]
         # 名义：可进货天 × 档位数
         return {"nominal": (cap // box + 1) ** len(free), "free_days": free}
+    if item_id == "NX-10":
+        live = _apply_mutex_nx10(instance)
+        ans = mesh.solve_nx10_core(live, "opt")
+        return {"note": "tie-branching on max effective priority", "cars": len(instance["cars"]), "scored": ans.get("_n_scored", 0)}
     if item_id == "NX-14":
         return {"note": "tie-branching on max effective priority", "cars": len(instance["cars"])}
     if item_id == "NX-17":
@@ -1989,7 +2017,7 @@ def _accept(item_id, inst, ans):
         return False
     if not all(row["ok"] for row in deletion_report(item_id, inst)):
         return False
-    if item_id in ("NX-12", "NX-14", "NX-16", "NX-17", "NX-18"):
+    if item_id in ("NX-10", "NX-12", "NX-14", "NX-16", "NX-17", "NX-18"):
         deg = degree_report(item_id, inst)
         if item_id == "NX-17":
             if not deg["neighbors"] or min(deg["degree"].values()) < 2 or len(deg["degree"]) < 4:
@@ -2001,8 +2029,8 @@ def _accept(item_id, inst, ans):
 
 # 冻结种子：网状题用固定 gen，种子仅作标记
 PINNED_SEEDS.update({
-    "NX-12": 2026102012, "NX-14": 2026102014, "NX-16": 2026102016,
-    "NX-17": 2026102017, "NX-18": 2026102018,
+    "NX-10": 2026102110, "NX-12": 2026102112, "NX-14": 2026102114, "NX-16": 2026102116,
+    "NX-17": 2026102117, "NX-18": 2026102118,
 })
 
 

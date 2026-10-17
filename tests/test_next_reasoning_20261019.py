@@ -523,7 +523,7 @@ def _key(item_id, full):
 
 def test_tiers_2a_3b_3c_2d_and_gate_records_complete():
     from collections import Counter as _C
-    assert _C(gen.TIERS.values()) == {"A": 2, "B": 3, "C": 3, "D": 2}
+    assert _C(gen.TIERS.values()) == {"A": 1, "B": 3, "C": 4, "D": 2}  # 20261021: NX-10 升为 C
     for item_id in gen.TIERS:
         assert ROWS[item_id]["tier"] == gen.TIERS[item_id]
         assert set(gen.GATE[item_id]) == {"anchor", "cost", "capability", "transfer"}
@@ -532,8 +532,8 @@ def test_tiers_2a_3b_3c_2d_and_gate_records_complete():
 
 @pytest.mark.parametrize("item_id", sorted(SIM))
 def test_independent_simulator_reproduces_key(item_id):
-    if item_id in ("NX-12", "NX-14", "NX-16", "NX-17", "NX-18"):
-        pytest.skip("20261020 审计题求解器已换，独立模拟器见 mesh 模块 / 新测试")
+    if item_id in ("NX-10", "NX-12", "NX-14", "NX-16", "NX-17", "NX-18"):
+        pytest.skip("20261021 审计/并列择支题求解器已换，见 mesh 模块 / test_next_reasoning_20261021")
 
     full = _norm(SIM[item_id](copy.deepcopy(INST[item_id])))
     assert _key(item_id, full) == reference_answer(item_id)
@@ -542,6 +542,8 @@ def test_independent_simulator_reproduces_key(item_id):
 
 @pytest.mark.parametrize("item_id", sorted(SIM))
 def test_deletion_each_key_condition_changes_scored_numbers(item_id):
+    if item_id in ("NX-10", "NX-12", "NX-14", "NX-16", "NX-17", "NX-18"):
+        pytest.skip("20261021 mesh/并列择支题改由 gen.deletion_report / 20261021 测试覆盖")
     base = reference_answer(item_id)
     conds = gen.CONDITIONS[item_id]
     assert len(conds) >= 3, "每题至少 3 个关键条件"
@@ -682,7 +684,7 @@ def test_prompt_open_no_ids_no_schema(item):
 
 
 def test_generator_deterministic_and_frozen_matches():
-    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261020.py"
+    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261021.py"
     out = subprocess.run([sys.executable, str(script), "--check"], capture_output=True, text=True, cwd=ROOT)
     assert out.returncode == 0, out.stdout + out.stderr
     assert gen.build_item("NX-12") == gen.build_item("NX-12")
@@ -719,7 +721,7 @@ def test_nx18_search_space_small():
 def test_delivery_prompts_pin_registration_and_departure_time_20261019():
     import json
     from pathlib import Path
-    d = json.loads(Path(__file__).resolve().parents[1].joinpath("eval_bank_20260925/reasoning_20261020.json").read_text())
+    d = json.loads(Path(__file__).resolve().parents[1].joinpath("eval_bank_20260925/reasoning_20261021.json").read_text())
     for it in d["items"]:
         p = it.get("prompt", "")
         if "登记" in p and "封闭" in p and "道路时间" in p:
@@ -728,11 +730,11 @@ def test_delivery_prompts_pin_registration_and_departure_time_20261019():
 
 
 def test_round2_rule_clarifications_20261019():
-    pytest.skip("20261020 题面重写，改由 test_next_reasoning_20261020 覆盖")
+    pytest.skip("20261020 题面重写，改由 test_next_reasoning_20261021 覆盖")
     
     import json
     from pathlib import Path
-    d = json.loads(Path(__file__).resolve().parents[1].joinpath("eval_bank_20260925/reasoning_20261020.json").read_text())
+    d = json.loads(Path(__file__).resolve().parents[1].joinpath("eval_bank_20260925/reasoning_20261021.json").read_text())
     p = {it["item_id"]: it["prompt"] for it in d["items"]}
     assert "停用前已开始的接诊照常做完" in p["NX-09"]
     assert "已开始的充电照常做完" in p["NX-14"]

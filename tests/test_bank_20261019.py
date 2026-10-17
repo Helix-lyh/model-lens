@@ -11,8 +11,8 @@ from eval_bank_20260925.next_reasoning import FROZEN
 
 
 def test_version_bumped_and_30_items():
-    assert ACTIVE_VERSION == VERSION == FROZEN["version"] == "20261020"
-    assert {bank.version for bank in BANKS} == {"20261020"}
+    assert ACTIVE_VERSION == VERSION == FROZEN["version"] == "20261021"
+    assert {bank.version for bank in BANKS} == {"20261021"}
     assert len(ACTIVE_ITEMS) == 30
     assert all(item in ITEMS for item in ACTIVE_ITEMS)
 
