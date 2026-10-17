@@ -20,3 +20,8 @@ targets.local.yaml
 .gitnexus/
 .idea/
 .DS_Store
+!.env.example
+CLAUDE.local.md
+AGENTS.local.md
+.claude/settings.local.json
+.omt/

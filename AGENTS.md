@@ -1,6 +1,6 @@
 # model-lens 项目协作指南
 
-本文件是仓库协作规则的唯一来源。`CLAUDE.md` 只保留一条指向本文件的说明，不重复本文件内容。
+本文件是仓库协作规则的唯一来源，开工前必须完整读取并遵守。`CLAUDE.md` 只有一行 `@AGENTS.md` 导入本文件，不另写规则。
 
 个人工具。
 
@@ -12,7 +12,7 @@
 
 ## 工作方法论
 
-主模型是 Grok 4.6，次模型是 gpt-sol。Grok 负责读现状、改文件、跑验证和最终定稿；需要强推理、方案对照或对抗复核时再交给 gpt-sol。其他厂商模型的接口参数、effort 档位、thinking-block 协议不要写进本仓库规则。
+个人的模型选择与分工写在本地 `AGENTS.local.md`（已 gitignore），不写进本仓库规则。其他厂商模型的接口参数、effort 档位、thinking-block 协议同样不写入。
 
 ### 第一性原理
 
@@ -87,3 +87,26 @@ Go：`package solution`，`GOPROXY=off`，`go test -v`。TS：先 `tsc` 再 `nod
 - 词表文件不进 git；不要把用户 key 写入仓库
 - 不要主动 commit / push，除非用户明确要求
 - 对用户回复用中文
+
+## oh-my-team 接入
+
+```yaml
+oh_my_team:
+  source: /workspace/oh-my-team
+  entry: ROUTING.md
+  exclude: []
+  capabilities: [git, shell, api]
+
+project_knowledge:
+  decisions: docs/decisions/
+  memory: docs/memory/
+  learnings: docs/learnings/
+```
+
+
+- 任务开始先读 `/workspace/oh-my-team/ROUTING.md`，按意图选择流程、技能和知识，只打开选中的文件；`exclude` 里的技能不读。
+- 同名或同用途时以 oh-my-team 为准，全局技能只用于它没有覆盖的场景。
+- 读的是本机 checkout 的当前内容。路径不可读或路由指向的文件不存在时停止并报告，不改用全局副本、旧缓存或其他项目的上下文。
+- 只使用 `capabilities` 声明的能力；生产部署另需明确授权。
+- 用户消息以 `omt:` 开头时，按 `ROUTING.md` 的「`omt:` 快捷触发」组合技能：先输出一行计划，再按阶段执行。
+- 调研结束、找到根因、交付完成或方案含通用部分时，按 oh-my-team 的 `codify` 技能向用户提议沉淀：零散内容整理成系统化文档，项目专属的写进本仓 `project_knowledge`，跨项目成立的写回 oh-my-team；用户确认大纲后才写。
