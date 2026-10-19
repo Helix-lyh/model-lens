@@ -684,7 +684,7 @@ def test_prompt_open_no_ids_no_schema(item):
 
 
 def test_generator_deterministic_and_frozen_matches():
-    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261023.py"
+    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261019.py"
     out = subprocess.run([sys.executable, str(script), "--check"], capture_output=True, text=True, cwd=ROOT)
     assert out.returncode == 0, out.stdout + out.stderr
     assert gen.build_item("NX-12") == gen.build_item("NX-12")

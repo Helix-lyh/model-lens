@@ -19,7 +19,7 @@ from typing import Any, Callable
 
 from eval_bank_20260925 import reasoning_mesh_20261023 as mesh
 
-VERSION = "20261023"
+VERSION = "20261019"
 BASE_SEED = 20261023
 MAX_TRIES = 20000
 

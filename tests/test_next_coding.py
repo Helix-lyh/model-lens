@@ -217,7 +217,7 @@ def test_cp14_totals_match_without_a_batch_list():
         {"sku": "s", "batch": "b1", "qty": 2, "expiry": 5, "received": 1},
         {"sku": "s", "batch": "b2", "qty": 2, "expiry": 8, "received": 2},
     ], "events": [
-        {"op": "ALLOCATE", "id": "1", "order": "o", "sku": "s", "qty": 3, "at": 1},
+        {"op": "ALLOCATE", "id": "1", "order": "o", "sku": "s", "qty": 2, "at": 1},
         {"op": "READ", "id": "2", "sku": "s", "at": 1},
     ]})
     reference = facts_cp14(got["output"])["reads"][0]
@@ -225,9 +225,23 @@ def test_cp14_totals_match_without_a_batch_list():
     assert facts_cp14(totals) == facts_cp14(got["output"])
     wrong = {"reads": [{"sku": "s", "free": 9, "locked": 0}], "orders": got["output"]["orders"]}
     assert facts_cp14(wrong) != facts_cp14(got["output"])
-    assert reference["free"] == 1 and reference["locked"] == 3
+    assert reference["free"] == 2 and reference["locked"] == 2
     assert facts_cp14({"reads": [{"sku": "s", "batches": [{}]}]}) != facts_cp14(got["output"])
     assert facts_cp14({"reads": [{"sku": "s", "batches": [{"expired": True}]}]}) != facts_cp14(got["output"])
+
+
+def test_cp10_accepts_parallel_maps():
+    from eval_bank_20260925.coding_facts import cp10 as facts_cp10
+    listed = {"parcels": [{"parcel": "p", "state": "ACCEPTED", "batch": "b2"}], "batches": [{"id": "b1", "used": 0, "closed": False}, {"id": "b2", "used": 1, "closed": False}]}
+    mapped = {"parcels": {"p": "b2"}, "state": {"p": "ACCEPTED"}, "used": {"b1": 0, "b2": 1}, "closed": []}
+    assert facts_cp10(listed) == facts_cp10(mapped)
+
+
+def test_cp12_accepts_parallel_root_array():
+    listed = {"lookups": [{"tenant": "t", "user": "a", "root": "b"}], "edges": [{"tenant": "t", "from": "a", "to": "b"}], "snapshots": []}
+    mapped = {"lookups": ["a"], "root": ["b"], "edges": [["t", "a", "b"]], "snapshots": []}
+    assert facts_cp12(listed)["roots"] == facts_cp12(mapped)["roots"]
+    assert facts_cp12(listed)["edges"] == facts_cp12(mapped)["edges"]
 
 
 def test_cp16_token_counts_match_without_echoed_tenant():

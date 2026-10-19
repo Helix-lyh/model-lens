@@ -64,21 +64,64 @@ def cp09(output):
     return {"quota": data.get("quota"), "orders": _orders(data.get("orders")), "snapshots": _cp09_snapshots(data.get("snapshots"))}
 
 
+def _closed_ids(value):
+    if isinstance(value, list):
+        return {item for item in value if isinstance(item, str)}
+    if isinstance(value, dict):
+        return {key for key, flag in value.items() if flag}
+    return set()
+
+
 def cp10(output):
     data = _as_output(output)
     parcels = []
-    for row in _rows(data.get("parcels")):
-        if not isinstance(row, dict):
-            continue
-        state = row.get("state")
-        batch = row.get("batch")
-        if state != "ACCEPTED":
-            batch = None
-        parcels.append({"parcel": row.get("parcel", row.get("id")), "state": state, "batch": batch})
-    batches = [
-        {"id": row.get("id"), "used": row.get("used"), "closed": bool(row.get("closed"))}
-        for row in _rows(data.get("batches")) if isinstance(row, dict)
-    ]
+    raw_parcels = data.get("parcels")
+    states = data.get("state") if isinstance(data.get("state"), dict) else {}
+    if isinstance(raw_parcels, dict):
+        for pid, body in raw_parcels.items():
+            if isinstance(body, dict):
+                state = body.get("state", states.get(pid))
+                batch = body.get("batch")
+            else:
+                state = states.get(pid)
+                batch = body
+            if state != "ACCEPTED":
+                batch = None
+            parcels.append({"parcel": pid, "state": state, "batch": batch})
+    else:
+        for row in _rows(raw_parcels):
+            if not isinstance(row, dict):
+                continue
+            state = row.get("state")
+            batch = row.get("batch")
+            if state != "ACCEPTED":
+                batch = None
+            parcels.append({"parcel": row.get("parcel", row.get("id")), "state": state, "batch": batch})
+    batches = []
+    raw_batches = data.get("batches")
+    used_map = data.get("used") if isinstance(data.get("used"), dict) else {}
+    closed = _closed_ids(data.get("closed"))
+    if isinstance(raw_batches, dict):
+        ids = set(raw_batches) | set(used_map) | closed
+        for bid in sorted(ids, key=str):
+            body = raw_batches.get(bid, {})
+            if isinstance(body, dict):
+                used = body.get("used", used_map.get(bid))
+                is_closed = bool(body.get("closed", bid in closed))
+            else:
+                used = used_map.get(bid, body if isinstance(body, int) else None)
+                is_closed = bid in closed
+            batches.append({"id": bid, "used": used, "closed": is_closed})
+    elif isinstance(raw_batches, list):
+        batches = [
+            {"id": row.get("id"), "used": row.get("used"), "closed": bool(row.get("closed"))}
+            for row in raw_batches if isinstance(row, dict)
+        ]
+    elif used_map or closed:
+        for bid in sorted(set(used_map) | closed, key=str):
+            batches.append({"id": bid, "used": used_map.get(bid), "closed": bid in closed})
+    parcels.sort(key=lambda row: str(row.get("parcel")))
+    batches.sort(key=lambda row: str(row.get("id")))
     return {"parcels": parcels, "batches": batches}
 
 
@@ -130,11 +173,18 @@ def _relation_snapshots(value):
 
 def cp12(output):
     data = _as_output(output)
-    roots = [row.get("root") for row in _rows(data.get("lookups")) if isinstance(row, dict)]
+    lookups = data.get("lookups")
+    roots_field = data.get("root")
+    if isinstance(lookups, list) and lookups and all(isinstance(item, str) for item in lookups) and isinstance(roots_field, list):
+        roots = list(roots_field)
+    else:
+        roots = [row.get("root") for row in _rows(lookups) if isinstance(row, dict)]
     edges = []
     for row in _rows(data.get("edges")):
         if isinstance(row, dict):
             edges.append((row.get("tenant"), row.get("from"), row.get("to")))
+        elif isinstance(row, (list, tuple)) and len(row) >= 3:
+            edges.append((row[0], row[1], row[2]))
     return {"roots": roots, "edges": edges, "snapshots": _relation_snapshots(data.get("snapshots"))}
 
 

@@ -1,4 +1,4 @@
-"""20261023 活跃题库身份（NX-18 洪涝送达修正、NX-12 明示可回 W、NX-09/11/13 择优分支、NX-16 进货间隔、NX-17 加难）。默认评测只跑这一版。"""
+"""20261019 活跃题库身份：编程 CP-09..18、工程 E-01..10、推理 NX-09..18。默认评测只跑这一版。"""
 
 from __future__ import annotations
 
@@ -6,9 +6,9 @@ from dataclasses import dataclass
 from typing import Literal
 
 
-ACTIVE_VERSION = "20261023"
+ACTIVE_VERSION = "20261019"
 # 计分口径版本：独立于题库版本。只改计分（权重、解析、分组）也必须改这里；写入每行结果与 meta，并参与 --resume 校验。
-SCORING_VERSION = "20261023.s1"
+SCORING_VERSION = "20261019.s2"
 CODE_LANGS = ("python", "go", "typescript")
 # 每道编码题只绑定一种语言：CP-09..CP-12 Python，CP-13..CP-15 Go，CP-16..CP-18 TypeScript。
 ITEM_CODE_LANG = {

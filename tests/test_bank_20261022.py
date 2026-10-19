@@ -6,9 +6,9 @@ from eval_bank_20260925.next_reasoning import FROZEN
 
 
 def test_active_version_aligned():
-    assert ACTIVE_VERSION == VERSION == FROZEN["version"] == "20261023"
-    assert {bank.version for bank in BANKS} == {"20261023"}
-    assert gen.VERSION == "20261023"
+    assert ACTIVE_VERSION == VERSION == FROZEN["version"] == "20261019"
+    assert {bank.version for bank in BANKS} == {"20261019"}
+    assert gen.VERSION == "20261019"
 
 
 def test_scoring_version_distinct():

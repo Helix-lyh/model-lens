@@ -17,7 +17,7 @@ AUDITED = ("NX-09", "NX-10", "NX-11", "NX-12", "NX-13", "NX-14", "NX-15", "NX-16
 
 
 def test_bank_version_20261023():
-    assert FROZEN["version"] == gen.VERSION == "20261023"
+    assert FROZEN["version"] == gen.VERSION == "20261019"
 
 
 @pytest.mark.parametrize("item_id", sorted(ROWS))
@@ -65,15 +65,15 @@ def test_nx16_cross_day_harder():
     assert INST["NX-16"]["bulk_window"] >= 2
     assert len(INST["NX-16"]["days"]) >= 10
     assert ROWS["NX-16"]["answer"]["waste_sum"] >= 1
-    assert ROWS["NX-16"]["answer"] == {"profit": 659, "waste_sum": 1}
-    assert INST["NX-16"]["min_gap"] >= 1
+    assert ROWS["NX-16"]["answer"] == {"profit": 603, "waste_sum": 1}
+    assert INST["NX-16"]["min_gap"] >= 2
 
 
 def test_nx16_window_counts_purchase_days_only():
     """「近 2 个进货日」只统计进货量>0 的天：对照「近 2 天」读法（旧求解器 651）。"""
     from eval_bank_20260925 import reasoning_mesh_20261023 as mesh
     plan, count = mesh.plan_nx16(INST["NX-16"])
-    assert count == 1 and plan["profit"] == 659
+    assert count == 1 and plan["profit"] == 603
 
 
 @pytest.mark.parametrize("item_id", ("NX-12", "NX-18"))
@@ -123,7 +123,7 @@ def test_prompt_open_no_schema_leak(item):
 
 
 def test_generator_check_script():
-    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261023.py"
+    script = ROOT / "cursor_workspace" / "build_scripts" / "gen_reasoning_20261019.py"
     out = subprocess.run([sys.executable, str(script), "--check"], capture_output=True, text=True, cwd=ROOT)
     assert out.returncode == 0, out.stdout + out.stderr
 
