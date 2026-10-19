@@ -1,0 +1,307 @@
+{
+ "family": "drone",
+ "data": {
+  "modes": [
+   {
+    "id": "DIRECT",
+    "label": "直飞",
+    "kind": "fast"
+   },
+   {
+    "id": "GROUND",
+    "label": "地面",
+    "kind": "plain"
+   },
+   {
+    "id": "SLOT",
+    "label": "时隙",
+    "kind": "timed"
+   }
+  ],
+  "routes": [
+   {
+    "id": "DIRECT",
+    "label": "直达"
+   },
+   {
+    "id": "DETOUR",
+    "label": "绕行"
+   }
+  ],
+  "legs": [
+   {
+    "name": "一架",
+    "DIRECT": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 5
+      }
+     ]
+    },
+    "GROUND": {
+     "DIRECT": [
+      {
+       "min": 10,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 17
+      }
+     ]
+    },
+    "SLOT": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 5
+     },
+     "DETOUR": {
+      "access": 4,
+      "ride": 9
+     }
+    }
+   },
+   {
+    "name": "二架",
+    "DIRECT": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 3
+      }
+     ]
+    },
+    "GROUND": {
+     "DIRECT": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 15
+      }
+     ]
+    },
+    "SLOT": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 4,
+      "ride": 9
+     }
+    }
+   },
+   {
+    "name": "三架",
+    "DIRECT": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 6
+      }
+     ]
+    },
+    "GROUND": {
+     "DIRECT": [
+      {
+       "min": 14,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 13
+      }
+     ]
+    },
+    "SLOT": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 6
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 6
+     }
+    }
+   },
+   {
+    "name": "四架",
+    "DIRECT": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "GROUND": {
+     "DIRECT": [
+      {
+       "min": 13,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 18
+      }
+     ]
+    },
+    "SLOT": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 4,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "五架",
+    "DIRECT": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "GROUND": {
+     "DIRECT": [
+      {
+       "min": 12,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 15
+      }
+     ]
+    },
+    "SLOT": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 7
+     }
+    }
+   }
+  ],
+  "cost": {
+   "DIRECT": 2,
+   "GROUND": 0,
+   "SLOT": 3
+  }
+ },
+ "modules": {
+  "surge": {
+   "ids": [
+    "DIRECT"
+   ],
+   "factor": 2
+  },
+  "wave": {
+   "ids": [
+    "DIRECT",
+    "GROUND"
+   ],
+   "cycle": 10,
+   "open": 4
+  },
+  "seam": {
+   "minutes": 7
+  },
+  "board": {
+   "ids": [
+    "SLOT"
+   ],
+   "times": [
+    3,
+    10,
+    17,
+    24,
+    31,
+    38,
+    45,
+    52,
+    59,
+    66,
+    73,
+    80,
+    87,
+    94,
+    101,
+    108,
+    115
+   ]
+  }
+ },
+ "objective": [
+  "time",
+  "cost"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "time",
+   "points": 6,
+   "text": "给出五段各自的做法和路线，全部用短横线连接，例如 DIRECT-DIRECT-GROUND-DETOUR-DIRECT-DIRECT。"
+  },
+  {
+   "name": "time",
+   "metric": "time",
+   "points": 5
+  },
+  {
+   "name": "cost",
+   "metric": "cost",
+   "points": 4
+  },
+  {
+   "name": "cf_time",
+   "metric": "time",
+   "points": 5,
+   "cf": "no_surge"
+  }
+ ],
+ "background": []
+}

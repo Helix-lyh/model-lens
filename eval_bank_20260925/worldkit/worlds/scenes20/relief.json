@@ -1,0 +1,307 @@
+{
+ "family": "relief",
+ "data": {
+  "modes": [
+   {
+    "id": "TRUCK",
+    "label": "公路",
+    "kind": "fast"
+   },
+   {
+    "id": "DEPOT",
+    "label": "前置仓",
+    "kind": "plain"
+   },
+   {
+    "id": "CONVOY",
+    "label": "车队窗",
+    "kind": "timed"
+   }
+  ],
+  "routes": [
+   {
+    "id": "DIRECT",
+    "label": "直达"
+   },
+   {
+    "id": "DETOUR",
+    "label": "绕行"
+   }
+  ],
+  "legs": [
+   {
+    "name": "饮水",
+    "TRUCK": {
+     "DIRECT": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "DEPOT": {
+     "DIRECT": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 13
+      }
+     ]
+    },
+    "CONVOY": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 6
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 5
+     }
+    }
+   },
+   {
+    "name": "药品",
+    "TRUCK": {
+     "DIRECT": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 3
+      }
+     ]
+    },
+    "DEPOT": {
+     "DIRECT": [
+      {
+       "min": 9,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 18
+      }
+     ]
+    },
+    "CONVOY": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 6
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 6
+     }
+    }
+   },
+   {
+    "name": "口粮",
+    "TRUCK": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 5
+      }
+     ]
+    },
+    "DEPOT": {
+     "DIRECT": [
+      {
+       "min": 9,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 15
+      }
+     ]
+    },
+    "CONVOY": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 4,
+      "ride": 9
+     }
+    }
+   },
+   {
+    "name": "帐篷",
+    "TRUCK": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 6
+      }
+     ]
+    },
+    "DEPOT": {
+     "DIRECT": [
+      {
+       "min": 12,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 16
+      }
+     ]
+    },
+    "CONVOY": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 5
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 6
+     }
+    }
+   },
+   {
+    "name": "燃料",
+    "TRUCK": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 6
+      }
+     ]
+    },
+    "DEPOT": {
+     "DIRECT": [
+      {
+       "min": 11,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 17
+      }
+     ]
+    },
+    "CONVOY": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 5
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 9
+     }
+    }
+   }
+  ],
+  "cost": {
+   "TRUCK": 2,
+   "DEPOT": 0,
+   "CONVOY": 3
+  }
+ },
+ "modules": {
+  "surge": {
+   "ids": [
+    "TRUCK"
+   ],
+   "factor": 2
+  },
+  "wave": {
+   "ids": [
+    "TRUCK",
+    "DEPOT"
+   ],
+   "cycle": 10,
+   "open": 4
+  },
+  "seam": {
+   "minutes": 6
+  },
+  "board": {
+   "ids": [
+    "CONVOY"
+   ],
+   "times": [
+    3,
+    10,
+    17,
+    24,
+    31,
+    38,
+    45,
+    52,
+    59,
+    66,
+    73,
+    80,
+    87,
+    94,
+    101,
+    108,
+    115
+   ]
+  }
+ },
+ "objective": [
+  "time",
+  "cost"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "time",
+   "points": 6,
+   "text": "给出五段各自的做法和路线，全部用短横线连接，例如 TRUCK-DIRECT-DEPOT-DETOUR-TRUCK-DIRECT。"
+  },
+  {
+   "name": "time",
+   "metric": "time",
+   "points": 5
+  },
+  {
+   "name": "cost",
+   "metric": "cost",
+   "points": 4
+  },
+  {
+   "name": "cf_time",
+   "metric": "time",
+   "points": 5,
+   "cf": "no_surge"
+  }
+ ],
+ "background": []
+}

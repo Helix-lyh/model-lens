@@ -1,0 +1,305 @@
+{
+ "family": "canteen",
+ "data": {
+  "modes": [
+   {
+    "id": "EXPRESS",
+    "label": "快窗",
+    "kind": "fast"
+   },
+   {
+    "id": "SET",
+    "label": "套餐",
+    "kind": "plain"
+   },
+   {
+    "id": "BELL",
+    "label": "铃次",
+    "kind": "timed"
+   }
+  ],
+  "routes": [
+   {
+    "id": "DIRECT",
+    "label": "直达"
+   },
+   {
+    "id": "DETOUR",
+    "label": "绕行"
+   }
+  ],
+  "legs": [
+   {
+    "name": "早自习后",
+    "EXPRESS": {
+     "DIRECT": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "SET": {
+     "DIRECT": [
+      {
+       "min": 10,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 17
+      }
+     ]
+    },
+    "BELL": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 6
+     },
+     "DETOUR": {
+      "access": 4,
+      "ride": 5
+     }
+    }
+   },
+   {
+    "name": "第一节后",
+    "EXPRESS": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 3
+      }
+     ]
+    },
+    "SET": {
+     "DIRECT": [
+      {
+       "min": 11,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 15
+      }
+     ]
+    },
+    "BELL": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 3
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "午休",
+    "EXPRESS": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 5
+      }
+     ]
+    },
+    "SET": {
+     "DIRECT": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 16
+      }
+     ]
+    },
+    "BELL": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 5
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "第三节后",
+    "EXPRESS": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 3
+      }
+     ]
+    },
+    "SET": {
+     "DIRECT": [
+      {
+       "min": 11,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 14
+      }
+     ]
+    },
+    "BELL": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 6
+     },
+     "DETOUR": {
+      "access": 4,
+      "ride": 6
+     }
+    }
+   },
+   {
+    "name": "晚自习前",
+    "EXPRESS": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 5
+      }
+     ]
+    },
+    "SET": {
+     "DIRECT": [
+      {
+       "min": 9,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 13
+      }
+     ]
+    },
+    "BELL": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 5
+     }
+    }
+   }
+  ],
+  "cost": {
+   "EXPRESS": 2,
+   "SET": 0,
+   "BELL": 3
+  }
+ },
+ "modules": {
+  "surge": {
+   "ids": [
+    "EXPRESS"
+   ],
+   "factor": 2
+  },
+  "wave": {
+   "ids": [
+    "EXPRESS",
+    "SET"
+   ],
+   "cycle": 10,
+   "open": 4
+  },
+  "seam": {
+   "minutes": 7
+  },
+  "board": {
+   "ids": [
+    "BELL"
+   ],
+   "times": [
+    3,
+    11,
+    19,
+    27,
+    35,
+    43,
+    51,
+    59,
+    67,
+    75,
+    83,
+    91,
+    99,
+    107,
+    115
+   ]
+  }
+ },
+ "objective": [
+  "time",
+  "cost"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "time",
+   "points": 6,
+   "text": "给出五段各自的做法和路线，全部用短横线连接，例如 EXPRESS-DIRECT-SET-DETOUR-EXPRESS-DIRECT。"
+  },
+  {
+   "name": "time",
+   "metric": "time",
+   "points": 5
+  },
+  {
+   "name": "cost",
+   "metric": "cost",
+   "points": 4
+  },
+  {
+   "name": "cf_time",
+   "metric": "time",
+   "points": 5,
+   "cf": "no_surge"
+  }
+ ],
+ "background": []
+}

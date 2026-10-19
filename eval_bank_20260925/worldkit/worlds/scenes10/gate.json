@@ -1,0 +1,160 @@
+{
+ "family": "gate",
+ "data": {
+  "flights": [
+   {
+    "id": "A",
+    "arr": 0,
+    "dep": 42,
+    "wide": false,
+    "pax": 51
+   },
+   {
+    "id": "B",
+    "arr": 13,
+    "dep": 51,
+    "wide": true,
+    "pax": 67
+   },
+   {
+    "id": "C",
+    "arr": 31,
+    "dep": 73,
+    "wide": true,
+    "pax": 77
+   },
+   {
+    "id": "D",
+    "arr": 42,
+    "dep": 83,
+    "wide": true,
+    "pax": 93
+   },
+   {
+    "id": "E",
+    "arr": 53,
+    "dep": 92,
+    "wide": false,
+    "pax": 60
+   },
+   {
+    "id": "F",
+    "arr": 68,
+    "dep": 103,
+    "wide": false,
+    "pax": 65
+   },
+   {
+    "id": "G",
+    "arr": 86,
+    "dep": 123,
+    "wide": false,
+    "pax": 128
+   },
+   {
+    "id": "H",
+    "arr": 103,
+    "dep": 135,
+    "wide": false,
+    "pax": 68
+   }
+  ],
+  "gates": [
+   {
+    "id": "G1",
+    "remote": false,
+    "bus": 0,
+    "adj": [
+     "G2"
+    ]
+   },
+   {
+    "id": "G2",
+    "remote": false,
+    "bus": 0,
+    "adj": [
+     "G1",
+     "G3"
+    ]
+   },
+   {
+    "id": "G3",
+    "remote": false,
+    "bus": 0,
+    "adj": [
+     "G2",
+     "G4"
+    ]
+   },
+   {
+    "id": "G4",
+    "remote": false,
+    "bus": 0,
+    "adj": [
+     "G3"
+    ]
+   },
+   {
+    "id": "G5",
+    "remote": true,
+    "bus": 6,
+    "adj": []
+   },
+   {
+    "id": "G6",
+    "remote": true,
+    "bus": 9,
+    "adj": []
+   },
+   {
+    "id": "G7",
+    "remote": true,
+    "bus": 12,
+    "adj": []
+   },
+   {
+    "id": "G8",
+    "remote": true,
+    "bus": 15,
+    "adj": []
+   }
+  ]
+ },
+ "modules": {
+  "wide": {},
+  "wave": {
+   "width": 40,
+   "extra": 6
+  }
+ },
+ "objective": [
+  "pax_bus",
+  "remote_n"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "pax_bus",
+   "points": 6,
+   "text": "按航班表顺序给出机位编号，用短横线连接，例如 G1-G3-G4-G2-G5-G6。"
+  },
+  {
+   "name": "pax_bus",
+   "metric": "pax_bus",
+   "points": 5
+  },
+  {
+   "name": "remote_n",
+   "metric": "remote_n",
+   "points": 4
+  },
+  {
+   "name": "cf_pax_bus",
+   "metric": "pax_bus",
+   "points": 5,
+   "cf": "no_wide"
+  }
+ ],
+ "background": []
+}

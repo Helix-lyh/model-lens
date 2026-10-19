@@ -1,0 +1,94 @@
+{
+ "family": "elevator",
+ "data": {
+  "floors": 6,
+  "start_floor": 1,
+  "start_time": 0,
+  "speed": 1,
+  "calls": [
+   {
+    "id": "P1",
+    "from": 1,
+    "to": 6,
+    "at": 0
+   },
+   {
+    "id": "P2",
+    "from": 1,
+    "to": 5,
+    "at": 0
+   },
+   {
+    "id": "P3",
+    "from": 1,
+    "to": 3,
+    "at": 0
+   },
+   {
+    "id": "P4",
+    "from": 6,
+    "to": 1,
+    "at": 2
+   },
+   {
+    "id": "P5",
+    "from": 4,
+    "to": 2,
+    "at": 6
+   }
+  ],
+  "stops": {
+   "A": 1,
+   "B": 6,
+   "C": 5,
+   "D": 4,
+   "E": 3,
+   "F": 2,
+   "G": 1
+  }
+ },
+ "modules": {
+  "cap": {
+   "max": 2
+  },
+  "door": {
+   "minutes": 2
+  },
+  "peak": {
+   "floor": 4,
+   "from_t": 11,
+   "to_t": 24
+  }
+ },
+ "objective": [
+  "total_wait",
+  "max_wait"
+ ],
+ "objective_conditions": {},
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "total_wait",
+   "points": 6,
+   "text": "给出最优停靠点编号顺序，用短横线连接全部编号（如 A-B-C-D-E-F-G）。"
+  },
+  {
+   "name": "total_wait",
+   "metric": "total_wait",
+   "points": 5
+  },
+  {
+   "name": "max_wait",
+   "metric": "max_wait",
+   "points": 5
+  },
+  {
+   "name": "cf_total_wait",
+   "metric": "total_wait",
+   "points": 4,
+   "cf": "cap_plus_one"
+  }
+ ],
+ "background": []
+}

@@ -1,0 +1,85 @@
+{
+ "family": "tank",
+ "data": {
+  "cars": [
+   {
+    "id": "A",
+    "need": 6,
+    "depart": 27
+   },
+   {
+    "id": "B",
+    "need": 5,
+    "depart": 16
+   },
+   {
+    "id": "C",
+    "need": 4,
+    "depart": 13
+   },
+   {
+    "id": "D",
+    "need": 3,
+    "depart": 18
+   },
+   {
+    "id": "E",
+    "need": 7,
+    "depart": 22
+   },
+   {
+    "id": "F",
+    "need": 7,
+    "depart": 10
+   },
+   {
+    "id": "G",
+    "need": 5,
+    "depart": 25
+   }
+  ]
+ },
+ "modules": {
+  "tank": {
+   "cap": 6,
+   "refill": 8
+  },
+  "block": {
+   "lo": 0,
+   "hi": 12
+  },
+  "extra": {
+   "extra": 2
+  }
+ },
+ "objective": [
+  "late",
+  "late_n"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "late",
+   "points": 6,
+   "text": "给出最优加注顺序，车辆编号用短横线连接，例如 A-B-C-D-E-F。"
+  },
+  {
+   "name": "late",
+   "metric": "late",
+   "points": 5
+  },
+  {
+   "name": "late_n",
+   "metric": "late_n",
+   "points": 4
+  },
+  {
+   "name": "cf_late",
+   "metric": "late",
+   "points": 5,
+   "cf": "no_extra"
+  }
+ ],
+ "background": []
+}

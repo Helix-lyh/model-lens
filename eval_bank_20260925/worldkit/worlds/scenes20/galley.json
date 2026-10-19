@@ -1,0 +1,303 @@
+{
+ "family": "galley",
+ "data": {
+  "modes": [
+   {
+    "id": "SEAR",
+    "label": "急火",
+    "kind": "fast"
+   },
+   {
+    "id": "HOLD",
+    "label": "保温",
+    "kind": "plain"
+   },
+   {
+    "id": "RIDER",
+    "label": "骑手窗",
+    "kind": "timed"
+   }
+  ],
+  "routes": [
+   {
+    "id": "DIRECT",
+    "label": "直达"
+   },
+   {
+    "id": "DETOUR",
+    "label": "绕行"
+   }
+  ],
+  "legs": [
+   {
+    "name": "凉菜",
+    "SEAR": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 3
+      }
+     ]
+    },
+    "HOLD": {
+     "DIRECT": [
+      {
+       "min": 13,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 12
+      }
+     ]
+    },
+    "RIDER": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 5
+     },
+     "DETOUR": {
+      "access": 4,
+      "ride": 9
+     }
+    }
+   },
+   {
+    "name": "热炒",
+    "SEAR": {
+     "DIRECT": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 6
+      }
+     ]
+    },
+    "HOLD": {
+     "DIRECT": [
+      {
+       "min": 9,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 12
+      }
+     ]
+    },
+    "RIDER": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 3
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "炖品",
+    "SEAR": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 5
+      }
+     ]
+    },
+    "HOLD": {
+     "DIRECT": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 14
+      }
+     ]
+    },
+    "RIDER": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 5
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "主食",
+    "SEAR": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "HOLD": {
+     "DIRECT": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 17
+      }
+     ]
+    },
+    "RIDER": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "打包",
+    "SEAR": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "HOLD": {
+     "DIRECT": [
+      {
+       "min": 14,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 16
+      }
+     ]
+    },
+    "RIDER": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 3
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 8
+     }
+    }
+   }
+  ],
+  "cost": {
+   "SEAR": 2,
+   "HOLD": 0,
+   "RIDER": 3
+  }
+ },
+ "modules": {
+  "surge": {
+   "ids": [
+    "SEAR"
+   ],
+   "factor": 2
+  },
+  "wave": {
+   "ids": [
+    "SEAR",
+    "HOLD"
+   ],
+   "cycle": 10,
+   "open": 4
+  },
+  "seam": {
+   "minutes": 5
+  },
+  "board": {
+   "ids": [
+    "RIDER"
+   ],
+   "times": [
+    3,
+    12,
+    21,
+    30,
+    39,
+    48,
+    57,
+    66,
+    75,
+    84,
+    93,
+    102,
+    111
+   ]
+  }
+ },
+ "objective": [
+  "time",
+  "cost"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "time",
+   "points": 6,
+   "text": "给出五段各自的做法和路线，全部用短横线连接，例如 SEAR-DIRECT-HOLD-DETOUR-SEAR-DIRECT。"
+  },
+  {
+   "name": "time",
+   "metric": "time",
+   "points": 5
+  },
+  {
+   "name": "cost",
+   "metric": "cost",
+   "points": 4
+  },
+  {
+   "name": "cf_time",
+   "metric": "time",
+   "points": 5,
+   "cf": "no_surge"
+  }
+ ],
+ "background": []
+}

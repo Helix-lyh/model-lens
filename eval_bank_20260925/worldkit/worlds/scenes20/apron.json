@@ -1,0 +1,307 @@
+{
+ "family": "apron",
+ "data": {
+  "modes": [
+   {
+    "id": "QUICK",
+    "label": "快保",
+    "kind": "fast"
+   },
+   {
+    "id": "TOW",
+    "label": "拖远",
+    "kind": "plain"
+   },
+   {
+    "id": "SLOT",
+    "label": "廊桥窗",
+    "kind": "timed"
+   }
+  ],
+  "routes": [
+   {
+    "id": "DIRECT",
+    "label": "直达"
+   },
+   {
+    "id": "DETOUR",
+    "label": "绕行"
+   }
+  ],
+  "legs": [
+   {
+    "name": "早班窄体",
+    "QUICK": {
+     "DIRECT": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 3
+      }
+     ]
+    },
+    "TOW": {
+     "DIRECT": [
+      {
+       "min": 11,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 14
+      }
+     ]
+    },
+    "SLOT": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 6
+     }
+    }
+   },
+   {
+    "name": "早班宽体",
+    "QUICK": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 3
+      }
+     ]
+    },
+    "TOW": {
+     "DIRECT": [
+      {
+       "min": 9,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 13
+      }
+     ]
+    },
+    "SLOT": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 5
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 8
+     }
+    }
+   },
+   {
+    "name": "午班货机",
+    "QUICK": {
+     "DIRECT": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 5
+      }
+     ]
+    },
+    "TOW": {
+     "DIRECT": [
+      {
+       "min": 9,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 17
+      }
+     ]
+    },
+    "SLOT": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 6
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 9
+     }
+    }
+   },
+   {
+    "name": "午班公务",
+    "QUICK": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 3
+      }
+     ]
+    },
+    "TOW": {
+     "DIRECT": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 17
+      }
+     ]
+    },
+    "SLOT": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 3
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "晚班加班",
+    "QUICK": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 5
+      }
+     ]
+    },
+    "TOW": {
+     "DIRECT": [
+      {
+       "min": 10,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 16
+      }
+     ]
+    },
+    "SLOT": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 3
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 8
+     }
+    }
+   }
+  ],
+  "cost": {
+   "QUICK": 2,
+   "TOW": 0,
+   "SLOT": 3
+  }
+ },
+ "modules": {
+  "surge": {
+   "ids": [
+    "QUICK"
+   ],
+   "factor": 2
+  },
+  "wave": {
+   "ids": [
+    "QUICK",
+    "TOW"
+   ],
+   "cycle": 10,
+   "open": 4
+  },
+  "seam": {
+   "minutes": 7
+  },
+  "board": {
+   "ids": [
+    "SLOT"
+   ],
+   "times": [
+    3,
+    10,
+    17,
+    24,
+    31,
+    38,
+    45,
+    52,
+    59,
+    66,
+    73,
+    80,
+    87,
+    94,
+    101,
+    108,
+    115
+   ]
+  }
+ },
+ "objective": [
+  "time",
+  "cost"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "time",
+   "points": 6,
+   "text": "给出五段各自的做法和路线，全部用短横线连接，例如 QUICK-DIRECT-TOW-DETOUR-QUICK-DIRECT。"
+  },
+  {
+   "name": "time",
+   "metric": "time",
+   "points": 5
+  },
+  {
+   "name": "cost",
+   "metric": "cost",
+   "points": 4
+  },
+  {
+   "name": "cf_time",
+   "metric": "time",
+   "points": 5,
+   "cf": "no_surge"
+  }
+ ],
+ "background": []
+}

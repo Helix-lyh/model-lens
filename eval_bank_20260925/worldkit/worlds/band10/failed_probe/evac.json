@@ -1,0 +1,117 @@
+{
+ "family": "evac",
+ "data": {
+  "stairs": [
+   {
+    "id": "1",
+    "cap": 3
+   },
+   {
+    "id": "2",
+    "cap": 2
+   }
+  ],
+  "groups": [
+   {
+    "id": "A",
+    "size": 6,
+    "walk": {
+     "1": 0,
+     "2": 4
+    },
+    "due": 7
+   },
+   {
+    "id": "B",
+    "size": 4,
+    "walk": {
+     "2": 0,
+     "1": 8
+    },
+    "due": 5
+   },
+   {
+    "id": "C",
+    "size": 3,
+    "walk": {
+     "2": 2,
+     "1": 6
+    },
+    "due": 5
+   },
+   {
+    "id": "D",
+    "size": 4,
+    "walk": {
+     "1": 1,
+     "2": 9
+    },
+    "due": 7
+   },
+   {
+    "id": "E",
+    "size": 7,
+    "walk": {
+     "2": 2,
+     "1": 8
+    },
+    "due": 5
+   },
+   {
+    "id": "F",
+    "size": 6,
+    "walk": {
+     "2": 1,
+     "1": 7
+    },
+    "due": 4
+   }
+  ]
+ },
+ "modules": {
+  "smoke": {
+   "stair": "2",
+   "lo": 6,
+   "hi": 20
+  },
+  "slow": {
+   "ids": [
+    "B",
+    "F"
+   ]
+  },
+  "drill": {
+   "extra": 2
+  }
+ },
+ "objective": [
+  "delay",
+  "late_n"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "delay",
+   "points": 6,
+   "text": "给出最优方案，记号如 A1-B2-C1。"
+  },
+  {
+   "name": "delay",
+   "metric": "delay",
+   "points": 5
+  },
+  {
+   "name": "late_n",
+   "metric": "late_n",
+   "points": 4
+  },
+  {
+   "name": "cf_delay",
+   "metric": "delay",
+   "points": 5,
+   "cf": "no_drill"
+  }
+ ],
+ "background": []
+}

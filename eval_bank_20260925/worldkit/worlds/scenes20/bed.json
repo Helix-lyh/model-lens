@@ -1,0 +1,305 @@
+{
+ "family": "bed",
+ "data": {
+  "modes": [
+   {
+    "id": "WIP",
+    "label": "即清",
+    "kind": "fast"
+   },
+   {
+    "id": "ISO",
+    "label": "隔离组",
+    "kind": "plain"
+   },
+   {
+    "id": "CREW",
+    "label": "保洁窗",
+    "kind": "timed"
+   }
+  ],
+  "routes": [
+   {
+    "id": "DIRECT",
+    "label": "直达"
+   },
+   {
+    "id": "DETOUR",
+    "label": "绕行"
+   }
+  ],
+  "legs": [
+   {
+    "name": "一病区",
+    "WIP": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 6
+      }
+     ]
+    },
+    "ISO": {
+     "DIRECT": [
+      {
+       "min": 14,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 13
+      }
+     ]
+    },
+    "CREW": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 6
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "二病区",
+    "WIP": {
+     "DIRECT": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "ISO": {
+     "DIRECT": [
+      {
+       "min": 14,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 18
+      }
+     ]
+    },
+    "CREW": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 6
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "三病区",
+    "WIP": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "ISO": {
+     "DIRECT": [
+      {
+       "min": 12,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 12
+      }
+     ]
+    },
+    "CREW": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 8
+     }
+    }
+   },
+   {
+    "name": "ICU",
+    "WIP": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "ISO": {
+     "DIRECT": [
+      {
+       "min": 12,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 14
+      }
+     ]
+    },
+    "CREW": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "隔离区",
+    "WIP": {
+     "DIRECT": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 6
+      }
+     ]
+    },
+    "ISO": {
+     "DIRECT": [
+      {
+       "min": 11,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 18
+      }
+     ]
+    },
+    "CREW": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 8
+     }
+    }
+   }
+  ],
+  "cost": {
+   "WIP": 2,
+   "ISO": 0,
+   "CREW": 3
+  }
+ },
+ "modules": {
+  "surge": {
+   "ids": [
+    "WIP"
+   ],
+   "factor": 2
+  },
+  "wave": {
+   "ids": [
+    "WIP",
+    "ISO"
+   ],
+   "cycle": 10,
+   "open": 4
+  },
+  "seam": {
+   "minutes": 7
+  },
+  "board": {
+   "ids": [
+    "CREW"
+   ],
+   "times": [
+    3,
+    11,
+    19,
+    27,
+    35,
+    43,
+    51,
+    59,
+    67,
+    75,
+    83,
+    91,
+    99,
+    107,
+    115
+   ]
+  }
+ },
+ "objective": [
+  "time",
+  "cost"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "time",
+   "points": 6,
+   "text": "给出五段各自的做法和路线，全部用短横线连接，例如 WIP-DIRECT-ISO-DETOUR-WIP-DIRECT。"
+  },
+  {
+   "name": "time",
+   "metric": "time",
+   "points": 5
+  },
+  {
+   "name": "cost",
+   "metric": "cost",
+   "points": 4
+  },
+  {
+   "name": "cf_time",
+   "metric": "time",
+   "points": 5,
+   "cf": "no_surge"
+  }
+ ],
+ "background": []
+}

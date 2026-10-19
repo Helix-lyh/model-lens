@@ -1,0 +1,305 @@
+{
+ "family": "crowd",
+ "data": {
+  "modes": [
+   {
+    "id": "OPEN",
+    "label": "常开",
+    "kind": "fast"
+   },
+   {
+    "id": "SPLIT",
+    "label": "分流",
+    "kind": "plain"
+   },
+   {
+    "id": "GATE",
+    "label": "放行窗",
+    "kind": "timed"
+   }
+  ],
+  "routes": [
+   {
+    "id": "DIRECT",
+    "label": "直达"
+   },
+   {
+    "id": "DETOUR",
+    "label": "绕行"
+   }
+  ],
+  "legs": [
+   {
+    "name": "开场前",
+    "OPEN": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 6
+      }
+     ]
+    },
+    "SPLIT": {
+     "DIRECT": [
+      {
+       "min": 14,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 16
+      }
+     ]
+    },
+    "GATE": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 5
+     }
+    }
+   },
+   {
+    "name": "入场初",
+    "OPEN": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "SPLIT": {
+     "DIRECT": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 16
+      }
+     ]
+    },
+    "GATE": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 9
+     }
+    }
+   },
+   {
+    "name": "高峰",
+    "OPEN": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 5
+      }
+     ]
+    },
+    "SPLIT": {
+     "DIRECT": [
+      {
+       "min": 9,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 12
+      }
+     ]
+    },
+    "GATE": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 3
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 5
+     }
+    }
+   },
+   {
+    "name": "中场",
+    "OPEN": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "SPLIT": {
+     "DIRECT": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 16
+      }
+     ]
+    },
+    "GATE": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "散场",
+    "OPEN": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 6
+      }
+     ]
+    },
+    "SPLIT": {
+     "DIRECT": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 16
+      }
+     ]
+    },
+    "GATE": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 3
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 5
+     }
+    }
+   }
+  ],
+  "cost": {
+   "OPEN": 2,
+   "SPLIT": 0,
+   "GATE": 3
+  }
+ },
+ "modules": {
+  "surge": {
+   "ids": [
+    "OPEN"
+   ],
+   "factor": 2
+  },
+  "wave": {
+   "ids": [
+    "OPEN",
+    "SPLIT"
+   ],
+   "cycle": 10,
+   "open": 4
+  },
+  "seam": {
+   "minutes": 4
+  },
+  "board": {
+   "ids": [
+    "GATE"
+   ],
+   "times": [
+    3,
+    11,
+    19,
+    27,
+    35,
+    43,
+    51,
+    59,
+    67,
+    75,
+    83,
+    91,
+    99,
+    107,
+    115
+   ]
+  }
+ },
+ "objective": [
+  "time",
+  "cost"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "time",
+   "points": 6,
+   "text": "给出五段各自的做法和路线，全部用短横线连接，例如 OPEN-DIRECT-SPLIT-DETOUR-OPEN-DIRECT。"
+  },
+  {
+   "name": "time",
+   "metric": "time",
+   "points": 5
+  },
+  {
+   "name": "cost",
+   "metric": "cost",
+   "points": 4
+  },
+  {
+   "name": "cf_time",
+   "metric": "time",
+   "points": 5,
+   "cf": "no_surge"
+  }
+ ],
+ "background": []
+}

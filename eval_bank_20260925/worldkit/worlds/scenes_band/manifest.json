@@ -1,0 +1,18 @@
+{
+ "id": "scenes_band",
+ "goal": "每个场景一道，deepseek-flash 单样本 4–8 / 20",
+ "items": [
+  {"file": "delivery.json", "family": "delivery", "scene": "单骑手配送", "points": 4, "live": "live_extreme10_deepseek-flash.json"},
+  {"file": "trip.json", "family": "trip", "scene": "通勤规划", "points": 4, "live": "live_extreme10_deepseek-flash.json"},
+  {"file": "elevator.json", "family": "elevator", "scene": "电梯群控", "points": 4, "live": "live_extreme10_deepseek-flash.json"},
+  {"file": "line.json", "family": "line", "scene": "产线换型", "points": 5, "live": "live_scenes10b_deepseek-flash.json"},
+  {"file": "signal.json", "family": "signal", "scene": "十字路口", "points": 4, "live": "live_scenes_band_cfshift2"},
+  {"file": "kitchen.json", "family": "kitchen", "scene": "后厨出餐", "points": 4, "live": "live_scenes_band_share"},
+  {"file": "ward.json", "family": "ward", "scene": "急诊床位", "points": 4, "live": "live_scenes_band_share"},
+  {"file": "charge.json", "family": "charge", "scene": "车队充电", "points": 8, "live": "live_scenes10_harden 同一答卷，反事实问 5→4 分"},
+  {"file": "push.json", "family": "push", "scene": "机坪推出", "points": 4, "live": "live_scenes_band_new3：只对误点架数"},
+  {"file": "yard.json", "family": "yard", "scene": "港口波次", "points": 5, "live": "live_scenes_band_new3：只对反事实过潮分钟"}
+ ],
+ "sum_points": 46,
+ "max_points": 200
+}

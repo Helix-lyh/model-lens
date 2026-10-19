@@ -1,0 +1,81 @@
+{
+ "world": "delivery",
+ "family": "delivery",
+ "title": "外卖配送（单骑手）",
+ "params": {
+  "grid": 6,
+  "road_min": 2,
+  "minutes_per_order": 14,
+  "floor": [1, 8],
+  "deadline_frac": [0.35, 1.1],
+  "ready_frac": 0.5,
+  "outage_len": [6, 18],
+  "register": [0, 4],
+  "closed_len": [5, 15],
+  "congestion_mult": 2,
+  "cold_limit": [15, 35]
+ },
+ "tiers": {
+  "简单": {
+   "orders": 5, "buildings": 3,
+   "modules": ["outage", "register", "down", "congestion", "cancel", "closed", "carry", "ready", "flood", "mutex"],
+   "objective": ["late_n", "total", "walk"],
+   "objective_conditions": {"late_n": "先少迟到"},
+   "cf": true,
+   "gates": {"min_degree": 3, "min_boundary": 1},
+   "max_plans": 50000
+  },
+  "中等": {
+   "orders": 6, "buildings": 4,
+   "modules": ["outage", "register", "down", "congestion", "closed", "carry", "return_w", "ready", "flood", "mutex", "cold"],
+   "objective": ["late_n", "total", "walk"],
+   "objective_conditions": {"late_n": "先少迟到"},
+   "cf": true,
+   "carry": [2, 3],
+   "gates": {"min_degree": 4, "min_boundary": 0},
+   "max_plans": 200000, "seconds": 60
+  },
+  "困难": {
+   "orders": 7, "buildings": 4,
+   "modules": ["outage", "register", "down", "congestion", "closed", "carry", "return_w", "ready", "flood", "mutex", "cold"],
+   "objective": ["late_n", "total", "walk"],
+   "objective_conditions": {"late_n": "先少迟到"},
+   "cf": true,
+   "carry": [2, 2],
+   "gates": {"min_degree": 4},
+   "depth": "order",
+   "max_plans": 400000, "seconds": 60
+  },
+  "困难-无解": {
+   "orders": 7, "buildings": 4,
+   "modules": ["outage", "register", "down", "congestion", "closed", "carry", "return_w", "ready", "flood", "mutex", "cold"],
+   "objective": ["late_n", "total", "walk"],
+   "objective_conditions": {"late_n": "先少迟到"},
+   "cf": true, "infeasible": true,
+   "carry": [2, 2],
+   "gates": {"min_degree": 4, "min_boundary": 1},
+   "max_plans": 400000, "seconds": 60
+  },
+  "极难": {
+   "orders": 7, "buildings": 5,
+   "modules": ["outage", "register", "down", "congestion", "closed", "carry", "return_w", "ready", "flood", "mutex", "cold"],
+   "objective": ["late_n", "total", "walk"],
+   "objective_conditions": {"late_n": "先少迟到"},
+   "cf": true,
+   "carry": [2, 2],
+   "gates": {"min_degree": 5},
+   "depth": "late",
+   "max_plans": 400000, "seconds": 60
+  },
+  "极难-无解": {
+   "orders": 7, "buildings": 5,
+   "modules": ["outage", "register", "down", "congestion", "closed", "carry", "return_w", "ready", "flood", "mutex", "cold"],
+   "objective": ["late_n", "total", "walk"],
+   "objective_conditions": {"late_n": "先少迟到"},
+   "cf": true, "infeasible": true,
+   "carry": [2, 2],
+   "gates": {"min_degree": 5, "min_boundary": 1},
+   "max_plans": 400000, "seconds": 60
+  }
+ }
+}

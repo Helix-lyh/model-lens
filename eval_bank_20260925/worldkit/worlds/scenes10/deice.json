@@ -1,0 +1,112 @@
+{
+ "family": "deice",
+ "data": {
+  "planes": [
+   {
+    "id": "A",
+    "ready": 0,
+    "slot": 9,
+    "deice": 6,
+    "hold": 2,
+    "kind": "P"
+   },
+   {
+    "id": "B",
+    "ready": 4,
+    "slot": 18,
+    "deice": 8,
+    "hold": 2,
+    "kind": "Q"
+   },
+   {
+    "id": "C",
+    "ready": 6,
+    "slot": 13,
+    "deice": 6,
+    "hold": 2,
+    "kind": "Q"
+   },
+   {
+    "id": "D",
+    "ready": 4,
+    "slot": 16,
+    "deice": 10,
+    "hold": 2,
+    "kind": "Q"
+   },
+   {
+    "id": "E",
+    "ready": 2,
+    "slot": 15,
+    "deice": 12,
+    "hold": 2,
+    "kind": "Q"
+   },
+   {
+    "id": "F",
+    "ready": 6,
+    "slot": 14,
+    "deice": 6,
+    "hold": 2,
+    "kind": "P"
+   },
+   {
+    "id": "G",
+    "ready": 1,
+    "slot": 13,
+    "deice": 6,
+    "hold": 2,
+    "kind": "P"
+   },
+   {
+    "id": "H",
+    "ready": 5,
+    "slot": 19,
+    "deice": 12,
+    "hold": 2,
+    "kind": "P"
+   }
+  ]
+ },
+ "modules": {
+  "sep": {
+   "minutes": 3
+  },
+  "flush": {
+   "minutes": 12
+  },
+  "fluid": {
+   "bonus": 8
+  }
+ },
+ "objective": [
+  "delay",
+  "redeice"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "delay",
+   "points": 6,
+   "text": "给出最优除冰顺序，飞机编号用短横线连接，例如 A-B-C-D-E-F。"
+  },
+  {
+   "name": "delay",
+   "metric": "delay",
+   "points": 5
+  },
+  {
+   "name": "redeice",
+   "metric": "redeice",
+   "points": 4
+  },
+  {
+   "name": "cf_delay",
+   "metric": "delay",
+   "points": 5,
+   "cf": "no_fluid"
+  }
+ ],
+ "background": []
+}

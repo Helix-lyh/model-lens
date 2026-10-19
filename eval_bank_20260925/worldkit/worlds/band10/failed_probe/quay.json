@@ -1,0 +1,109 @@
+{
+ "family": "quay",
+ "data": {
+  "tug": 5,
+  "berths": [
+   {
+    "id": "1",
+    "length": 180
+   },
+   {
+    "id": "2",
+    "length": 110
+   }
+  ],
+  "ships": [
+   {
+    "id": "A",
+    "length": 70,
+    "arrive": 6,
+    "work": 9,
+    "due": 40,
+    "cargo": "油"
+   },
+   {
+    "id": "B",
+    "length": 100,
+    "arrive": 6,
+    "work": 10,
+    "due": 26,
+    "cargo": "粮"
+   },
+   {
+    "id": "C",
+    "length": 85,
+    "arrive": 10,
+    "work": 6,
+    "due": 34,
+    "cargo": "油"
+   },
+   {
+    "id": "D",
+    "length": 140,
+    "arrive": 4,
+    "work": 6,
+    "due": 34,
+    "cargo": "粮"
+   },
+   {
+    "id": "E",
+    "length": 140,
+    "arrive": 4,
+    "work": 9,
+    "due": 33,
+    "cargo": "油"
+   },
+   {
+    "id": "F",
+    "length": 70,
+    "arrive": 4,
+    "work": 7,
+    "due": 25,
+    "cargo": "粮"
+   }
+  ]
+ },
+ "modules": {
+  "tide": {
+   "berth": "1",
+   "lo": 12,
+   "hi": 24
+  },
+  "flush": {
+   "minutes": 6
+  },
+  "swell": {
+   "extra": 3
+  }
+ },
+ "objective": [
+  "tardiness",
+  "late_n"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "tardiness",
+   "points": 6,
+   "text": "给出最优方案，记号如 A1-B2-C1。"
+  },
+  {
+   "name": "tardiness",
+   "metric": "tardiness",
+   "points": 5
+  },
+  {
+   "name": "late_n",
+   "metric": "late_n",
+   "points": 4
+  },
+  {
+   "name": "cf_tardiness",
+   "metric": "tardiness",
+   "points": 5,
+   "cf": "no_swell"
+  }
+ ],
+ "background": []
+}

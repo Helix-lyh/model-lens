@@ -1,0 +1,307 @@
+{
+ "family": "gpu",
+ "data": {
+  "modes": [
+   {
+    "id": "GRAB",
+    "label": "抢占",
+    "kind": "fast"
+   },
+   {
+    "id": "SHARE",
+    "label": "共享",
+    "kind": "plain"
+   },
+   {
+    "id": "WIN",
+    "label": "独占窗",
+    "kind": "timed"
+   }
+  ],
+  "routes": [
+   {
+    "id": "DIRECT",
+    "label": "直达"
+   },
+   {
+    "id": "DETOUR",
+    "label": "绕行"
+   }
+  ],
+  "legs": [
+   {
+    "name": "预处理",
+    "GRAB": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 3
+      }
+     ]
+    },
+    "SHARE": {
+     "DIRECT": [
+      {
+       "min": 10,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 13
+      }
+     ]
+    },
+    "WIN": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "训练",
+    "GRAB": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 5
+      }
+     ]
+    },
+    "SHARE": {
+     "DIRECT": [
+      {
+       "min": 10,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 16
+      }
+     ]
+    },
+    "WIN": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 6
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 5
+     }
+    }
+   },
+   {
+    "name": "校验",
+    "GRAB": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "SHARE": {
+     "DIRECT": [
+      {
+       "min": 12,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 18
+      }
+     ]
+    },
+    "WIN": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 5
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 8
+     }
+    }
+   },
+   {
+    "name": "导出",
+    "GRAB": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 3
+      }
+     ]
+    },
+    "SHARE": {
+     "DIRECT": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 16
+      }
+     ]
+    },
+    "WIN": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 6
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 6
+     }
+    }
+   },
+   {
+    "name": "补训",
+    "GRAB": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 5
+      }
+     ]
+    },
+    "SHARE": {
+     "DIRECT": [
+      {
+       "min": 11,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 15
+      }
+     ]
+    },
+    "WIN": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 3
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 8
+     }
+    }
+   }
+  ],
+  "cost": {
+   "GRAB": 2,
+   "SHARE": 0,
+   "WIN": 3
+  }
+ },
+ "modules": {
+  "surge": {
+   "ids": [
+    "GRAB"
+   ],
+   "factor": 2
+  },
+  "wave": {
+   "ids": [
+    "GRAB",
+    "SHARE"
+   ],
+   "cycle": 10,
+   "open": 4
+  },
+  "seam": {
+   "minutes": 7
+  },
+  "board": {
+   "ids": [
+    "WIN"
+   ],
+   "times": [
+    3,
+    10,
+    17,
+    24,
+    31,
+    38,
+    45,
+    52,
+    59,
+    66,
+    73,
+    80,
+    87,
+    94,
+    101,
+    108,
+    115
+   ]
+  }
+ },
+ "objective": [
+  "time",
+  "cost"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "time",
+   "points": 6,
+   "text": "给出五段各自的做法和路线，全部用短横线连接，例如 GRAB-DIRECT-SHARE-DETOUR-GRAB-DIRECT。"
+  },
+  {
+   "name": "time",
+   "metric": "time",
+   "points": 5
+  },
+  {
+   "name": "cost",
+   "metric": "cost",
+   "points": 4
+  },
+  {
+   "name": "cf_time",
+   "metric": "time",
+   "points": 5,
+   "cf": "no_surge"
+  }
+ ],
+ "background": []
+}

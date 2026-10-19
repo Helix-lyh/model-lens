@@ -1,0 +1,91 @@
+{
+ "family": "yard",
+ "data": {
+  "n_waves": 3,
+  "wave_end": [
+   8,
+   16,
+   24
+  ],
+  "yards": [
+   {
+    "id": "X"
+   },
+   {
+    "id": "Y"
+   }
+  ],
+  "ships": [
+   {
+    "id": "A",
+    "seq": 0,
+    "boxes": 4,
+    "tide": 12
+   },
+   {
+    "id": "B",
+    "seq": 1,
+    "boxes": 3,
+    "tide": 16
+   },
+   {
+    "id": "C",
+    "seq": 2,
+    "boxes": 4,
+    "tide": 12
+   },
+   {
+    "id": "D",
+    "seq": 3,
+    "boxes": 3,
+    "tide": 16
+   },
+   {
+    "id": "E",
+    "seq": 4,
+    "boxes": 5,
+    "tide": 16
+   }
+  ]
+ },
+ "modules": {
+  "wave": {
+   "cap": 7
+  },
+  "yard": {
+   "thresh": 6,
+   "slow": 10,
+   "alt": 10
+  }
+ },
+ "objective": [
+  "over",
+  "late_n"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "over",
+   "points": 6,
+   "text": "给出最优方案，记号如 A1X-B2Y-C1X。"
+  },
+  {
+   "name": "over",
+   "metric": "over",
+   "points": 5
+  },
+  {
+   "name": "late_n",
+   "metric": "late_n",
+   "points": 4
+  },
+  {
+   "name": "cf_over",
+   "metric": "over",
+   "points": 5,
+   "cf": "thresh_shift"
+  }
+ ],
+ "background": []
+}

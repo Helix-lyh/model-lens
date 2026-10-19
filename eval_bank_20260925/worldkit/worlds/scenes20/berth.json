@@ -1,0 +1,307 @@
+{
+ "family": "berth",
+ "data": {
+  "modes": [
+   {
+    "id": "TWIN",
+    "label": "双吊",
+    "kind": "fast"
+   },
+   {
+    "id": "SHIFT",
+    "label": "移箱",
+    "kind": "plain"
+   },
+   {
+    "id": "TIDE",
+    "label": "乘潮",
+    "kind": "timed"
+   }
+  ],
+  "routes": [
+   {
+    "id": "DIRECT",
+    "label": "直达"
+   },
+   {
+    "id": "DETOUR",
+    "label": "绕行"
+   }
+  ],
+  "legs": [
+   {
+    "name": "一舱",
+    "TWIN": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "SHIFT": {
+     "DIRECT": [
+      {
+       "min": 11,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 16
+      }
+     ]
+    },
+    "TIDE": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 3
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 5
+     }
+    }
+   },
+   {
+    "name": "二舱",
+    "TWIN": {
+     "DIRECT": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "SHIFT": {
+     "DIRECT": [
+      {
+       "min": 12,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 18
+      }
+     ]
+    },
+    "TIDE": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 4,
+      "ride": 9
+     }
+    }
+   },
+   {
+    "name": "三舱",
+    "TWIN": {
+     "DIRECT": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 6
+      }
+     ]
+    },
+    "SHIFT": {
+     "DIRECT": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 15
+      }
+     ]
+    },
+    "TIDE": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 6
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 6
+     }
+    }
+   },
+   {
+    "name": "四舱",
+    "TWIN": {
+     "DIRECT": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "SHIFT": {
+     "DIRECT": [
+      {
+       "min": 10,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 18
+      }
+     ]
+    },
+    "TIDE": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 3
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "五舱",
+    "TWIN": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "SHIFT": {
+     "DIRECT": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 15
+      }
+     ]
+    },
+    "TIDE": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 5
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 9
+     }
+    }
+   }
+  ],
+  "cost": {
+   "TWIN": 2,
+   "SHIFT": 0,
+   "TIDE": 3
+  }
+ },
+ "modules": {
+  "surge": {
+   "ids": [
+    "TWIN"
+   ],
+   "factor": 2
+  },
+  "wave": {
+   "ids": [
+    "TWIN",
+    "SHIFT"
+   ],
+   "cycle": 10,
+   "open": 4
+  },
+  "seam": {
+   "minutes": 4
+  },
+  "board": {
+   "ids": [
+    "TIDE"
+   ],
+   "times": [
+    3,
+    10,
+    17,
+    24,
+    31,
+    38,
+    45,
+    52,
+    59,
+    66,
+    73,
+    80,
+    87,
+    94,
+    101,
+    108,
+    115
+   ]
+  }
+ },
+ "objective": [
+  "time",
+  "cost"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "time",
+   "points": 6,
+   "text": "给出五段各自的做法和路线，全部用短横线连接，例如 TWIN-DIRECT-SHIFT-DETOUR-TWIN-DIRECT。"
+  },
+  {
+   "name": "time",
+   "metric": "time",
+   "points": 5
+  },
+  {
+   "name": "cost",
+   "metric": "cost",
+   "points": 4
+  },
+  {
+   "name": "cf_time",
+   "metric": "time",
+   "points": 5,
+   "cf": "no_surge"
+  }
+ ],
+ "background": []
+}

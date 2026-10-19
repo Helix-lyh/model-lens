@@ -1,0 +1,305 @@
+{
+ "family": "fresh",
+ "data": {
+  "modes": [
+   {
+    "id": "PUSH",
+    "label": "直补",
+    "kind": "fast"
+   },
+   {
+    "id": "BACK",
+    "label": "后仓",
+    "kind": "plain"
+   },
+   {
+    "id": "DAWN",
+    "label": "晨配",
+    "kind": "timed"
+   }
+  ],
+  "routes": [
+   {
+    "id": "DIRECT",
+    "label": "直达"
+   },
+   {
+    "id": "DETOUR",
+    "label": "绕行"
+   }
+  ],
+  "legs": [
+   {
+    "name": "开门前",
+    "PUSH": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "BACK": {
+     "DIRECT": [
+      {
+       "min": 10,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 18
+      }
+     ]
+    },
+    "DAWN": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 6
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 9
+     }
+    }
+   },
+   {
+    "name": "午前",
+    "PUSH": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 3
+      }
+     ]
+    },
+    "BACK": {
+     "DIRECT": [
+      {
+       "min": 10,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 14
+      }
+     ]
+    },
+    "DAWN": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 3
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 6
+     }
+    }
+   },
+   {
+    "name": "午后",
+    "PUSH": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 6
+      }
+     ]
+    },
+    "BACK": {
+     "DIRECT": [
+      {
+       "min": 12,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 17
+      }
+     ]
+    },
+    "DAWN": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 5
+     },
+     "DETOUR": {
+      "access": 4,
+      "ride": 9
+     }
+    }
+   },
+   {
+    "name": "晚高峰",
+    "PUSH": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 5
+      }
+     ]
+    },
+    "BACK": {
+     "DIRECT": [
+      {
+       "min": 12,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 18
+      }
+     ]
+    },
+    "DAWN": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 5
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 9
+     }
+    }
+   },
+   {
+    "name": "闭店前",
+    "PUSH": {
+     "DIRECT": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "BACK": {
+     "DIRECT": [
+      {
+       "min": 10,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 13
+      }
+     ]
+    },
+    "DAWN": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 5
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 6
+     }
+    }
+   }
+  ],
+  "cost": {
+   "PUSH": 2,
+   "BACK": 0,
+   "DAWN": 3
+  }
+ },
+ "modules": {
+  "surge": {
+   "ids": [
+    "PUSH"
+   ],
+   "factor": 2
+  },
+  "wave": {
+   "ids": [
+    "PUSH",
+    "BACK"
+   ],
+   "cycle": 10,
+   "open": 4
+  },
+  "seam": {
+   "minutes": 5
+  },
+  "board": {
+   "ids": [
+    "DAWN"
+   ],
+   "times": [
+    3,
+    11,
+    19,
+    27,
+    35,
+    43,
+    51,
+    59,
+    67,
+    75,
+    83,
+    91,
+    99,
+    107,
+    115
+   ]
+  }
+ },
+ "objective": [
+  "time",
+  "cost"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "time",
+   "points": 6,
+   "text": "给出五段各自的做法和路线，全部用短横线连接，例如 PUSH-DIRECT-BACK-DETOUR-PUSH-DIRECT。"
+  },
+  {
+   "name": "time",
+   "metric": "time",
+   "points": 5
+  },
+  {
+   "name": "cost",
+   "metric": "cost",
+   "points": 4
+  },
+  {
+   "name": "cf_time",
+   "metric": "time",
+   "points": 5,
+   "cf": "no_surge"
+  }
+ ],
+ "background": []
+}

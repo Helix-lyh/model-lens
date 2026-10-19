@@ -1,0 +1,106 @@
+{
+ "family": "kitchen",
+ "data": {
+  "dishes": [
+   {
+    "id": "A",
+    "table": "T1",
+    "cook": 10,
+    "hold": 70,
+    "pan": "炖"
+   },
+   {
+    "id": "B",
+    "table": "T1",
+    "cook": 4,
+    "hold": 70,
+    "pan": "炒"
+   },
+   {
+    "id": "C",
+    "table": "T2",
+    "cook": 12,
+    "hold": 70,
+    "pan": "炖"
+   },
+   {
+    "id": "D",
+    "table": "T2",
+    "cook": 3,
+    "hold": 70,
+    "pan": "炒"
+   },
+   {
+    "id": "E",
+    "table": "T3",
+    "cook": 12,
+    "hold": 70,
+    "pan": "炒"
+   },
+   {
+    "id": "F",
+    "table": "T3",
+    "cook": 4,
+    "hold": 70,
+    "pan": "炖"
+   },
+   {
+    "id": "G",
+    "table": "T4",
+    "cook": 11,
+    "hold": 70,
+    "pan": "炖"
+   },
+   {
+    "id": "H",
+    "table": "T4",
+    "cook": 6,
+    "hold": 70,
+    "pan": "炒"
+   }
+  ]
+ },
+ "modules": {
+  "rush": {
+   "ids": [
+    "A",
+    "C",
+    "E"
+   ],
+   "extra": 4
+  },
+  "pan": {
+   "minutes": 15
+  }
+ },
+ "objective": [
+  "flow",
+  "spoils"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "flow",
+   "points": 6,
+   "text": "给出最优占灶顺序，菜品编号用短横线连接，例如 A-B-C-D-E-F。"
+  },
+  {
+   "name": "flow",
+   "metric": "flow",
+   "points": 5
+  },
+  {
+   "name": "on_time",
+   "metric": "on_time",
+   "points": 4
+  },
+  {
+   "name": "cf_flow",
+   "metric": "flow",
+   "points": 5,
+   "cf": "no_rush"
+  }
+ ],
+ "background": []
+}

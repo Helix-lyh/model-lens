@@ -1,0 +1,96 @@
+{
+ "family": "push",
+ "data": {
+  "flights": [
+   {
+    "id": "A",
+    "dep": 18,
+    "tow": 6,
+    "zone": "东",
+    "wide": true
+   },
+   {
+    "id": "B",
+    "dep": 15,
+    "tow": 9,
+    "zone": "西",
+    "wide": false
+   },
+   {
+    "id": "C",
+    "dep": 17,
+    "tow": 9,
+    "zone": "北",
+    "wide": false
+   },
+   {
+    "id": "D",
+    "dep": 14,
+    "tow": 5,
+    "zone": "东",
+    "wide": false
+   },
+   {
+    "id": "E",
+    "dep": 15,
+    "tow": 5,
+    "zone": "西",
+    "wide": true
+   },
+   {
+    "id": "F",
+    "dep": 12,
+    "tow": 8,
+    "zone": "北",
+    "wide": false
+   },
+   {
+    "id": "G",
+    "dep": 16,
+    "tow": 9,
+    "zone": "东",
+    "wide": false
+   }
+  ]
+ },
+ "modules": {
+  "share": {},
+  "zone": {
+   "minutes": 6,
+   "alt": 12
+  },
+  "wide": {
+   "extra": 4
+  }
+ },
+ "objective": [
+  "flow",
+  "late_n"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "flow",
+   "points": 6,
+   "text": "给出最优推出顺序，航班编号用短横线连接，例如 A-B-C-D-E-F-G。"
+  },
+  {
+   "name": "flow",
+   "metric": "flow",
+   "points": 5
+  },
+  {
+   "name": "late_n",
+   "metric": "late_n",
+   "points": 4
+  },
+  {
+   "name": "cf_flow",
+   "metric": "flow",
+   "points": 5,
+   "cf": "zone_shift"
+  }
+ ],
+ "background": []
+}

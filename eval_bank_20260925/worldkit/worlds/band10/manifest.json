@@ -1,0 +1,22 @@
+{
+ "id": "band10",
+ "goal": "10 道探针，deepseek-flash 单样本总分约 20%，不要 0 分也不要满分",
+ "model": "deepseek-flash",
+ "temperature": 0,
+ "timeout_s": 900,
+ "items": [
+  {"file": "delivery.json", "family": "delivery", "scene": "单骑手配送", "points": 4, "source": "scenes20/delivery.json = extreme10/delivery-极难-3308", "live": "out/worldkit/live_extreme10_deepseek-flash.json"},
+  {"file": "trip.json", "family": "trip", "scene": "通勤规划", "points": 4, "source": "scenes20/trip.json = extreme10/trip-极难-8201", "live": "out/worldkit/live_extreme10_deepseek-flash.json"},
+  {"file": "elevator.json", "family": "elevator", "scene": "电梯群控", "points": 4, "source": "scenes20/elevator.json = extreme10/elevator-极难-7101", "live": "out/worldkit/live_extreme10_deepseek-flash.json"},
+  {"file": "signal.json", "family": "signal", "scene": "十字路口", "points": 9, "source": "scenes20/signal.json", "live": "out/worldkit/live_scenes10b_deepseek-flash.json"},
+  {"file": "line.json", "family": "line", "scene": "产线换型", "points": 5, "source": "scenes20/line.json", "live": "out/worldkit/live_scenes10b_deepseek-flash.json"},
+  {"file": "trip2.json", "family": "trip", "scene": "通勤规划", "points": 4, "source": "extreme10/trip-极难-8208", "live": "out/worldkit/live_extreme10_deepseek-flash.json"},
+  {"file": "elevator2.json", "family": "elevator", "scene": "电梯群控", "points": 4, "source": "extreme10/elevator-极难-7300", "live": "out/worldkit/live_extreme10_deepseek-flash.json"},
+  {"file": "elevator3.json", "family": "elevator", "scene": "电梯群控", "points": 4, "source": "extreme10/elevator-极难-7301", "live": "out/worldkit/live_extreme10_deepseek-flash.json"},
+  {"file": "elevator4.json", "family": "elevator", "scene": "电梯群控", "points": 4, "source": "extreme10/elevator-极难-7103", "live": "out/worldkit/live_extreme10_deepseek-flash.json"},
+  {"file": "charge.json", "family": "charge", "scene": "车队充电", "points": 9, "source": "scenes10/charge.json", "live": "out/worldkit/live_scenes10_harden_deepseek-flash.json"}
+ ],
+ "sum_points": 51,
+ "max_points": 200,
+ "rate": 0.255
+}

@@ -1,0 +1,87 @@
+{
+ "family": "charge",
+ "data": {
+  "cars": [
+   {
+    "id": "A",
+    "need": 4,
+    "depart": 10
+   },
+   {
+    "id": "B",
+    "need": 4,
+    "depart": 19
+   },
+   {
+    "id": "C",
+    "need": 5,
+    "depart": 17
+   },
+   {
+    "id": "D",
+    "need": 6,
+    "depart": 27
+   },
+   {
+    "id": "E",
+    "need": 5,
+    "depart": 27
+   },
+   {
+    "id": "F",
+    "need": 4,
+    "depart": 26
+   },
+   {
+    "id": "G",
+    "need": 5,
+    "depart": 21
+   },
+   {
+    "id": "H",
+    "need": 7,
+    "depart": 24
+   }
+  ]
+ },
+ "modules": {
+  "share": {},
+  "block": {
+   "lo": 0,
+   "hi": 12
+  },
+  "topup": {
+   "extra": 3
+  }
+ },
+ "objective": [
+  "late",
+  "late_n"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "late",
+   "points": 6,
+   "text": "给出最优插枪顺序，车辆编号用短横线连接，例如 A-B-C-D-E-F。"
+  },
+  {
+   "name": "late",
+   "metric": "late",
+   "points": 6
+  },
+  {
+   "name": "late_n",
+   "metric": "late_n",
+   "points": 4
+  },
+  {
+   "name": "cf_late",
+   "metric": "late",
+   "points": 4,
+   "cf": "no_topup"
+  }
+ ],
+ "background": []
+}

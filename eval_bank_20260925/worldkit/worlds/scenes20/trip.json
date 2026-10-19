@@ -1,0 +1,272 @@
+{
+ "family": "trip",
+ "data": {
+  "start": 0,
+  "from_name": "家",
+  "to_name": "会议室",
+  "legs": [
+   {
+    "name": "家到路口",
+    "walk": {
+     "direct": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "detour": [
+      {
+       "min": 14
+      }
+     ]
+    },
+    "bike": {
+     "direct": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "detour": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "bus": {
+     "direct": {
+      "access": 2,
+      "ride": 4
+     },
+     "detour": {
+      "access": 4,
+      "ride": 5
+     }
+    }
+   },
+   {
+    "name": "路口到车站",
+    "walk": {
+     "direct": [
+      {
+       "min": 11,
+       "lights": true
+      }
+     ],
+     "detour": [
+      {
+       "min": 18
+      }
+     ]
+    },
+    "bike": {
+     "direct": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "detour": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "bus": {
+     "direct": {
+      "access": 2,
+      "ride": 6
+     },
+     "detour": {
+      "access": 2,
+      "ride": 6
+     }
+    }
+   },
+   {
+    "name": "车站到园区门",
+    "walk": {
+     "direct": [
+      {
+       "min": 11,
+       "lights": true
+      }
+     ],
+     "detour": [
+      {
+       "min": 13
+      }
+     ]
+    },
+    "bike": {
+     "direct": [
+      {
+       "min": 3,
+       "lights": true
+      }
+     ],
+     "detour": [
+      {
+       "min": 4
+      }
+     ]
+    },
+    "bus": {
+     "direct": {
+      "access": 2,
+      "ride": 3
+     },
+     "detour": {
+      "access": 3,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "园区门到公司",
+    "walk": {
+     "direct": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "detour": [
+      {
+       "min": 13
+      }
+     ]
+    },
+    "bike": {
+     "direct": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "detour": [
+      {
+       "min": 6
+      }
+     ]
+    },
+    "bus": {
+     "direct": {
+      "access": 2,
+      "ride": 3
+     },
+     "detour": {
+      "access": 3,
+      "ride": 5
+     }
+    }
+   },
+   {
+    "name": "公司到会议室",
+    "walk": {
+     "direct": [
+      {
+       "min": 13,
+       "lights": true
+      }
+     ],
+     "detour": [
+      {
+       "min": 13
+      }
+     ]
+    },
+    "bike": {
+     "direct": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "detour": [
+      {
+       "min": 3
+      }
+     ]
+    },
+    "bus": {
+     "direct": {
+      "access": 2,
+      "ride": 5
+     },
+     "detour": {
+      "access": 4,
+      "ride": 8
+     }
+    }
+   }
+  ],
+  "fare": {
+   "walk": 0,
+   "bike": 2,
+   "bus": 3
+  }
+ },
+ "modules": {
+  "lights": {
+   "cycle": 10,
+   "green": 4
+  },
+  "rain": {},
+  "bus_schedule": {
+   "times": [
+    3,
+    10,
+    17,
+    24,
+    31,
+    38,
+    45,
+    52,
+    59,
+    66,
+    73,
+    80,
+    87,
+    94,
+    101,
+    108,
+    115
+   ]
+  },
+  "transfer": {
+   "minutes": 5
+  }
+ },
+ "objective": [
+  "arrive",
+  "fare"
+ ],
+ "objective_conditions": {},
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "arrive",
+   "points": 6,
+   "text": "给出最优的各段选择。每段写成工具-路线，段与段也用短横线连接（WALK/BIKE/BUS 与 DIRECT/DETOUR，如 WALK-DIRECT-BUS-DETOUR-WALK-DIRECT-BUS-DETOUR-BIKE-DIRECT）。"
+  },
+  {
+   "name": "arrive",
+   "metric": "arrive",
+   "points": 5
+  },
+  {
+   "name": "fare",
+   "metric": "fare",
+   "points": 4
+  },
+  {
+   "name": "dry_arrive",
+   "metric": "arrive",
+   "points": 5,
+   "cf": "no_rain"
+  }
+ ],
+ "background": []
+}

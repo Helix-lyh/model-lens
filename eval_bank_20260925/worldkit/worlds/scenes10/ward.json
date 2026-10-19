@@ -1,0 +1,113 @@
+{
+ "family": "ward",
+ "data": {
+  "patients": [
+   {
+    "id": "A",
+    "arrive": 0,
+    "limit": 4,
+    "stay": 12,
+    "iso": true,
+    "grade": "乙"
+   },
+   {
+    "id": "B",
+    "arrive": 2,
+    "limit": 3,
+    "stay": 9,
+    "iso": true,
+    "grade": "甲"
+   },
+   {
+    "id": "C",
+    "arrive": 4,
+    "limit": 3,
+    "stay": 10,
+    "iso": true,
+    "grade": "乙"
+   },
+   {
+    "id": "D",
+    "arrive": 6,
+    "limit": 2,
+    "stay": 10,
+    "iso": true,
+    "grade": "甲"
+   },
+   {
+    "id": "E",
+    "arrive": 8,
+    "limit": 2,
+    "stay": 8,
+    "iso": false,
+    "grade": "甲"
+   },
+   {
+    "id": "F",
+    "arrive": 10,
+    "limit": 2,
+    "stay": 12,
+    "iso": false,
+    "grade": "甲"
+   },
+   {
+    "id": "G",
+    "arrive": 12,
+    "limit": 1,
+    "stay": 10,
+    "iso": false,
+    "grade": "乙"
+   },
+   {
+    "id": "H",
+    "arrive": 14,
+    "limit": 3,
+    "stay": 10,
+    "iso": false,
+    "grade": "乙"
+   }
+  ]
+ },
+ "modules": {
+  "clean": {
+   "minutes": 4
+  },
+  "mix": {
+   "extra": 16
+  },
+  "doctor": {
+   "at": 8,
+   "early": 0
+  }
+ },
+ "objective": [
+  "excess",
+  "late_n"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "excess",
+   "points": 6,
+   "text": "给出最优处置顺序，患者编号用短横线连接，例如 A-B-C-D-E-F。"
+  },
+  {
+   "name": "excess",
+   "metric": "excess",
+   "points": 5
+  },
+  {
+   "name": "late_n",
+   "metric": "late_n",
+   "points": 4
+  },
+  {
+   "name": "cf_excess",
+   "metric": "excess",
+   "points": 5,
+   "cf": "doctor_early"
+  }
+ ],
+ "background": []
+}

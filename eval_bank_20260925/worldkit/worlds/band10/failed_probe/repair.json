@@ -1,0 +1,130 @@
+{
+ "family": "repair",
+ "data": {
+  "depot": "0",
+  "crews": [
+   {
+    "id": "1",
+    "skills": [
+     "线"
+    ]
+   },
+   {
+    "id": "2",
+    "skills": [
+     "线",
+     "变"
+    ]
+   }
+  ],
+  "jobs": [
+   {
+    "id": "A",
+    "site": "R",
+    "skill": "线",
+    "work": 4,
+    "due": 14
+   },
+   {
+    "id": "B",
+    "site": "Q",
+    "skill": "线",
+    "work": 5,
+    "due": 24
+   },
+   {
+    "id": "C",
+    "site": "P",
+    "skill": "变",
+    "work": 7,
+    "due": 14
+   },
+   {
+    "id": "D",
+    "site": "P",
+    "skill": "线",
+    "work": 4,
+    "due": 24
+   },
+   {
+    "id": "E",
+    "site": "P",
+    "skill": "变",
+    "work": 4,
+    "due": 20
+   },
+   {
+    "id": "F",
+    "site": "P",
+    "skill": "线",
+    "work": 5,
+    "due": 20
+   }
+  ],
+  "travel": {
+   "0": {
+    "0": 0,
+    "P": 3,
+    "Q": 2,
+    "R": 5
+   },
+   "P": {
+    "0": 2,
+    "P": 0,
+    "Q": 4,
+    "R": 4
+   },
+   "Q": {
+    "0": 3,
+    "P": 3,
+    "Q": 0,
+    "R": 4
+   },
+   "R": {
+    "0": 3,
+    "P": 4,
+    "Q": 4,
+    "R": 0
+   }
+  }
+ },
+ "modules": {
+  "clash": {},
+  "fatigue": {
+   "at": 14
+  },
+  "extra": {
+   "extra": 1
+  }
+ },
+ "objective": [
+  "late",
+  "late_n"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "late",
+   "points": 6,
+   "text": "给出最优方案，记号如 A1-B2-C1。"
+  },
+  {
+   "name": "late",
+   "metric": "late",
+   "points": 5
+  },
+  {
+   "name": "late_n",
+   "metric": "late_n",
+   "points": 4
+  },
+  {
+   "name": "cf_late",
+   "metric": "late",
+   "points": 5,
+   "cf": "no_extra"
+  }
+ ],
+ "background": []
+}

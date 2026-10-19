@@ -1,0 +1,303 @@
+{
+ "family": "maint",
+ "data": {
+  "modes": [
+   {
+    "id": "HOT",
+    "label": "热修",
+    "kind": "fast"
+   },
+   {
+    "id": "BYPASS",
+    "label": "旁路",
+    "kind": "plain"
+   },
+   {
+    "id": "OUTAGE",
+    "label": "停电窗",
+    "kind": "timed"
+   }
+  ],
+  "routes": [
+   {
+    "id": "DIRECT",
+    "label": "直达"
+   },
+   {
+    "id": "DETOUR",
+    "label": "绕行"
+   }
+  ],
+  "legs": [
+   {
+    "name": "巡检",
+    "HOT": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 3
+      }
+     ]
+    },
+    "BYPASS": {
+     "DIRECT": [
+      {
+       "min": 9,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 16
+      }
+     ]
+    },
+    "OUTAGE": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 2,
+      "ride": 8
+     }
+    }
+   },
+   {
+    "name": "紧固",
+    "HOT": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 5
+      }
+     ]
+    },
+    "BYPASS": {
+     "DIRECT": [
+      {
+       "min": 14,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 18
+      }
+     ]
+    },
+    "OUTAGE": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 3
+     },
+     "DETOUR": {
+      "access": 4,
+      "ride": 9
+     }
+    }
+   },
+   {
+    "name": "润滑",
+    "HOT": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 6
+      }
+     ]
+    },
+    "BYPASS": {
+     "DIRECT": [
+      {
+       "min": 12,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 13
+      }
+     ]
+    },
+    "OUTAGE": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 9
+     }
+    }
+   },
+   {
+    "name": "校验",
+    "HOT": {
+     "DIRECT": [
+      {
+       "min": 2,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 3
+      }
+     ]
+    },
+    "BYPASS": {
+     "DIRECT": [
+      {
+       "min": 10,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 12
+      }
+     ]
+    },
+    "OUTAGE": {
+     "DIRECT": {
+      "access": 1,
+      "ride": 5
+     },
+     "DETOUR": {
+      "access": 3,
+      "ride": 7
+     }
+    }
+   },
+   {
+    "name": "试车",
+    "HOT": {
+     "DIRECT": [
+      {
+       "min": 4,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 5
+      }
+     ]
+    },
+    "BYPASS": {
+     "DIRECT": [
+      {
+       "min": 8,
+       "lights": true
+      }
+     ],
+     "DETOUR": [
+      {
+       "min": 15
+      }
+     ]
+    },
+    "OUTAGE": {
+     "DIRECT": {
+      "access": 2,
+      "ride": 4
+     },
+     "DETOUR": {
+      "access": 4,
+      "ride": 9
+     }
+    }
+   }
+  ],
+  "cost": {
+   "HOT": 2,
+   "BYPASS": 0,
+   "OUTAGE": 3
+  }
+ },
+ "modules": {
+  "surge": {
+   "ids": [
+    "HOT"
+   ],
+   "factor": 2
+  },
+  "wave": {
+   "ids": [
+    "HOT",
+    "BYPASS"
+   ],
+   "cycle": 10,
+   "open": 4
+  },
+  "seam": {
+   "minutes": 6
+  },
+  "board": {
+   "ids": [
+    "OUTAGE"
+   ],
+   "times": [
+    3,
+    12,
+    21,
+    30,
+    39,
+    48,
+    57,
+    66,
+    75,
+    84,
+    93,
+    102,
+    111
+   ]
+  }
+ },
+ "objective": [
+  "time",
+  "cost"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "time",
+   "points": 6,
+   "text": "给出五段各自的做法和路线，全部用短横线连接，例如 HOT-DIRECT-BYPASS-DETOUR-HOT-DIRECT。"
+  },
+  {
+   "name": "time",
+   "metric": "time",
+   "points": 5
+  },
+  {
+   "name": "cost",
+   "metric": "cost",
+   "points": 4
+  },
+  {
+   "name": "cf_time",
+   "metric": "time",
+   "points": 5,
+   "cf": "no_surge"
+  }
+ ],
+ "background": []
+}

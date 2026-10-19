@@ -1,0 +1,153 @@
+{
+ "family": "delivery",
+ "data": {
+  "roads": {
+   "W-L1": 5,
+   "W-L2": 5,
+   "W-L3": 3,
+   "L1-L2": 5,
+   "L1-L3": 3,
+   "L2-L3": 7
+  },
+  "orders": {
+   "A": {
+    "building": "L2",
+    "floor": 6,
+    "ready": 0,
+    "deadline": 25
+   },
+   "B": {
+    "building": "L3",
+    "floor": 2,
+    "ready": 3,
+    "deadline": 40
+   },
+   "C": {
+    "building": "L1",
+    "floor": 1,
+    "ready": 0,
+    "deadline": 34
+   },
+   "D": {
+    "building": "L1",
+    "floor": 7,
+    "ready": 11,
+    "deadline": 26
+   },
+   "E": {
+    "building": "L3",
+    "floor": 5,
+    "ready": 0,
+    "deadline": 39
+   }
+  },
+  "role": "冷藏骑手"
+ },
+ "modules": {
+  "outage": {
+   "spans": {
+    "L1": [
+     [
+      12,
+      27
+     ]
+    ],
+    "L2": [
+     [
+      8,
+      36
+     ]
+    ],
+    "L3": [
+     [
+      9,
+      36
+     ]
+    ]
+   }
+  },
+  "register": {
+   "minutes": {
+    "L1": 5,
+    "L2": 3,
+    "L3": 2
+   }
+  },
+  "closed": {
+   "spans": {
+    "L2": [
+     [
+      36,
+      48
+     ]
+    ]
+   }
+  },
+  "down": {
+   "rate": 1
+  },
+  "congestion": {
+   "from": 22,
+   "mult": 2
+  },
+  "carry": {
+   "max": 3
+  },
+  "cancel": {
+   "ids": [
+    "A"
+   ]
+  },
+  "flood": {
+   "t": 36,
+   "building": "L1",
+   "scope": "deliver"
+  },
+  "mutex": {},
+  "ready": {},
+  "cold": {
+   "limit": 26
+  }
+ },
+ "objective": [
+  "late_n",
+  "total",
+  "walk"
+ ],
+ "objective_conditions": {
+  "late_n": "先少迟到"
+ },
+ "questions": [
+  {
+   "name": "late_n",
+   "metric": "late_n",
+   "points": 6
+  },
+  {
+   "name": "total",
+   "metric": "total",
+   "points": 4
+  },
+  {
+   "name": "walk",
+   "metric": "walk",
+   "points": 4
+  },
+  {
+   "name": "cf_total",
+   "metric": "total",
+   "points": 6,
+   "cf": "swap_shock"
+  }
+ ],
+ "background": [
+  "outage",
+  "closed",
+  "flood",
+  "down",
+  "mutex"
+ ],
+ "gates": {
+  "min_degree": 3
+ }
+}

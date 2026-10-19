@@ -1,0 +1,102 @@
+{
+ "family": "signal",
+ "data": {
+  "phases": [
+   "NS",
+   "EW",
+   "NL",
+   "EL",
+   "PD"
+  ],
+  "greens": {
+   "S": 12,
+   "M": 22,
+   "L": 34
+  },
+  "lost": 3,
+  "headway": 3,
+  "miss": 70,
+  "vehicles": [
+   {
+    "phase": "NS",
+    "at": 0,
+    "n": 2
+   },
+   {
+    "phase": "NS",
+    "at": 36,
+    "n": 1
+   },
+   {
+    "phase": "EW",
+    "at": 0,
+    "n": 3
+   },
+   {
+    "phase": "EW",
+    "at": 28,
+    "n": 2
+   },
+   {
+    "phase": "NL",
+    "at": 6,
+    "n": 3
+   },
+   {
+    "phase": "EL",
+    "at": 0,
+    "n": 3
+   },
+   {
+    "phase": "PD",
+    "at": 0,
+    "n": 3
+   }
+  ]
+ },
+ "modules": {
+  "ped": {
+   "phase": "PD",
+   "min": 34
+  },
+  "offset": {
+   "lo": 14,
+   "hi": 48,
+   "alt_lo": 0,
+   "alt_hi": 12
+  },
+  "rain": {
+   "extra": 1
+  }
+ },
+ "objective": [
+  "delay",
+  "max_delay"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "delay",
+   "points": 6,
+   "text": "给出最优相位方案。每个相位一个三字母记号，用短横线连接，例如 NSS-EWL-NLS-ELL；有行人专用相位时用 PDS 或 PDL。"
+  },
+  {
+   "name": "delay",
+   "metric": "delay",
+   "points": 5
+  },
+  {
+   "name": "wait_n",
+   "metric": "wait_n",
+   "points": 4
+  },
+  {
+   "name": "cf_delay",
+   "metric": "delay",
+   "points": 5,
+   "cf": "offset_shift"
+  }
+ ],
+ "background": []
+}

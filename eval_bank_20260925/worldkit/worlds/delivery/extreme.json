@@ -1,0 +1,182 @@
+{
+ "family": "delivery",
+ "data": {
+  "roads": {
+   "W-L1": 6,
+   "W-L2": 7,
+   "W-L3": 5,
+   "W-L4": 9,
+   "W-L5": 4,
+   "L1-L2": 2,
+   "L1-L3": 8,
+   "L1-L4": 10,
+   "L1-L5": 3,
+   "L2-L3": 8,
+   "L2-L4": 10,
+   "L2-L5": 3,
+   "L3-L4": 6,
+   "L3-L5": 6,
+   "L4-L5": 8
+  },
+  "orders": {
+   "A": {
+    "building": "L5",
+    "floor": 3,
+    "deadline": 97,
+    "ready": 92
+   },
+   "B": {
+    "building": "L2",
+    "floor": 3,
+    "deadline": 66,
+    "ready": 61
+   },
+   "C": {
+    "building": "L4",
+    "floor": 7,
+    "deadline": 148,
+    "ready": 0
+   },
+   "D": {
+    "building": "L1",
+    "floor": 6,
+    "deadline": 47,
+    "ready": 0
+   },
+   "E": {
+    "building": "L4",
+    "floor": 7,
+    "deadline": 163,
+    "ready": 154
+   },
+   "F": {
+    "building": "L4",
+    "floor": 3,
+    "deadline": 20,
+    "ready": 11
+   },
+   "G": {
+    "building": "L1",
+    "floor": 6,
+    "deadline": 111,
+    "ready": 97
+   }
+  },
+  "role": "冷藏骑手"
+ },
+ "modules": {
+  "outage": {
+   "spans": {
+    "L1": [
+     [
+      34,
+      51
+     ]
+    ],
+    "L2": [
+     [
+      14,
+      30
+     ]
+    ],
+    "L3": [
+     [
+      42,
+      60
+     ]
+    ],
+    "L4": [
+     [
+      31,
+      37
+     ]
+    ],
+    "L5": [
+     [
+      48,
+      65
+     ]
+    ]
+   }
+  },
+  "register": {
+   "minutes": {
+    "L1": 3,
+    "L2": 3,
+    "L3": 3,
+    "L4": 3,
+    "L5": 4
+   }
+  },
+  "closed": {
+   "spans": {
+    "L4": [
+     [
+      11,
+      22
+     ]
+    ]
+   }
+  },
+  "ready": {},
+  "down": {
+   "rate": 1
+  },
+  "congestion": {
+   "from": 29,
+   "mult": 2
+  },
+  "carry": {
+   "max": 2
+  },
+  "return_w": {},
+  "flood": {
+   "t": 108,
+   "building": "L1",
+   "scope": "deliver"
+  },
+  "cold": {
+   "limit": 16
+  },
+  "mutex": {}
+ },
+ "objective": [
+  "late_n",
+  "total",
+  "walk"
+ ],
+ "objective_conditions": {
+  "late_n": "先少迟到"
+ },
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "total",
+   "points": 6
+  },
+  {
+   "name": "total",
+   "metric": "total",
+   "points": 5
+  },
+  {
+   "name": "late_n",
+   "metric": "late_n",
+   "points": 4
+  },
+  {
+   "name": "cf_total",
+   "metric": "total",
+   "points": 5,
+   "cf": "swap_shock"
+  }
+ ],
+ "background": [
+  "flood",
+  "cold"
+ ],
+ "gates": {
+  "min_degree": 5
+ }
+}

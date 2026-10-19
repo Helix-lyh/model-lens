@@ -1,0 +1,125 @@
+{
+ "family": "line",
+ "data": {
+  "jobs": [
+   {
+    "id": "A",
+    "family": "Y",
+    "minutes": 8,
+    "due": 41
+   },
+   {
+    "id": "B",
+    "family": "Y",
+    "minutes": 6,
+    "due": 26
+   },
+   {
+    "id": "C",
+    "family": "Z",
+    "minutes": 10,
+    "due": 35
+   },
+   {
+    "id": "D",
+    "family": "W",
+    "minutes": 7,
+    "due": 26
+   },
+   {
+    "id": "E",
+    "family": "X",
+    "minutes": 6,
+    "due": 52
+   },
+   {
+    "id": "F",
+    "family": "Z",
+    "minutes": 6,
+    "due": 31
+   },
+   {
+    "id": "G",
+    "family": "W",
+    "minutes": 10,
+    "due": 30
+   },
+   {
+    "id": "H",
+    "family": "X",
+    "minutes": 8,
+    "due": 43
+   }
+  ],
+  "setup": {
+   "IDLE": {
+    "W": 6,
+    "X": 9,
+    "Y": 3,
+    "Z": 9
+   },
+   "W": {
+    "W": 0,
+    "X": 11,
+    "Y": 5,
+    "Z": 5
+   },
+   "X": {
+    "W": 8,
+    "X": 0,
+    "Y": 11,
+    "Z": 3
+   },
+   "Y": {
+    "W": 10,
+    "X": 6,
+    "Y": 0,
+    "Z": 9
+   },
+   "Z": {
+    "W": 3,
+    "X": 8,
+    "Y": 5,
+    "Z": 0
+   }
+  }
+ },
+ "modules": {
+  "fixture": {
+   "pair": [
+    "Z",
+    "Y"
+   ]
+  }
+ },
+ "objective": [
+  "tardiness",
+  "changes"
+ ],
+ "questions": [
+  {
+   "name": "plan",
+   "type": "plan",
+   "metric": "tardiness",
+   "points": 6,
+   "text": "给出最优批次顺序，批次编号用短横线连接，例如 A-B-C-D-E-F。"
+  },
+  {
+   "name": "tardiness",
+   "metric": "tardiness",
+   "points": 5
+  },
+  {
+   "name": "changes",
+   "metric": "changes",
+   "points": 4
+  },
+  {
+   "name": "cf_tardiness",
+   "metric": "tardiness",
+   "points": 5,
+   "cf": "no_fixture"
+  }
+ ],
+ "background": []
+}
