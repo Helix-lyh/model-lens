@@ -18,6 +18,12 @@ def _c(value) -> str:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
 
+def _green_line(greens: dict) -> str:
+    names = {"S": "短", "M": "中", "L": "长"}
+    parts = [f"{names.get(k, k)}绿灯 {greens[k]} 秒" for k in ("S", "M", "L") if k in greens]
+    return "、".join(parts) + "。"
+
+
 def _t_ped(p, _w):
     return (f"人行横道：{PHASE_ZH[p['phase']]}相位的绿灯短于 {p['min']} 秒时，"
             "行人过不完，该方案不可行。")
@@ -312,12 +318,13 @@ class SignalFamily:
         rows = [[PHASE_ZH[r["phase"]], r["at"], r["n"]] for r in d["vehicles"]]
         return "\n".join([
             "你在为一座十字路口排这一个周期的信号。四个相位都要放行恰好一次，不能并行。",
-            "选相位顺序，再为每个相位选短绿灯或长绿灯。",
-            f"短绿灯 {d['greens']['S']} 秒，长绿灯 {d['greens']['L']} 秒。"
-            f"每个相位开始前有 {d['lost']} 秒全红，全红不放行。时钟从 0 秒起算。",
+            "选相位顺序，再为每个相位选绿灯档。",
+            _green_line(d["greens"])
+            + f"每个相位开始前有 {d['lost']} 秒全红，全红不放行。时钟从 0 秒起算。",
             f"车辆表每行 `[相位, 到达秒, 辆数]`：{_c(rows)}。同一到达秒的多辆车按表中顺序依次通过。",
             f"车头时距 {d['headway']} 秒：同一相位相邻两车的通过时刻至少相隔这么多秒。"
-            "一辆车的通过时刻 = max(它的到达秒, 绿灯开始秒, 前车通过秒 + 车头时距)，且必须严格早于该相位绿灯结束。",
+            "一辆车必须已经到达、绿灯已经开始、且与同相位前车至少隔一个车头时距，三者里最晚的那个时刻通过；"
+            "通过时刻必须严格早于该相位绿灯结束。",
             f"本周期没通过的车，每辆计 {d['miss']} 秒延误（留给下一周期），并计入等待车辆。通过时刻晚于到达秒的车也计入等待车辆，延误 = 通过秒 − 到达秒。",
             "相位记号由缩写加一位组成：S 短、M 中、L 长。"
             "缩写 NS 南北直行、EW 东西直行、NL 南北左转、EL 东西左转、PD 行人专用。"

@@ -1,6 +1,6 @@
 # worldkit：条件参数化的推理题世界
 
-worldkit 把一道推理题表示成一个「世界」：预设的条件模块相互作用，题面、参考答案和质量门禁都从同一份世界数据推出。题族：单骑手配送（`delivery`）、多段通勤（`trip`）、电梯调度（`elevator`）、十字路口信号（`signal`）、机场除冰（`deice`）、产线换型（`line`）、登机口指派（`gate`）、后厨两口灶（`kitchen`）、车队充电（`charge`）、急诊床位（`ward`），以及分段选择十五景（`or` 手术班组、`apron` 过站保障、`berth` 舱口作业、`agv` 拣货波次、`ticket` 客服时段、`gpu` 训练阶段、`galley` 出餐工序、`fresh` 生鲜补货、`canteen` 食堂时段、`plug` 车辆补能、`relief` 物资运送、`bed` 清床、`crowd` 入场安检、`maint` 检修工序、`drone` 配送架次）。段序固定，后一段等不等窗口取决于前一段的完成时刻。配送族已能逐字复现 20261023 的 NX-12 / NX-18。生成的题进探针题库，不进 `ACTIVE_ITEMS`，单独报告。每场景一道的清单在 `worlds/scenes_band/`（46/200）。出题作坊见 [worldkit-craft-20261019](worldkit-craft-20261019.md)。
+worldkit 把一道推理题表示成一个「世界」：预设的条件模块相互作用，题面、参考答案和质量门禁都从同一份世界数据推出。题族：单骑手配送（`delivery`）、多段通勤（`trip`）、电梯调度（`elevator`）、十字路口信号（`signal`）、机场除冰（`deice`）、产线换型（`line`）、登机口指派（`gate`）、后厨两口灶（`kitchen`）、车队充电（`charge`）、急诊床位（`ward`），以及分段选择十五景（`or` 手术班组、`apron` 过站保障、`berth` 舱口作业、`agv` 拣货波次、`ticket` 客服时段、`gpu` 训练阶段、`galley` 出餐工序、`fresh` 生鲜补货、`canteen` 食堂时段、`plug` 车辆补能、`relief` 物资运送、`bed` 清床、`crowd` 入场安检、`maint` 检修工序、`drone` 配送架次）。段序固定，后一段等不等窗口取决于前一段的完成时刻。配送族已能逐字复现 20261023 的 NX-12 / NX-18。生成的题进探针题库，不进 `ACTIVE_ITEMS`，单独报告。每场景一道的清单在 `worlds/scenes_band/`（47/200；充电 9 分作对照）。出题作坊见 [worldkit-craft-20261019](worldkit-craft-20261019.md)。
 
 代码在 `eval_bank_20260925/worldkit/`，测试在 `tests/test_worldkit_delivery.py`，生成与实测脚本在 `cursor_workspace/build_scripts/gen_worldkit_delivery.py`、`try_worldkit_live.py`。
 

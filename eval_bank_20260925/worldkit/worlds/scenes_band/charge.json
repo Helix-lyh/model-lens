@@ -69,7 +69,7 @@
   {
    "name": "late",
    "metric": "late",
-   "points": 6
+   "points": 5
   },
   {
    "name": "late_n",
@@ -79,7 +79,7 @@
   {
    "name": "cf_late",
    "metric": "late",
-   "points": 4,
+   "points": 5,
    "cf": "no_topup"
   }
  ],

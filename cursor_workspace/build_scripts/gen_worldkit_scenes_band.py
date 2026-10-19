@@ -156,16 +156,19 @@ def sample_yard(rng: random.Random) -> dict:
     }
 
 
+# 除冰全排列、机位指派默认不猎：实测 15/20。需要时显式传入名字。
 HUNTS = [
     ("signal", signal.FAMILY, sample_signal, "offset"),
-    ("deice", deice.FAMILY, sample_deice, "pump"),
-    ("line", line.FAMILY, g10.sample_line, None),
     ("kitchen", kitchen.FAMILY, sample_kitchen, "gas"),
-    ("charge", charge.FAMILY, sample_charge, "block"),
     ("ward", ward.FAMILY, sample_ward, "mix"),
-    ("gate", gate.FAMILY, sample_gate, "tow"),
     ("push", push.FAMILY, sample_push, "zone"),
     ("yard", yard.FAMILY, sample_yard, "yard"),
+]
+RETIRED = [
+    ("deice", deice.FAMILY, sample_deice, "pump"),
+    ("gate", gate.FAMILY, sample_gate, "tow"),
+    ("charge", charge.FAMILY, sample_charge, "block"),
+    ("line", line.FAMILY, g10.sample_line, None),
 ]
 
 
@@ -179,7 +182,8 @@ def main() -> int:
         "elevator": KEEP / "elevator.json",
         "line": KEEP / "line.json",
     }
-    selected = [h for h in HUNTS if not only or h[0] in only]
+    pool = HUNTS + RETIRED
+    selected = [h for h in pool if (not only and h in HUNTS) or (only and h[0] in only)]
     for name, src in copies.items():
         if only and name not in only:
             continue
