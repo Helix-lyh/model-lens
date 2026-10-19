@@ -61,3 +61,32 @@ def dual_progress(
         if t > 20000:
             raise RuntimeError("dual_progress did not finish")
     return done
+
+
+def stabilize(
+    starts: list[int],
+    sides: list[int],
+    needs: list[int],
+    share: bool,
+    gaps: list[int],
+    ready: list[int] | None = None,
+    block: tuple[int, int] | None = None,
+) -> list[int]:
+    """半格拉长前一单后，后一单开工不得早于同侧完成加空等。starts 就地抬高。"""
+    ready = ready or [0] * len(starts)
+    for _ in range(64):
+        done = dual_progress(starts, sides, needs, share, block) if share else [
+            s + n for s, n in zip(starts, needs)
+        ]
+        last = {}
+        bumped = False
+        for i in range(len(starts)):
+            s = sides[i]
+            floor = max(ready[i], last.get(s, 0) + gaps[i])
+            if starts[i] < floor:
+                starts[i] = floor
+                bumped = True
+            last[s] = done[i]
+        if not bumped:
+            return done
+    raise RuntimeError("stabilize did not settle")

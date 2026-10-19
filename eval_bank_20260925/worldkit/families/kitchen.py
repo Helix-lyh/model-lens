@@ -6,7 +6,7 @@ import itertools
 from typing import Iterator
 
 from eval_bank_20260925.worldkit.core import Counterfactual, Module, Outcome
-from eval_bank_20260925.worldkit.share import dual_progress
+from eval_bank_20260925.worldkit.share import stabilize
 
 DECISIONS = ("选占灶顺序",)
 
@@ -98,6 +98,7 @@ def _finish_map(world: dict, plan: tuple) -> tuple[dict[str, int], bool] | None:
     stoves: list[int] = []
     needs: list[int] = []
     pids: list[str] = []
+    gaps: list[int] = []
     used = False
     done: list[int] = []
     for pid in plan:
@@ -109,17 +110,16 @@ def _finish_map(world: dict, plan: tuple) -> tuple[dict[str, int], bool] | None:
             return free[b]
 
         b = 0 if avail(0) <= avail(1) else 1
-        if gap and last[b] not in (None, dish["pan"]):
+        extra_gap = gap if gap and last[b] not in (None, dish["pan"]) else 0
+        if extra_gap:
             used = True
         start = avail(b)
         pids.append(pid)
         starts.append(start)
         stoves.append(b)
         needs.append(_cook(world, dish))
-        if share:
-            done = dual_progress(starts, stoves, needs, True)
-        else:
-            done = [s + n for s, n in zip(starts, needs)]
+        gaps.append(extra_gap)
+        done = stabilize(starts, stoves, needs, share, gaps)
         free = [0, 0]
         last = [None, None]
         for i, end in enumerate(done):

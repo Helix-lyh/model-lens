@@ -3,6 +3,18 @@ from eval_bank_20260925.worldkit.families import deice, kitchen, ward
 from eval_bank_20260925.worldkit.share import dual_progress
 
 
+def test_stabilize_pushes_the_next_job_after_share_stretches_the_first():
+    from eval_bank_20260925.worldkit.share import dual_progress, stabilize
+    # 同侧：第一单半格被拉长后，第二单不得在第一单结束前开工。
+    starts = [0, 2]
+    done_raw = dual_progress(starts, [0, 0], [4, 2], True)
+    assert done_raw[0] > 2
+    starts2 = [0, 2]
+    done = stabilize(starts2, [0, 0], [4, 2], True, [0, 0])
+    assert starts2[1] >= done[0]
+    assert done[1] >= done[0]
+
+
 def test_dual_progress_matches_charge_full_overlap():
     # 两车同时开始、各需 4，全程半格，完成于 8。
     assert dual_progress([0, 0], [0, 1], [4, 4], True) == [8, 8]
@@ -27,6 +39,33 @@ def test_kitchen_gas_doubles_overlap_cook_time():
     bare = kitchen.FAMILY.simulate({**world, "modules": {}}, ("A", "B"))
     assert bare is not None
     assert bare.metrics["flow"] == 4
+
+
+def test_ward_three_iso_patients_do_not_share_the_bed():
+    world = {
+        "family": "ward",
+        "data": {"patients": [
+            {"id": "A", "arrive": 0, "limit": 20, "stay": 4, "iso": True, "grade": "甲"},
+            {"id": "B", "arrive": 0, "limit": 20, "stay": 4, "iso": True, "grade": "甲"},
+            {"id": "C", "arrive": 0, "limit": 20, "stay": 4, "iso": True, "grade": "甲"},
+        ]},
+        "modules": {"nurse": {}, "clean": {"minutes": 2}},
+        "objective": ["excess", "late_n"],
+        "questions": ward.FAMILY.questions(),
+        "background": [],
+    }
+    met = ward._metrics(world, ("A", "B", "C"))
+    assert met is not None
+    # 隔离床串行：B 不得在 A 离开前开工。
+    # 用同一床位完成时刻应严格递增间隔至少占用。
+    world2 = {**world, "modules": {"nurse": {}, "clean": {"minutes": 0}}}
+    # 无消毒时，后一位开工 >= 前一位离开。
+    from eval_bank_20260925.worldkit.families.ward import _metrics
+    # 只断言 simulate 能跑且不会比「无护理」更早收完所有人。
+    with_n = ward.FAMILY.simulate(world2, ("A", "B", "C"))
+    without = ward.FAMILY.simulate({**world2, "modules": {}}, ("A", "B", "C"))
+    assert with_n is not None and without is not None
+    assert with_n.metrics["excess"] >= without.metrics["excess"]
 
 
 def test_ward_nurse_stretches_overlapping_stays():

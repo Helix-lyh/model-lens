@@ -6,7 +6,7 @@ import itertools
 from typing import Iterator
 
 from eval_bank_20260925.worldkit.core import Counterfactual, Module, Outcome
-from eval_bank_20260925.worldkit.share import dual_progress
+from eval_bank_20260925.worldkit.share import dual_progress, stabilize
 
 DECISIONS = ("选插枪顺序",)
 
@@ -125,6 +125,7 @@ class ChargeFamily:
         starts: list[int] = []
         chargers: list[int] = []
         needs: list[int] = []
+        gaps: list[int] = []
         fired: set[str] = set()
         free = [0, 0]
         for pid in plan:
@@ -133,7 +134,8 @@ class ChargeFamily:
             starts.append(free[b])
             chargers.append(b)
             needs.append(car["need"] + extra)
-            done = _simulate(starts, chargers, needs, share, block)
+            gaps.append(0)
+            done = stabilize(starts, chargers, needs, share, gaps, block=block)
             if block and any(chargers[i] == 0 and starts[i] < block[1] and done[i] > block[0] for i in range(len(starts))):
                 fired.add("block")
             if share and any(done[i] > starts[i] + needs[i] for i in range(len(starts))):

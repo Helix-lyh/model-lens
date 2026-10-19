@@ -6,7 +6,7 @@ import itertools
 from typing import Iterator
 
 from eval_bank_20260925.worldkit.core import Counterfactual, Module, Outcome
-from eval_bank_20260925.worldkit.share import dual_progress
+from eval_bank_20260925.worldkit.share import stabilize
 
 DECISIONS = ("选处置顺序",)
 
@@ -95,6 +95,8 @@ def _metrics(world: dict, plan: tuple) -> dict[str, int] | None:
     beds: list[int] = []
     needs: list[int] = []
     pids: list[str] = []
+    gaps: list[int] = []
+    readies: list[int] = []
     done: list[int] = []
     for pid in plan:
         p = patients[pid]
@@ -124,10 +126,9 @@ def _metrics(world: dict, plan: tuple) -> dict[str, int] | None:
         starts.append(start)
         beds.append(bed)
         needs.append(p["stay"])
-        if share:
-            done = dual_progress(starts, beds, needs, True)
-        else:
-            done = [s + n for s, n in zip(starts, needs)]
+        gaps.append(iso_add if bed == 1 else 0)
+        readies.append(earliest)
+        done = stabilize(starts, beds, needs, share, gaps, readies)
         normal = iso_leave = 0
         for i, end in enumerate(done):
             if beds[i] == 0:

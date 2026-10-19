@@ -10,9 +10,9 @@
   {"file": "kitchen.json", "family": "kitchen", "scene": "后厨出餐", "points": 4, "live": "live_scenes_band_share"},
   {"file": "ward.json", "family": "ward", "scene": "急诊床位", "points": 4, "live": "live_scenes_band_share"},
   {"file": "charge.json", "family": "charge", "scene": "车队充电", "points": 9, "live": "live_scenes10_harden：迟到辆数+反事实。两格都对，不在 4–8 内，作对照留下"},
-  {"file": "push.json", "family": "push", "scene": "机坪推出", "points": 4, "live": "live_scenes_band_new3：只对误点架数"},
+  {"file": "push.json", "family": "push", "scene": "机坪推出", "points": 0, "live": "占用串行修复后重测超时 0；旧样本对修正金标是 9"},
   {"file": "yard.json", "family": "yard", "scene": "港口波次", "points": 5, "live": "live_scenes_band_new3：只对反事实过潮分钟"}
  ],
- "sum_points": 47,
+ "sum_points": 43,
  "max_points": 200
 }

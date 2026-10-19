@@ -102,7 +102,9 @@ def _replay(world: dict, *, earth: bool = False) -> dict[str, int]:
             spec = oaths[oid]
             src, dst, amt = spec["src"], spec["dst"], spec["units"]
             ready = oid in registered_at and i >= registered_at[oid] + k
-            if not ready or live[src] < amt + fee:
+            if not ready:
+                pass
+            elif live[src] < amt + fee:
                 penalty += fine
             else:
                 live[src] -= amt + fee

@@ -317,7 +317,7 @@ class SignalFamily:
         d = world["data"]
         rows = [[PHASE_ZH[r["phase"]], r["at"], r["n"]] for r in d["vehicles"]]
         return "\n".join([
-            "你在为一座十字路口排这一个周期的信号。四个相位都要放行恰好一次，不能并行。",
+            f"你在为一座十字路口排这一个周期的信号。{len(_phases(d))} 个相位都要放行恰好一次，不能并行。",
             "选相位顺序，再为每个相位选绿灯档。",
             _green_line(d["greens"])
             + f"每个相位开始前有 {d['lost']} 秒全红，全红不放行。时钟从 0 秒起算。",

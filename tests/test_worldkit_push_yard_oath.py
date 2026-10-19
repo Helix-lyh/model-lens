@@ -23,6 +23,26 @@ def test_push_share_doubles_overlap():
     assert bare.metrics == {"flow": 4, "late_n": 0}
 
 
+def test_oath_early_run_rejects_without_fine():
+    world = {
+        "family": "oath",
+        "data": {
+            "parties": ["A", "B"],
+            "opening": {"A": 8, "B": 1},
+            "mid_at": 1,
+            "oaths": [{"id": "V1", "src": "A", "dst": "B", "units": 4}],
+            "log": [{"op": "reg", "oath": "V1"}, {"op": "run", "oath": "V1"}],
+        },
+        "modules": {"delay": {"k": 2}, "cost": {"fee": 1}, "cap": {"n": 9}, "fine": {"m": 2}},
+        "objective": ["live_b"],
+        "questions": oath.FAMILY.questions(),
+        "background": [],
+    }
+    got = oath._replay(world, earth=False)
+    assert got["penalty"] == 0
+    assert got["live_b"] == 1
+
+
 def test_push_zone_gap_on_same_tractor():
     world = {
         "family": "push",

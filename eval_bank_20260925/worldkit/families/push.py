@@ -6,7 +6,7 @@ import itertools
 from typing import Iterator
 
 from eval_bank_20260925.worldkit.core import Counterfactual, Module, Outcome
-from eval_bank_20260925.worldkit.share import dual_progress
+from eval_bank_20260925.worldkit.share import stabilize
 
 DECISIONS = ("选推出顺序",)
 
@@ -81,6 +81,8 @@ def _finish_map(world: dict, plan: tuple) -> tuple[dict[str, int], bool] | None:
     sides: list[int] = []
     needs: list[int] = []
     pids: list[str] = []
+    gaps: list[int] = []
+    readies: list[int] = []
     done: list[int] = []
     used_zone = False
     for pid in plan:
@@ -91,14 +93,17 @@ def _finish_map(world: dict, plan: tuple) -> tuple[dict[str, int], bool] | None:
             return free[b] + extra
 
         b = 0 if avail(0) <= avail(1) else 1
-        if gap and last_zone[b] not in (None, flight["zone"]):
+        extra_gap = gap if gap and last_zone[b] not in (None, flight["zone"]) else 0
+        if extra_gap:
             used_zone = True
         start = max(avail(b), flight.get("ready", 0))
         pids.append(pid)
         starts.append(start)
         sides.append(b)
         needs.append(_need(world, flight))
-        done = dual_progress(starts, sides, needs, share) if share else [s + n for s, n in zip(starts, needs)]
+        gaps.append(extra_gap)
+        readies.append(flight.get("ready", 0))
+        done = stabilize(starts, sides, needs, share, gaps, readies)
         free = [0, 0]
         last_zone = [None, None]
         for i, end in enumerate(done):

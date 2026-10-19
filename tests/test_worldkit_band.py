@@ -41,7 +41,7 @@ def test_scenes_band_worlds_exist():
     root = ROOT / "eval_bank_20260925/worldkit/worlds/scenes_band"
     man = json.loads((root / "manifest.json").read_text())
     assert [it["file"].removesuffix(".json") for it in man["items"]] == list(names)
-    assert man["sum_points"] == 47
+    assert man["sum_points"] == 43
     for name in names:
         assert (root / f"{name}.json").exists()
 
@@ -68,6 +68,7 @@ def test_patched_signal_offset_shift_keeps_greedy_in_band():
     assert world["questions"][-1]["cf"] == "offset_shift"
     prompt = render.render_prompt(signal.FAMILY, world)
     assert "中绿灯 22 秒" in prompt
+    assert "5 个相位" in prompt
     got = band.accept(signal.FAMILY, world)
     assert got is not None
     assert all(4 <= h["points"] <= 8 for h in got["heuristics"])
