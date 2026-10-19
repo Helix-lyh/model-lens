@@ -23,7 +23,8 @@ import subprocess
 import sys
 import threading
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -198,6 +199,7 @@ def channels(*, grok_base: str, grok_key_env: str, grok_cli_proxy: bool) -> dict
         Channel("space-bunny-free", "space-bunny-free", booster, "BOOSTER_API_KEY", cap("space-bunny-free"), {}),
         Channel("deepseek-chat", "deepseek-chat", _deepseek_base(), "DEEPSEEK_API_KEY", cap("deepseek-v4"), {}),
         Channel("mimo-v2.6-flash", "mimo-v2.6-flash", booster, "BOOSTER_API_KEY", cap("mimo-v2.6-flash"), {}),
+        Channel("minimax-m3.1-flash-free", "minimax-m3.1-flash-free", booster, "BOOSTER_API_KEY", cap("minimax-m3.1-flash-free"), {}),
         Channel("cat-jam-free", "cat-jam-free", booster, "BOOSTER_API_KEY", cap("cat-jam-free"), {}),
         Channel("beam-free", "beam-free", booster, "BOOSTER_API_KEY", cap("beam-free"), {}),
         Channel("grok-4.6", "grok-4.6", base, key_env, cap("grok-4.6"),
@@ -280,7 +282,7 @@ def _assembled_answer(record: Any) -> str:
 
 
 def run_one(client: ChatClient, ch: Channel, item: Any, lang: str | None, out_dir: Path,
-            timeout_s: float, sample: int = 0) -> dict[str, Any]:
+            timeout_s: float, sample: int = 0, cancel: threading.Event | None = None) -> dict[str, Any]:
     item_id = item.id
     provenance = {
         **item_provenance(item_id),
@@ -301,6 +303,10 @@ def run_one(client: ChatClient, ch: Channel, item: Any, lang: str | None, out_di
         kind=f"eval{ACTIVE_VERSION}:{tag}",
         stream=True,
     )
+    if cancel is not None and cancel.is_set():
+        row = _error_row(ch, item, lang, "timeout", "abandoned after channel shutdown", sample=sample, run_id=out_dir.name)
+        row.update(_verdict_fields(_timeout_verdict(item, item_id, lang, "")))
+        return row
     text = _assembled_answer(record)
     stem = out_dir / ch.name / tag
     stem.parent.mkdir(parents=True, exist_ok=True)
@@ -358,8 +364,22 @@ def run_channel(ch: Channel, jobs: list[tuple[Any, str | None]], out_dir: Path, 
     client = ChatClient(endpoint(ch), recorder, timeout_s=timeout_s, max_retries=max_retries)
     results: list[dict[str, Any]] = []
     lock = threading.Lock()
-    with ThreadPoolExecutor(max_workers=concurrency) as pool:
-        futures = {}
+    stale_s = timeout_s + 60
+    cancel = threading.Event()
+
+    def emit(row: dict[str, Any]) -> None:
+        with lock:
+            results.append(row)
+        if on_row is not None:
+            on_row(row)
+        shown = row.get("points")
+        if row.get("net_points") is not None:
+            shown = f"{row.get('positive_points')}-{row.get('negative_points')}={row.get('net_points')}"
+        print(f"  [{ch.name}] {row.get('item')} {row.get('lang') or ''} -> {row.get('status')} {shown}", flush=True)
+
+    pool = ThreadPoolExecutor(max_workers=concurrency)
+    futures: dict[Any, tuple[Any, str | None, int]] = {}
+    try:
         sample_seen: dict[tuple[str, str | None], int] = defaultdict(int)
         for item, lang in jobs:
             key = (item.id, lang)
@@ -367,22 +387,40 @@ def run_channel(ch: Channel, jobs: list[tuple[Any, str | None]], out_dir: Path, 
             sample_seen[key] += 1
             if skip and (ch.name, item.id, lang, sample) in skip:
                 continue
-            future = pool.submit(run_one, client, ch, item, lang, out_dir, timeout_s, sample)
+            future = pool.submit(run_one, client, ch, item, lang, out_dir, timeout_s, sample, cancel)
             futures[future] = (item, lang, sample)
-        for fut in as_completed(futures):
-            item, lang, sample = futures[fut]
-            try:
-                row = fut.result()
-            except Exception as exc:  # noqa: BLE001
-                row = _error_row(ch, item, lang, "runner_error", repr(exc), sample=sample, run_id=out_dir.name)
-            with lock:
-                results.append(row)
-            if on_row is not None:
-                on_row(row)
-            shown = row.get("points")
-            if row.get("net_points") is not None:
-                shown = f"{row.get('positive_points')}-{row.get('negative_points')}={row.get('net_points')}"
-            print(f"  [{ch.name}] {row.get('item')} {row.get('lang') or ''} -> {row.get('status')} {shown}", flush=True)
+        leftover = set(futures)
+        last_progress = time.monotonic()
+        while leftover:
+            done, leftover = wait(leftover, timeout=30, return_when=FIRST_COMPLETED)
+            leftover = set(leftover)
+            for fut in done:
+                last_progress = time.monotonic()
+                item, lang, sample = futures[fut]
+                try:
+                    row = fut.result()
+                except Exception as exc:  # noqa: BLE001
+                    row = _error_row(ch, item, lang, "runner_error", repr(exc), sample=sample, run_id=out_dir.name)
+                emit(row)
+            if leftover and time.monotonic() - last_progress >= stale_s:
+                for fut in list(leftover):
+                    item, lang, sample = futures[fut]
+                    row = _error_row(
+                        ch, item, lang, "timeout",
+                        f"worker stalled >{stale_s:g}s after last completion",
+                        sample=sample, run_id=out_dir.name,
+                    )
+                    fields = _verdict_fields(_timeout_verdict(item, item.id, lang, ""))
+                    row.update(fields)
+                    emit(row)
+                    leftover.discard(fut)
+    finally:
+        cancel.set()
+        try:
+            client.close()
+        except Exception:  # noqa: BLE001
+            pass
+        pool.shutdown(wait=False, cancel_futures=True)
     return results
 
 
@@ -510,6 +548,8 @@ def main() -> int:
     parser.add_argument("--bank-profile", choices=("active",), default="active",
                         help=f"只跑 {ACTIVE_VERSION} 活跃题库")
     parser.add_argument("--concurrency", type=int, default=8, help="每个渠道的请求并发")
+    parser.add_argument("--serial-channels", action="store_true",
+                        help="渠道串行：同一时刻只跑一个模型，每模型仍用 --concurrency")
     parser.add_argument("--grader-concurrency", type=int, default=None,
                         help="判分子进程（编译/运行被测代码）的全局并发上限，与请求并发分开；默认按 CPU 数取 2..8")
     parser.add_argument("--samples", type=int, default=1, help="每道题独立采样次数；默认 1")
@@ -597,6 +637,7 @@ def main() -> int:
             "experiment_id": out_dir.name,
             "banks": {bank_for_item(item.id).id: bank_for_item(item.id).version for item in items},
             "concurrency": args.concurrency, "concurrency_scope": "per_channel",
+            "serial_channels": args.serial_channels,
             "grader_concurrency": args.grader_concurrency,
             "stream": True,
             "timeout_s": args.timeout, "retries": args.retries,
@@ -660,7 +701,10 @@ def main() -> int:
     for name in names:
         t = threading.Thread(target=worker, args=(name,))
         t.start()
-        threads.append(t)
+        if args.serial_channels:
+            t.join()
+        else:
+            threads.append(t)
     for t in threads:
         t.join()
     for name in names:

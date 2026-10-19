@@ -145,6 +145,10 @@ class ChatClient:
         self.recorder.write(record)
         return record
 
+    def close(self) -> None:
+        if self._owns_http:
+            self._http.close()
+
     def _nonstream_attempt(
         self,
         *,
@@ -364,6 +368,12 @@ class ChatClient:
                 def _expire() -> None:
                     deadline_hit.set()
                     try:
+                        stream = getattr(resp, "stream", None)
+                        if stream is not None:
+                            stream.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    try:
                         resp.close()
                     except Exception:  # noqa: BLE001
                         pass
@@ -374,6 +384,8 @@ class ChatClient:
                 buf = ""
                 try:
                     for chunk in resp.iter_text():
+                        if deadline_hit.is_set():
+                            break
                         buf, new_events = feed_sse(buf, chunk)
                         for event in new_events:
                             if ttft_ms is None and self._event_has_text(event):

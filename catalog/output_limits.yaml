@@ -16,6 +16,10 @@ deepseek-flash: 384000
 mimo-v2.6-flash: 131072
 longcat-2.5-preview-free: 131072
 longcat-2.5-preview: 131072
+# MiniMax M3.1 Flash：官方页写 1M 上下文；网关免费 id 是 minimax-m3.1-flash-free。
+# Tokenator 登记 max output 131072；与同网关 mimo/longcat free flash 一致。
+minimax-m3.1-flash: 131072
+minimax-m3.1-flash-free: 131072
 space-bunny-free: 524288
 space-bunny: 524288
 # cat-jam-free：用户 2026-10-14 给出上下文 262000、单次最长输出 131000（纯文本，无视觉）

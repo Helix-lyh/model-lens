@@ -46,7 +46,7 @@ def test_resume_skips_recorded_results_but_reruns_request_errors():
 def test_run_channel_honours_skip(tmp_path: Path, monkeypatch):
     calls = []
 
-    def fake_run_one(client, ch, item, lang, out_dir, timeout_s, sample=0):
+    def fake_run_one(client, ch, item, lang, out_dir, timeout_s, sample=0, cancel=None):
         calls.append(item.id)
         return _row(item.id, channel=ch.name)
 

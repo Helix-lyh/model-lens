@@ -23,3 +23,8 @@ def test_claude_current_line_from_docs() -> None:
     assert official_max_output("claude-sonnet-5") == 128000
     assert official_max_output("claude-haiku-4-5") == 64000
     assert official_max_output("claude-sonnet-4-5") == 64000
+
+
+def test_minimax_m31_flash_free_max_output() -> None:
+    assert official_max_output("minimax-m3.1-flash-free") == 131072
+    assert official_max_output("minimax-m3.1-flash") == 131072

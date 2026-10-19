@@ -81,6 +81,9 @@ moonshot-v1-auto: kimi
 
 # --- MiniMax（可选 catalog）---
 minimax: minimax
+minimax-m3.1-flash: minimax
+minimax-m3.1-flash-free: minimax
+MiniMax-M3.1-Flash: minimax
 minimax-m1: minimax
 minimax-text-01: minimax
 MiniMax-M1: minimax
