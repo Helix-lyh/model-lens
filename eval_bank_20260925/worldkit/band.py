@@ -91,11 +91,13 @@ def accept(
     if not plans:
         return None
     hits = []
+    live = fam.effective(world)
+    cf_live = fam.effective(cf_world)
     for plan in plans:
-        gout = fam.simulate(world, plan)
+        gout = fam.simulate(live, plan)
         if gout is None:
-            return None
-        gcf = fam.simulate(cf_world, plan)
+            continue
+        gcf = fam.simulate(cf_live, plan)
         cf_m = gcf.metrics if gcf is not None else None
         scored = answers.score_plan(fam, world, key, plan, sol.best, cf_m)
         if scored is None:
@@ -103,6 +105,8 @@ def accept(
         if not (lo <= scored["points"] <= hi):
             return None
         hits.append({"plan": list(plan), "points": scored["points"], "metrics": dict(gout.metrics)})
+    if not hits:
+        return None
     ref = answers.score(
         fam, world, key,
         answers.reference_text(world, key, core.Solver(fam, budget), best=sol.best),

@@ -70,12 +70,24 @@ def _calls(world: dict) -> list[tuple[str, int, int, int]]:
     return out
 
 
+def greedy_call_order(world: dict) -> tuple:
+    """停靠点按编号。必须覆盖全部停靠，否则模拟会送不完人。"""
+    stops = world["data"]["stops"]
+    if isinstance(stops, dict):
+        return tuple(sorted(stops))
+    return tuple(stops)
+
+
 class ElevatorFamily:
     id = "elevator"
+    primary = "total_wait"
+    shared = "max_wait"
+    cf_key = "cap_plus_one"
     modules = MODULES
     metrics = METRICS
     counterfactuals = COUNTERFACTUALS
     readings = READINGS
+    greedies = staticmethod(lambda w: [greedy_call_order(w)])
 
     def effective(self, world: dict) -> dict:
         return world

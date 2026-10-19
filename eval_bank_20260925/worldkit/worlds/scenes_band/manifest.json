@@ -1,6 +1,6 @@
 {
  "id": "scenes_band",
- "goal": "每个场景一道，deepseek-flash 单样本 4–8 / 20",
+ "goal": "每场景一道。8 道实测 4–8/20；充电 9 分对照；推出占用修复后重测超时 0",
  "items": [
   {"file": "delivery.json", "family": "delivery", "scene": "单骑手配送", "points": 4, "live": "live_extreme10_deepseek-flash.json"},
   {"file": "trip.json", "family": "trip", "scene": "通勤规划", "points": 4, "live": "live_extreme10_deepseek-flash.json"},

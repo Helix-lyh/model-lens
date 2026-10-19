@@ -99,7 +99,7 @@
    "name": "cf_excess",
    "metric": "excess",
    "points": 5,
-   "cf": "no_mix"
+   "cf": "doctor_early"
   }
  ],
  "background": []

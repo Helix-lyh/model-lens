@@ -214,12 +214,22 @@ READINGS = {
 # 题族
 # ---------------------------------------------------------------------------
 
+def greedy_due(world: dict) -> tuple:
+    orders = world["data"]["orders"]
+    cancelled = set((world["modules"].get("cancel") or {}).get("ids", []))
+    active = [oid for oid in orders if oid not in cancelled]
+    return tuple(sorted(active, key=lambda oid: (orders[oid].get("deadline", orders[oid].get("due", 0)), oid)))
+
+
 class DeliveryFamily:
     id = "delivery"
+    primary = "total"
+    shared = "late_n"
     modules = MODULES
     metrics = METRICS
     counterfactuals = COUNTERFACTUALS
     readings = READINGS
+    greedies = staticmethod(lambda w: [greedy_due(w)])
 
     def effective(self, world: dict) -> dict:
         return _effective(world)

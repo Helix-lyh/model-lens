@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from eval_bank_20260925.worldkit import answers, band, core, render
-from eval_bank_20260925.worldkit.families import family_of, line, signal, trip
+from eval_bank_20260925.worldkit.families import family_of, line, signal, trip, ward
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -42,6 +42,7 @@ def test_scenes_band_worlds_exist():
     man = json.loads((root / "manifest.json").read_text())
     assert [it["file"].removesuffix(".json") for it in man["items"]] == list(names)
     assert man["sum_points"] == 43
+    assert "推出" in man["goal"] and "超时" in man["goal"]
     for name in names:
         assert (root / f"{name}.json").exists()
 
@@ -73,6 +74,27 @@ def test_patched_signal_offset_shift_keeps_greedy_in_band():
     assert got is not None
     assert all(4 <= h["points"] <= 8 for h in got["heuristics"])
     assert got["cf"] != got["optimal"]["delay"]
+
+
+def test_elevator_and_delivery_count_primary_matches():
+    from eval_bank_20260925.worldkit.families import delivery, elevator
+    ew = json.loads((ROOT / "eval_bank_20260925/worldkit/worlds/scenes_band/elevator.json").read_text())
+    es = core.solve(elevator.FAMILY, ew)
+    assert es.n_primary >= 1
+    assert es.n_shared >= 1
+    dw = json.loads((ROOT / "eval_bank_20260925/worldkit/worlds/scenes_band/delivery.json").read_text())
+    ds = core.solve(delivery.FAMILY, dw, core.Budget(80_000, 90))
+    assert ds.n_primary >= 1
+    assert ds.n_shared >= 1
+
+
+def test_ward_counterfactual_shifts_doctor_not_deletes_mix():
+    world = json.loads((ROOT / "eval_bank_20260925/worldkit/worlds/scenes_band/ward.json").read_text())
+    assert world["questions"][-1]["cf"] == "doctor_early"
+    assert "mix" in world["modules"]
+    cf = ward.FAMILY.counterfactuals["doctor_early"].transform(world)
+    assert cf["modules"]["doctor"]["at"] == world["modules"]["doctor"]["early"]
+    assert "mix" in cf["modules"]
 
 
 def test_scenes_band_charge_keeps_original_point_split():

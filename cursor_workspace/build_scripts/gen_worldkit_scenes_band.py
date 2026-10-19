@@ -51,11 +51,7 @@ def sample_ward(rng: random.Random) -> dict:
     world = g10.sample_ward(rng)
     world["data"]["patients"] = world["data"]["patients"][:7]
     world["modules"]["nurse"] = {}
-    qs = ward.FAMILY.questions()
-    for q in qs:
-        if q.get("cf"):
-            q["cf"] = "no_mix"
-    world["questions"] = qs
+    world["questions"] = ward.FAMILY.questions()
     return world
 
 
@@ -103,7 +99,8 @@ def sample_gate(rng: random.Random) -> dict:
 def sample_push(rng: random.Random) -> dict:
     zones = ["东", "西", "北"]
     flights = []
-    for i, name in enumerate("ABCDEFG"):
+    letters = "ABCDEFG"
+    for i, name in enumerate(letters):
         flights.append({
             "id": name,
             "dep": rng.randint(10, 28),
