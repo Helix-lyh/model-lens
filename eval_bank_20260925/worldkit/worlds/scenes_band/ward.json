@@ -1,77 +1,66 @@
 {
- "family": "ward",
+ "family": "triage",
  "data": {
+  "n_slots": 3,
+  "slot_end": [
+   8,
+   16,
+   24
+  ],
+  "beds": [
+   {
+    "id": "N"
+   },
+   {
+    "id": "I"
+   }
+  ],
   "patients": [
    {
     "id": "A",
-    "arrive": 0,
-    "limit": 1,
-    "stay": 7,
-    "iso": true,
-    "grade": "乙"
+    "seq": 0,
+    "grade": "隔离",
+    "care": 4,
+    "limit": 10
    },
    {
     "id": "B",
-    "arrive": 2,
-    "limit": 1,
-    "stay": 8,
-    "iso": true,
-    "grade": "甲"
+    "seq": 1,
+    "grade": "普通",
+    "care": 3,
+    "limit": 14
    },
    {
     "id": "C",
-    "arrive": 4,
-    "limit": 4,
-    "stay": 12,
-    "iso": true,
-    "grade": "甲"
+    "seq": 2,
+    "grade": "隔离",
+    "care": 4,
+    "limit": 10
    },
    {
     "id": "D",
-    "arrive": 6,
-    "limit": 2,
-    "stay": 9,
-    "iso": true,
-    "grade": "甲"
+    "seq": 3,
+    "grade": "普通",
+    "care": 3,
+    "limit": 14
    },
    {
     "id": "E",
-    "arrive": 8,
-    "limit": 1,
-    "stay": 10,
-    "iso": false,
-    "grade": "乙"
-   },
-   {
-    "id": "F",
-    "arrive": 10,
-    "limit": 2,
-    "stay": 6,
-    "iso": false,
-    "grade": "甲"
-   },
-   {
-    "id": "G",
-    "arrive": 12,
-    "limit": 2,
-    "stay": 9,
-    "iso": false,
-    "grade": "乙"
+    "seq": 4,
+    "grade": "隔离",
+    "care": 5,
+    "limit": 14
    }
   ]
  },
  "modules": {
-  "clean": {
-   "minutes": 4
+  "slot": {
+   "cap": 7
   },
   "mix": {
-   "extra": 16
-  },
-  "doctor": {
-   "at": 6,
-   "early": 0
-  },
-  "nurse": {}
+   "extra": 3,
+   "alt": 8
+  }
  },
  "objective": [
   "excess",
@@ -83,7 +72,7 @@
    "type": "plan",
    "metric": "excess",
    "points": 6,
-   "text": "给出最优处置顺序，患者编号用短横线连接，例如 A-B-C-D-E-F。"
+   "text": "给出最优方案，记号如 A1I-B2N-C1I。"
   },
   {
    "name": "excess",
@@ -99,7 +88,7 @@
    "name": "cf_excess",
    "metric": "excess",
    "points": 5,
-   "cf": "doctor_early"
+   "cf": "mix_shift"
   }
  ],
  "background": []

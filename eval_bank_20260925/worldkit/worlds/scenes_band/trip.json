@@ -204,7 +204,7 @@
   "fare": {
    "walk": 0,
    "bike": 2,
-   "bus": 3
+   "bus": 2
   }
  },
  "modules": {

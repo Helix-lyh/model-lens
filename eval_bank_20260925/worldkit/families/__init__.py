@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from eval_bank_20260925.worldkit.families import (
-    cascade, charge, deice, delivery, elevator, evac, gate, kitchen, line, oath, push, quay,
-    repair, signal, tank, trip, ward, yard,
+    cascade, charge, cycle, deice, delivery, elevator, evac, gate, kitchen, line, oath,
+    push, quay, ramp, repair, shift, signal, tank, triage, trip, ward, yard,
 )
 
 FAMILIES = {
@@ -24,6 +24,10 @@ FAMILIES = {
     yard.FAMILY.id: yard.FAMILY,
     oath.FAMILY.id: oath.FAMILY,
     **cascade.FAMILIES,
+    shift.FAMILY.id: shift.FAMILY,
+    cycle.FAMILY.id: cycle.FAMILY,
+    triage.FAMILY.id: triage.FAMILY,
+    ramp.FAMILY.id: ramp.FAMILY,
 }
 
 

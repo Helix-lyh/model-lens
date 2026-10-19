@@ -1,18 +1,18 @@
 {
  "id": "scenes_band",
- "goal": "每场景一道。8 道实测 4–8/20；充电 9 分对照；推出占用修复后重测超时 0",
+ "goal": "每场景一道。床位分诊 5；充电改为检修窗平移实测 5；通勤车费对齐后 4；推出仍超时 0",
  "items": [
   {"file": "delivery.json", "family": "delivery", "scene": "单骑手配送", "points": 4, "live": "live_extreme10_deepseek-flash.json"},
-  {"file": "trip.json", "family": "trip", "scene": "通勤规划", "points": 4, "live": "live_extreme10_deepseek-flash.json"},
+  {"file": "trip.json", "family": "trip", "scene": "通勤规划", "points": 4, "live": "live_scenes_band_tune20：公交与骑车同价，混合方案只撞上车费"},
   {"file": "elevator.json", "family": "elevator", "scene": "电梯群控", "points": 4, "live": "live_extreme10_deepseek-flash.json"},
   {"file": "line.json", "family": "line", "scene": "产线换型", "points": 5, "live": "live_scenes10b_deepseek-flash.json"},
   {"file": "signal.json", "family": "signal", "scene": "十字路口", "points": 4, "live": "live_scenes_band_cfshift2"},
   {"file": "kitchen.json", "family": "kitchen", "scene": "后厨出餐", "points": 4, "live": "live_scenes_band_share"},
-  {"file": "ward.json", "family": "ward", "scene": "急诊床位", "points": 4, "live": "live_scenes_band_share"},
-  {"file": "charge.json", "family": "charge", "scene": "车队充电", "points": 9, "live": "live_scenes10_harden：迟到辆数+反事实。两格都对，不在 4–8 内，作对照留下"},
+  {"file": "ward.json", "family": "triage", "scene": "急诊床位", "points": 5, "live": "live_scenes_band_assign：只对反事实超出分钟"},
+  {"file": "charge.json", "family": "charge", "scene": "车队充电", "points": 5, "live": "live_scenes_band_tune20：block_shift，只对反事实迟到分钟"},
   {"file": "push.json", "family": "push", "scene": "机坪推出", "points": 0, "live": "占用串行修复后重测超时 0；旧样本对修正金标是 9"},
   {"file": "yard.json", "family": "yard", "scene": "港口波次", "points": 5, "live": "live_scenes_band_new3：只对反事实过潮分钟"}
  ],
- "sum_points": 43,
+ "sum_points": 40,
  "max_points": 200
 }

@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from eval_bank_20260925.worldkit import answers, band, core, render
-from eval_bank_20260925.worldkit.families import family_of, line, signal, trip, ward
+from eval_bank_20260925.worldkit.families import family_of, line, signal, trip
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -41,7 +41,7 @@ def test_scenes_band_worlds_exist():
     root = ROOT / "eval_bank_20260925/worldkit/worlds/scenes_band"
     man = json.loads((root / "manifest.json").read_text())
     assert [it["file"].removesuffix(".json") for it in man["items"]] == list(names)
-    assert man["sum_points"] == 43
+    assert man["sum_points"] == 40
     assert "推出" in man["goal"] and "超时" in man["goal"]
     for name in names:
         assert (root / f"{name}.json").exists()
@@ -88,19 +88,24 @@ def test_elevator_and_delivery_count_primary_matches():
     assert ds.n_shared >= 1
 
 
-def test_ward_counterfactual_shifts_doctor_not_deletes_mix():
+def test_ward_counterfactual_shifts_mix_extra():
+    from eval_bank_20260925.worldkit.families import triage
     world = json.loads((ROOT / "eval_bank_20260925/worldkit/worlds/scenes_band/ward.json").read_text())
-    assert world["questions"][-1]["cf"] == "doctor_early"
+    assert world["family"] == "triage"
+    assert world["questions"][-1]["cf"] == "mix_shift"
     assert "mix" in world["modules"]
-    cf = ward.FAMILY.counterfactuals["doctor_early"].transform(world)
-    assert cf["modules"]["doctor"]["at"] == world["modules"]["doctor"]["early"]
+    cf = triage.FAMILY.counterfactuals["mix_shift"].transform(world)
+    assert cf["modules"]["mix"]["extra"] == world["modules"]["mix"]["alt"]
     assert "mix" in cf["modules"]
+    assert "slot" in cf["modules"]
 
 
 def test_scenes_band_charge_keeps_original_point_split():
     world = json.loads((ROOT / "eval_bank_20260925/worldkit/worlds/scenes_band/charge.json").read_text())
     pts = {q["name"]: q["points"] for q in world["questions"]}
     assert pts == {"plan": 6, "late": 5, "late_n": 4, "cf_late": 5}
+    assert world["questions"][-1]["cf"] == "block_shift"
+    assert "alt_hi" in world["modules"]["block"]
 
 
 def test_solution_counts_how_many_plans_share_the_gold_primary():

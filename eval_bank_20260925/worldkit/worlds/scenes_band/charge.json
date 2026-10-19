@@ -48,7 +48,8 @@
   "share": {},
   "block": {
    "lo": 0,
-   "hi": 12
+   "hi": 12,
+   "alt_hi": 24
   },
   "topup": {
    "extra": 3
@@ -80,7 +81,7 @@
    "name": "cf_late",
    "metric": "late",
    "points": 5,
-   "cf": "no_topup"
+   "cf": "block_shift"
   }
  ],
  "background": []
