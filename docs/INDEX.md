@@ -2,7 +2,7 @@
 
 个人兴趣工具：对 OpenAI 兼容中转（含 New API）及官方站做**家族归属 / 型号判真 / 降智**三栏独立审计。非取证、非生产门禁。不是 TideSight 子项目。
 
-安装、命令与密钥约定见仓库根目录 [README](../README.md)。现行实现合同是 [design](design.md)。题库内容快照版本 **2026090901**（`scorer-v2` / `single-v1` 是协议戳，不是题面版本）。
+安装、命令与密钥约定见仓库根目录 [README](../README.md)。现行实现合同是 [design](design.md)。活跃题库版本 **20261019**（计分 `20261019.s2`）。早期 Module C 快照 **2026090901**（`scorer-v2` / `single-v1` 是协议戳，不是题面版本）。
 
 | 文档 | 用途 |
 |---|---|
@@ -27,7 +27,8 @@
 | [worldkit](worldkit.md) | **条件参数化推理题框架**：世界结构、门禁、答案类型、难度档与生成；探针题库，不进活跃题库。 |
 | [worldkit-craft-20261019](worldkit-craft-20261019.md) | **十场景出题作坊**：模型怎么答、出题器/解题器/打分器、调哪些参数、十道清单。 |
 | [worldkit-handoff-20261018](worldkit-handoff-20261018.md) | **worldkit 交接**：实测分数和停手的形状。 |
-| [question-bank-20261019](question-bank-20261019.md) | **当前题库**：20261019 / 计分 20261019.s1，核实报告全修与答案键。 |
+| [question-bank-20261019](question-bank-20261019.md) | **当前题库集合**：20261019 / 计分 20261019.s2，推理/工程/编程各 10 道。 |
+| [learnings/2026-10-19-item-writing-scoring-tune](learnings/2026-10-19-item-writing-scoring-tune.md) | **出题/解题/打分/调参经验**：合同与实例、冻结身份、流式超时、对比页未判。 |
 | [results/eval-20261016-sync](results/eval-20261016-sync/README.md) | **实测记录**：beam-free / cat-jam-free / deepseek-flash 同步评测（题库 20261018）、词表结论、精简数据。 |
 | [review-20260830](review-20260830.md) | **过时**历史评审。不要按其中的旧参数实现（例如 `max_tokens=1`）。 |
 
