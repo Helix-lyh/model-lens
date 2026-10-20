@@ -7,7 +7,7 @@ model-lens 用自建 `httpx` 客户端判断匿名网关 / 官方站模型属于
 ```yaml
 oh_my_team:
   source: /Users/helix/Code/oh-my-team
-  entry: ROUTING.md
+  entry: ENTRY.md
   exclude: [design-handoff, ui-implementation, frontend-quality, vercel-react-best-practices, agent-browser, e2e-testing, mobile-delivery]
   capabilities: [git, shell, api]
 
@@ -19,11 +19,11 @@ project_knowledge:
 
 ## oh-my-team
 
-- 任务开始先读 `/Users/helix/Code/oh-my-team/ROUTING.md`，按意图选择流程、技能和知识，只打开选中的文件；`exclude` 里的技能不读。
+- 任务开始先读 `/Users/helix/Code/oh-my-team/ENTRY.md`，按意图选择流程、技能和知识，只打开选中的文件；`exclude` 里的技能不读。
 - 同名或同用途时以 oh-my-team 为准，全局技能只用于它没有覆盖的场景。
 - 读的是本机 checkout 的当前内容。路径不可读或路由指向的文件不存在时停止并报告，不改用全局副本、旧缓存或其他项目的上下文。
 - 只使用 `capabilities` 声明的能力；生产部署另需明确授权。
-- 用户消息以 `omt:` 开头时，按 `ROUTING.md` 的「`omt:` 快捷触发」组合技能：先输出一行计划，再按阶段执行。
+- 用户消息以 `omt:` 开头时，按 `ENTRY.md` 的「`omt:` 快捷触发」组合技能：先输出一行计划，再按阶段执行。
 - 调研结束、找到根因、交付完成或方案含通用部分时，按 oh-my-team 的 `codify` 技能向用户提议沉淀：零散内容整理成系统化文档，项目专属的写进本仓 `project_knowledge`，跨项目成立的写回 oh-my-team；用户确认大纲后才写。
 
 ## 项目结构与关键模块
@@ -134,7 +134,7 @@ Go：`package solution`，`GOPROXY=off`，`go test -v`。TS：先 `tsc` 再 `nod
 ```yaml
 oh_my_team:
   source: /workspace/oh-my-team
-  entry: ROUTING.md
+  entry: ENTRY.md
   exclude: []
   capabilities: [git, shell, api]
 
@@ -145,9 +145,9 @@ project_knowledge:
 ```
 
 
-- 任务开始先读 `/workspace/oh-my-team/ROUTING.md`，按意图选择流程、技能和知识，只打开选中的文件；`exclude` 里的技能不读。
+- 任务开始先读 `/workspace/oh-my-team/ENTRY.md`，按意图选择流程、技能和知识，只打开选中的文件；`exclude` 里的技能不读。
 - 同名或同用途时以 oh-my-team 为准，全局技能只用于它没有覆盖的场景。
 - 读的是本机 checkout 的当前内容。路径不可读或路由指向的文件不存在时停止并报告，不改用全局副本、旧缓存或其他项目的上下文。
 - 只使用 `capabilities` 声明的能力；生产部署另需明确授权。
-- 用户消息以 `omt:` 开头时，按 `ROUTING.md` 的「`omt:` 快捷触发」组合技能：先输出一行计划，再按阶段执行。
+- 用户消息以 `omt:` 开头时，按 `ENTRY.md` 的「`omt:` 快捷触发」组合技能：先输出一行计划，再按阶段执行。
 - 调研结束、找到根因、交付完成或方案含通用部分时，按 oh-my-team 的 `codify` 技能向用户提议沉淀：零散内容整理成系统化文档，项目专属的写进本仓 `project_knowledge`，跨项目成立的写回 oh-my-team；用户确认大纲后才写。
