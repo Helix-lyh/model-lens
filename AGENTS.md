@@ -44,7 +44,7 @@ project_knowledge:
 .venv/bin/python -m src.cli bank   --target examples/targets.yaml --quick
 .venv/bin/python -m src.cli audit  --target examples/targets.yaml --quick
 .venv/bin/pytest
-python cursor_workspace/build_scripts/fetch_catalog.py   # 下载词表（不进 git）
+python3 cursor_workspace/build_scripts/fetch_catalog.py   # 下载词表（不进 git）
 ```
 
 ## 项目特有约定与禁区
@@ -72,8 +72,8 @@ python cursor_workspace/build_scripts/fetch_catalog.py   # 下载词表（不进
 改编码沙箱、跑 `bank` / `audit`、或跑含 Go/TS 的 pytest 之前，先初始化并核对工具链。不要假设默认 PATH 里有 `go` / `node` / `tsc`（本机 `tsc` 常常不在 PATH，node 在 nvm 下）。
 
 ```bash
-python cursor_workspace/build_scripts/init_env.py          # 建 .venv、钉死 typescript 5.8.2
-python cursor_workspace/build_scripts/init_env.py --check  # 只检查，不安装
+python3 cursor_workspace/build_scripts/init_env.py          # 建 .venv、钉死 typescript 5.8.2
+python3 cursor_workspace/build_scripts/init_env.py --check  # 只检查，不安装
 ```
 
 或：`bash cursor_workspace/build_scripts/init_env.sh`
@@ -128,26 +128,3 @@ Go：`package solution`，`GOPROXY=off`，`go test -v`。TS：先 `tsc` 再 `nod
 - 词表文件不进 git；不要把用户 key 写入仓库
 - 不要主动 commit / push，除非用户明确要求
 - 对用户回复用中文
-
-## oh-my-team 接入
-
-```yaml
-oh_my_team:
-  source: /workspace/oh-my-team
-  entry: ENTRY.md
-  exclude: []
-  capabilities: [git, shell, api]
-
-project_knowledge:
-  decisions: docs/decisions/
-  memory: docs/memory/
-  learnings: docs/learnings/
-```
-
-
-- 任务开始先读 `/workspace/oh-my-team/ENTRY.md`，按意图选择流程、技能和知识，只打开选中的文件；`exclude` 里的技能不读。
-- 同名或同用途时以 oh-my-team 为准，全局技能只用于它没有覆盖的场景。
-- 读的是本机 checkout 的当前内容。路径不可读或路由指向的文件不存在时停止并报告，不改用全局副本、旧缓存或其他项目的上下文。
-- 只使用 `capabilities` 声明的能力；生产部署另需明确授权。
-- 用户消息以 `omt:` 开头时，按 `ENTRY.md` 的「`omt:` 快捷触发」组合技能：先输出一行计划，再按阶段执行。
-- 调研结束、找到根因、交付完成或方案含通用部分时，按 oh-my-team 的 `codify` 技能向用户提议沉淀：零散内容整理成系统化文档，项目专属的写进本仓 `project_knowledge`，跨项目成立的写回 oh-my-team；用户确认大纲后才写。
