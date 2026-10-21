@@ -78,7 +78,7 @@ python3 cursor_workspace/build_scripts/init_env.py --check  # 只检查，不安
 
 或：`bash cursor_workspace/build_scripts/init_env.sh`
 
-通过后再用 `.venv/bin/python` / `.venv/bin/pytest`。系统 `python3` 可能是 3.9，不要用它跑测。
+通过后再用 `.venv/bin/python` / `.venv/bin/pytest`；`python3` 只用来跑 init（系统解释器可能是 3.9），不要用它跑测。
 
 | 工具 | 要求 |
 |---|---|
